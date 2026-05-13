@@ -860,18 +860,6 @@ export default function Dashboard() {
             <p className="text-gray-500 mt-2">Manage your restaurant's menu items and translations.</p>
           </div>
           <div className="flex flex-wrap gap-4">
-            <Link 
-              to="/dashboard/custom-meals"
-              className="flex items-center gap-2 px-6 py-2 bg-white text-ink border border-gray-200 rounded-full hover:bg-gray-50 transition-all text-sm font-medium shadow-sm"
-            >
-              <LayoutGrid size={18} className="text-gold" /> Custom Meals
-            </Link>
-            <button 
-              onClick={() => setShowPreview(true)}
-              className="flex items-center gap-2 px-6 py-2 bg-white text-ink border border-gray-200 rounded-full hover:bg-gray-50 transition-all text-sm font-medium shadow-sm"
-            >
-              <Eye size={18} className="text-gold" /> Live Preview
-            </button>
             <button 
               onClick={() => setIsAdding(true)}
               className="flex items-center gap-2 px-6 py-2 bg-navy text-white rounded-full hover:bg-opacity-90 transition-all text-sm font-medium shadow-lg"

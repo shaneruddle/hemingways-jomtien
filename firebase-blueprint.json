@@ -22,34 +22,6 @@
       },
       "required": ["name", "category", "price"]
     },
-    "CustomMealItem": {
-      "title": "Custom Meal Item",
-      "description": "An ingredient for custom meals with nutritional information.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string", "description": "Name of the ingredient" },
-        "type": { "type": "string", "description": "Category (Protein, Carbohydrates, etc.)" },
-        "description": { "type": "string", "description": "Optional description" },
-        "order": { "type": "integer", "description": "Display order" },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "weight": { "type": "string", "description": "Weight label (e.g., 50 G)" },
-              "price": { "type": "number", "description": "Price in Baht" },
-              "calories": { "type": "number", "description": "Calories" },
-              "protein": { "type": "number", "description": "Protein in grams" },
-              "carbs": { "type": "number", "description": "Carbohydrates in grams" },
-              "fat": { "type": "number", "description": "Fat in grams" }
-            },
-            "required": ["weight", "price"]
-          }
-        },
-        "uid": { "type": "string", "description": "Creator UID" }
-      },
-      "required": ["name", "type", "order"]
-    },
     "Setting": {
       "title": "Setting",
       "description": "Application settings",
@@ -171,10 +143,6 @@
     "/menu/{itemId}": {
       "schema": "MenuItem",
       "description": "Collection of menu items."
-    },
-    "/custom_meals/{itemId}": {
-      "schema": "CustomMealItem",
-      "description": "Collection of custom meal ingredients."
     },
     "/settings/{settingId}": {
       "schema": "Setting",

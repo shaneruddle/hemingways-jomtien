@@ -166,7 +166,7 @@ export default function DashboardLayout({ user }: { user: any }) {
               isOpen={isMenuOpen}
               isCollapsed={isCollapsed}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              isActive={isSubActive('/dashboard/menu') || isActive('/dashboard') || isActive('/dashboard/categories') || isActive('/dashboard/custom-meals')}
+              isActive={isSubActive('/dashboard/menu') || isActive('/dashboard') || isActive('/dashboard/categories')}
             >
               {!isCollapsed && (
                 <>
@@ -179,11 +179,6 @@ export default function DashboardLayout({ user }: { user: any }) {
                     label="Categories" 
                     to="/dashboard/categories" 
                     isActive={isActive('/dashboard/categories')} 
-                  />
-                  <SidebarSubItem 
-                    label="Custom Meals" 
-                    to="/dashboard/custom-meals" 
-                    isActive={isActive('/dashboard/custom-meals')} 
                   />
                 </>
               )}

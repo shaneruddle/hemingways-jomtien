@@ -41,23 +41,19 @@ import {
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, query, where, orderBy, onSnapshot, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "./firebase";
-import { MenuItem, CustomMealItem, CustomMealOption, Category, Special, SportsEvent } from "./types";
+import { MenuItem, Category, Special, SportsEvent } from "./types";
 import { handleFirestoreError } from "./utils/firestore";
 import { normalizeImageUrl } from "./utils/images";
 // Optimized Sub-components
 import MenuItemCard from "./components/menu/MenuItemCard";
 import { FirebaseImage } from "./components/ui/FirebaseImage";
-import BuildYourOwn from "./components/menu/BuildYourOwn";
-import MealSummary from "./components/menu/MealSummary";
 import LanguageSwitcher from "./components/menu/LanguageSwitcher";
 import MenuItemCardGrid from "./components/menu/MenuItemCardGrid";
 import Dashboard from "./components/Dashboard";
 import CategoriesDashboard from "./components/CategoriesDashboard";
-import CustomMealsDashboard from "./components/CustomMealsDashboard";
 import Auth from "./components/Auth";
 import AdminLogin from "./components/auth/AdminLogin";
 import BulkImport from "./components/BulkImport";
-import BulkCustomMealsImport from "./components/BulkCustomMealsImport";
 import DigitalMenu from "./components/DigitalMenu";
 import DigitalMenuDisplay from "./components/DigitalMenuDisplay";
 import FinanceDashboard from "./components/finance/FinanceDashboard";
@@ -78,7 +74,7 @@ const Navbar = ({ canAccessDashboard, setUser }: { canAccessDashboard: boolean, 
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import" || location.pathname === "/import-custom-meals";
+  const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -785,133 +781,6 @@ const Footer = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
 );
 };
 
-const CustomMeals = () => {
-  const [items, setItems] = useState<CustomMealItem[]>([]);
-  const [activeType, setActiveType] = useState<string>("Protein");
-
-  useEffect(() => {
-    const q = query(collection(db, "custom_meals"), orderBy("order", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const mealItems = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as CustomMealItem[];
-      setItems(mealItems);
-      if (mealItems.length > 0 && !activeType) {
-        setActiveType(mealItems[0].type);
-      }
-    }, (err) => {
-      handleFirestoreError(err, 'list', 'custom_meals');
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const types = useMemo(() => {
-    const t = Array.from(new Set(items.map(item => item.type)));
-    return t.sort();
-  }, [items]);
-
-  const filteredItems = useMemo(() => {
-    return items.filter(item => item.type === activeType);
-  }, [items, activeType]);
-
-  return (
-    <section id="custom-meals" className="py-24 px-6 bg-white overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">Build Your Own Meal</h2>
-          <p className="text-lg text-gray-600 italic max-w-2xl mx-auto">
-            Choose your favorite ingredients and build a meal that fits your macros perfectly.
-          </p>
-          <div className="h-1 w-24 bg-navy mx-auto mt-6 rounded-full"></div>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-3 mb-12">
-          {types.map((type) => (
-            <button
-              key={type}
-              onClick={() => setActiveType(type)}
-              className={`px-6 py-2 rounded-full font-bold text-sm transition-all border-2 ${
-                activeType === type 
-                ? "bg-olive border-olive text-white shadow-lg" 
-                : "bg-white border-gray-100 text-gray-400 hover:border-olive hover:text-olive"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-
-        <motion.div 
-          key={activeType}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {filteredItems.map((item, idx) => (
-            <div key={item.id || idx} className="bg-cream p-8 rounded-[40px] shadow-sm border border-olive/5 flex flex-col h-full">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-2xl font-display font-bold text-ink">{item.name}</h3>
-                <span className="bg-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-olive border border-olive/10">
-                  {item.type}
-                </span>
-              </div>
-              
-              {item.description && (
-                <p className="text-gray-500 text-sm italic mb-6 leading-relaxed">
-                  {item.description}
-                </p>
-              )}
-
-              <div className="space-y-3">
-                {item.options.map((opt, oIdx) => (
-                  <div key={oIdx} className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-olive/5 shadow-sm">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-olive">{opt.weight}</span>
-                      <span className="text-gold font-bold text-lg">฿{opt.price}</span>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="text-center">
-                        <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Cals</div>
-                        <div className="text-xs font-bold text-ink flex items-center justify-center gap-1">
-                          <Flame size={10} className="text-orange-500" /> {opt.calories}
-                        </div>
-                      </div>
-                      <div className="text-center border-l border-gray-100">
-                        <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Prot</div>
-                        <div className="text-xs font-bold text-ink flex items-center justify-center gap-1">
-                          <Zap size={10} className="text-blue-500" /> {opt.protein}g
-                        </div>
-                      </div>
-                      <div className="text-center border-l border-gray-100">
-                        <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Carb</div>
-                        <div className="text-xs font-bold text-ink flex items-center justify-center gap-1">
-                          <Wheat size={10} className="text-amber-500" /> {opt.carbs}g
-                        </div>
-                      </div>
-                      <div className="text-center border-l border-gray-100">
-                        <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Fat</div>
-                        <div className="text-xs font-bold text-ink flex items-center justify-center gap-1">
-                          <Droplets size={10} className="text-yellow-600" /> {opt.fat}g
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </motion.div>
-
-        {filteredItems.length === 0 && (
-          <div className="text-center py-24 bg-cream rounded-[40px] border-2 border-dashed border-olive/10">
-            <p className="text-gray-400 italic">No ingredients found in this category.</p>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-};
 
 const SportsSchedule = () => {
   const [events, setEvents] = useState<SportsEvent[]>([]);
@@ -1162,7 +1031,7 @@ export default function App() {
 function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setError }: any) {
   const location = useLocation();
   const isDigitalMenu = location.pathname === "/menu" || location.pathname === "/digital-menu";
-  const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import" || location.pathname === "/import-custom-meals";
+  const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import";
   const isStaffApp = location.pathname === "/expense";
 
   const isAdmin = useMemo(() => {
@@ -1248,7 +1117,6 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setEr
         <Route path="/dashboard" element={(isAdmin || isMarketing) ? <DashboardLayout user={user} /> : <div className="pt-32 text-center h-screen bg-cream flex flex-col items-center justify-center gap-4">Access Denied. <Auth onUserChange={setUser} /></div>}>
           <Route index element={(isAdmin || isMarketing) ? <Dashboard /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="categories" element={(isAdmin || isMarketing) ? <CategoriesDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="custom-meals" element={(isAdmin || isMarketing) ? <CustomMealsDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="finance" element={isAdmin ? <FinanceDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="finance/import" element={isAdmin ? <BulkFinanceImport /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="users" element={isAdmin ? <UserManagement /> : <div className="p-20 text-center">Access Denied</div>} />
@@ -1258,7 +1126,6 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setEr
         </Route>
 
         <Route path="/import" element={(isAdmin || isMarketing) ? <BulkImport /> : <div className="pt-32 text-center h-screen bg-cream flex flex-col items-center justify-center gap-4">Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
-        <Route path="/import-custom-meals" element={(isAdmin || isMarketing) ? <BulkCustomMealsImport /> : <div className="pt-32 text-center h-screen bg-cream flex flex-col items-center justify-center gap-4">Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
         <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
       {!isDigitalMenu && ((!isDashboard && !isStaffApp) || !user) && (

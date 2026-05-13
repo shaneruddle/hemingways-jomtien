@@ -25,6 +25,8 @@ export default function AdminLogin() {
         message = "Invalid credentials. Please check your email and password.";
       } else if (error.code === 'auth/invalid-credential') {
         message = "Login failed. Please verify your credentials.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        message = "Email/Password login is not enabled in Firebase. Please enable it in the Firebase Console.";
       }
       toast.error(message);
     } finally {
@@ -45,6 +47,8 @@ export default function AdminLogin() {
         message = "This domain is not authorized in Firebase. Please add the preview URLs to 'Authorized Domains' in your Firebase Console.";
       } else if (error.code === 'auth/popup-blocked') {
         message = "Login popup was blocked. Please allow popups for this site.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        message = "Google login is not enabled in Firebase. Please enable it in the 'Sign-in method' section of your Firebase Console.";
       }
       toast.error(message);
     }

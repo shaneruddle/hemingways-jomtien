@@ -4,15 +4,13 @@ import { motion, AnimatePresence } from "motion/react";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../firebase";
-import { MenuItem, CustomMealItem, Category } from "../types";
+import { MenuItem, Category } from "../types";
 import { handleFirestoreError } from "../utils/firestore";
 import { normalizeImageUrl } from "../utils/images";
 import { FirebaseImage } from "./ui/FirebaseImage";
 
 // Optimized Sub-components
 import MenuItemCardGrid from "./menu/MenuItemCardGrid";
-import BuildYourOwn from "./menu/BuildYourOwn";
-import MealSummary from "./menu/MealSummary";
 import LanguageSwitcher from "./menu/LanguageSwitcher";
 
 type Language = 'en' | 'zh' | 'ru' | 'th';
@@ -34,18 +32,14 @@ const DigitalMenu = () => {
   const isPreview = searchParams.get('preview') === 'true';
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
-  const [customMeals, setCustomMeals] = useState<CustomMealItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("");
-  const [activeCustomType, setActiveCustomType] = useState("All");
   const [language, setLanguage] = useState<Language>('en');
-  const [selectedIngredients, setSelectedIngredients] = useState<SelectedIngredient[]>([]);
-  const [showSummary, setShowSummary] = useState(false);
-  const [loading, setLoading] = useState({ menu: true, meals: true });
+  const [loading, setLoading] = useState({ menu: true });
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const initialCategorySet = useRef(false);
 
-  const isLoading = loading.menu || loading.meals || (isPreview && authLoading);
+  const isLoading = loading.menu || (isPreview && authLoading);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -97,34 +91,14 @@ const DigitalMenu = () => {
 
   // Separate effect to handle initial category selection once both items and categoryList are ready
   useEffect(() => {
-    if (!initialCategorySet.current && !isLoading && (items.length > 0 || customMeals.length > 0)) {
-      if (items.length > 0) {
-        const firstCat = categoryList.length > 0 
-          ? categoryList.find(c => items.some(i => i.category === c.name))?.name || items[0].category
-          : items[0].category;
-        setActiveCategory(firstCat);
-      } else if (customMeals.length > 0) {
-        setActiveCategory("Build Your Own");
-      }
+    if (!initialCategorySet.current && !isLoading && items.length > 0) {
+      const firstCat = categoryList.length > 0 
+        ? categoryList.find(c => items.some(i => i.category === c.name))?.name || items[0].category
+        : items[0].category;
+      setActiveCategory(firstCat);
       initialCategorySet.current = true;
     }
-  }, [items, customMeals, categoryList, isLoading]);
-
-  useEffect(() => {
-    const q = query(collection(db, "custom_meals"), orderBy("order", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const mealItems = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as CustomMealItem[];
-      setCustomMeals(mealItems);
-      setLoading(prev => ({ ...prev, meals: false }));
-    }, (err) => {
-      console.error("Custom meals snapshot error:", err);
-      setLoading(prev => ({ ...prev, meals: false }));
-    });
-    return () => unsubscribe();
-  }, []);
+  }, [items, categoryList, isLoading]);
 
   const categories = useMemo(() => {
     const itemCats = Array.from(new Set<string>(items.map(item => item.category)));
@@ -139,11 +113,8 @@ const DigitalMenu = () => {
       cats = itemCats.sort();
     }
 
-    if (customMeals.length > 0 && !cats.includes("Build Your Own")) {
-      cats.push("Build Your Own");
-    }
     return cats;
-  }, [items, customMeals, categoryList]);
+  }, [items, categoryList]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => item.category === activeCategory);
@@ -155,53 +126,6 @@ const DigitalMenu = () => {
       setActiveCategory(categories[0]);
     }
   }, [categories, activeCategory]);
-
-  const customMealTypes = useMemo(() => {
-    const types = Array.from(new Set(customMeals.map(item => item.type)));
-    return ["All", ...types.sort()];
-  }, [customMeals]);
-
-  const filteredCustomMeals = useMemo(() => {
-    if (activeCustomType === "All") return customMeals;
-    return customMeals.filter(item => item.type === activeCustomType);
-  }, [customMeals, activeCustomType]);
-
-  const mealTotals = useMemo(() => {
-    return selectedIngredients.reduce((acc, curr) => ({
-      price: acc.price + curr.price,
-      calories: acc.calories + curr.calories,
-      protein: acc.protein + curr.protein,
-      carbs: acc.carbs + curr.carbs,
-      fat: acc.fat + curr.fat,
-    }), { price: 0, calories: 0, protein: 0, carbs: 0, fat: 0 });
-  }, [selectedIngredients]);
-
-  const toggleIngredient = useCallback((item: CustomMealItem, optionIndex: number) => {
-    const option = item.options[optionIndex];
-    const existingIndex = selectedIngredients.findIndex(
-      si => si.itemId === item.id && si.optionIndex === optionIndex
-    );
-
-    if (existingIndex > -1) {
-      setSelectedIngredients(prev => prev.filter((_, i) => i !== existingIndex));
-    } else {
-      setSelectedIngredients(prev => [...prev, {
-        itemId: item.id!,
-        itemName: item.name,
-        optionIndex,
-        weight: option.weight,
-        price: option.price,
-        calories: option.calories,
-        protein: option.protein,
-        carbs: option.carbs,
-        fat: option.fat,
-      }]);
-    }
-  }, [selectedIngredients]);
-
-  const isSelected = useCallback((itemId: string, optionIndex: number) => {
-    return selectedIngredients.some(si => si.itemId === itemId && si.optionIndex === optionIndex);
-  }, [selectedIngredients]);
 
   const getLocalizedName = useCallback((item: MenuItem) => {
     switch (language) {
@@ -327,66 +251,28 @@ const DigitalMenu = () => {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col gap-8"
           >
-            {activeCategory === "Build Your Own" && (
-              <div className="flex flex-wrap gap-2">
-                {customMealTypes.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setActiveCustomType(type)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                      activeCustomType === type
-                      ? "bg-olive border-olive text-white shadow-md"
-                      : "bg-white border-gray-200 text-gray-400 hover:border-olive hover:text-olive"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            )}
-
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {activeCategory === "Build Your Own" ? (
-                <BuildYourOwn 
-                  customMealTypes={customMealTypes}
-                  activeCustomType={activeCustomType}
-                  setActiveCustomType={setActiveCustomType}
-                  filteredCustomMeals={filteredCustomMeals}
-                  isSelected={isSelected}
-                  toggleIngredient={toggleIngredient}
-                  isAdminView={false}
+              {filteredItems.map((item, index) => (
+                <MenuItemCardGrid 
+                  key={item.id}
+                  item={item}
+                  language={language}
+                  getLocalizedName={getLocalizedName}
+                  getLocalizedDesc={getLocalizedDesc}
+                  renderPrice={renderPrice}
+                  priority={index < 2}
                 />
-              ) : (
-                filteredItems.map((item, index) => (
-                  <MenuItemCardGrid 
-                    key={item.id}
-                    item={item}
-                    language={language}
-                    getLocalizedName={getLocalizedName}
-                    getLocalizedDesc={getLocalizedDesc}
-                    renderPrice={renderPrice}
-                    priority={index < 2}
-                  />
-                ))
-              )}
+              ))}
             </div>
           </motion.div>
 
-          {(activeCategory === "Build Your Own" ? filteredCustomMeals.length === 0 : filteredItems.length === 0) && (
+          {filteredItems.length === 0 && (
             <div className="text-center py-24 bg-white rounded-[32px] border-2 border-dashed border-gray-100">
               <p className="text-gray-400 italic">No items found in this category.</p>
             </div>
           )}
         </main>
       </div>
-
-      <MealSummary 
-        selectedIngredients={selectedIngredients}
-        mealTotals={mealTotals}
-        showSummary={showSummary}
-        setShowSummary={setShowSummary}
-        setSelectedIngredients={setSelectedIngredients}
-      />
     </div>
   );
 };

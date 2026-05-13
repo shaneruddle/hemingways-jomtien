@@ -29,31 +29,6 @@ export interface MenuItem {
   uid?: string;
 }
 
-export interface CustomMealOption {
-  weight: string;
-  price: number;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-}
-
-export interface CustomMealItem {
-  id?: string;
-  name: string;
-  type: string;
-  description?: string;
-  order: number;
-  options: CustomMealOption[];
-  uid?: string;
-}
-
-export interface SelectedIngredient {
-  itemId: string;
-  itemName: string;
-  option: CustomMealOption;
-}
-
 export interface Category {
   id?: string;
   name: string;
@@ -130,7 +105,7 @@ export interface SystemLog {
   userEmail: string;
   userId: string;
   timestamp: string;
-  category: 'menu' | 'category' | 'custom_meal' | 'finance' | 'user' | 'system' | 'image';
+  category: 'menu' | 'category' | 'finance' | 'user' | 'system' | 'image';
 }
 
 export interface Employee {
