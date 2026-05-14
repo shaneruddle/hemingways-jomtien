@@ -16,7 +16,8 @@ import {
   BarChart3,
   Receipt,
   Database,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../firebase';
@@ -247,6 +248,15 @@ export default function DashboardLayout({ user }: { user: any }) {
               to="/"
               isCollapsed={isCollapsed}
             />
+            {(user?.role === 'admin' || user?.role === 'marketing') && (
+              <SidebarItem 
+                icon={<Building2 size={20} />} 
+                label="Company Profile" 
+                to="/dashboard/profile"
+                isCollapsed={isCollapsed}
+                isActive={isActive('/dashboard/profile')}
+              />
+            )}
             {(user?.role === 'admin' || user?.role === 'cashier' || user?.role === 'marketing') && (
               <SidebarItem 
                 icon={<Receipt size={20} />} 

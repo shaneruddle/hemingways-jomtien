@@ -66,7 +66,7 @@ const PayrollSummaryModal: React.FC<PayrollSummaryModalProps> = ({ isOpen, onClo
       });
       setAdvances(advancesMap);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'finance_entries');
+      console.warn("Payroll entries listener error:", err.message);
     });
 
     const unsubscribeSummaries = onSnapshot(qSummaries, (snapshot) => {
@@ -84,7 +84,7 @@ const PayrollSummaryModal: React.FC<PayrollSummaryModalProps> = ({ isOpen, onClo
       setManualData(manualMap);
       setLoading(false);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'payroll_summaries');
+      console.warn("Payroll summaries listener error:", err.message);
       setLoading(false);
     });
 

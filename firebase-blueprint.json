@@ -137,9 +137,51 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "mobile", "balance"]
+    },
+    "CompanyProfile": {
+      "title": "Company Profile",
+      "description": "Business information and settings.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "description": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "lineId": { "type": "string" },
+        "email": { "type": "string" },
+        "googlePlaceId": { "type": "string" },
+        "mapEmbedUrl": { "type": "string" },
+        "openingHours": {
+          "type": "object",
+          "properties": {
+            "monday": { "type": "string" },
+            "tuesday": { "type": "string" },
+            "wednesday": { "type": "string" },
+            "thursday": { "type": "string" },
+            "friday": { "type": "string" },
+            "saturday": { "type": "string" },
+            "sunday": { "type": "string" }
+          }
+        },
+        "socialLinks": {
+          "type": "object",
+          "properties": {
+            "facebook": { "type": "string" },
+            "instagram": { "type": "string" },
+            "tripAdvisor": { "type": "string" }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
     }
   },
   "firestore": {
+    "/companyProfile/{docId}": {
+      "schema": "CompanyProfile",
+      "description": "Collection containing the single company profile document."
+    },
     "/menu/{itemId}": {
       "schema": "MenuItem",
       "description": "Collection of menu items."

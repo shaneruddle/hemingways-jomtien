@@ -142,6 +142,8 @@ export default function LoyaltyDashboard() {
         ...doc.data()
       })) as Transaction[];
       setTransactions(txs);
+    }, (err) => {
+      console.warn("Loyalty transactions listener error:", err.message);
     });
   };
 

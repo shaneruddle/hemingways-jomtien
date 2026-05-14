@@ -30,7 +30,7 @@ const Payroll: React.FC = () => {
 
   useEffect(() => {
     const q = query(collection(db, 'employees'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeEmployees = onSnapshot(q, (snapshot) => {
       const emps = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -38,10 +38,10 @@ const Payroll: React.FC = () => {
       setEmployees(emps);
       setLoading(false);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'employees');
+      console.warn("Payroll employees listener error:", err.message);
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => unsubscribeEmployees();
   }, []);
 
   const handleOpenModal = (emp: Employee | null = null) => {

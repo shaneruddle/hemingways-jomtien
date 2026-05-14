@@ -110,18 +110,25 @@ const FinanceDashboard: React.FC = () => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FinanceEntryType[];
       setEntries(data);
       setLoading(false);
+    }, (err) => {
+      console.warn("Finance entries listener error:", err.message);
+      setLoading(false);
     });
 
     const qCategories = query(collection(db, 'finance_categories'), orderBy('name', 'asc'));
     const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FinanceCategoryType[];
       setCategories(data);
+    }, (err) => {
+      console.warn("Finance categories listener error:", err.message);
     });
 
     const qEmployees = query(collection(db, 'employees'), orderBy('firstName', 'asc'));
     const unsubscribeEmployees = onSnapshot(qEmployees, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
       setEmployees(data);
+    }, (err) => {
+      console.warn("Employees listener error:", err.message);
     });
 
     return () => {

@@ -64,12 +64,14 @@ import UserManagement from "./components/UserManagement";
 import ImageManagement from "./components/ImageManagement";
 import SystemLogs from "./components/SystemLogs";
 import LoyaltyDashboard from "./components/LoyaltyDashboard";
+import CompanyProfileDashboard from "./components/CompanyProfileDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
+import { CompanyProfile } from "./types";
 
 const PLACE_ID = "Hemingways Jomtien"; // Fallback to search query if ID not found
 
-const Navbar = ({ canAccessDashboard, setUser }: { canAccessDashboard: boolean, businessInfo: BusinessInfo | null, setUser: (user: any) => void }) => {
+const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDashboard: boolean, companyProfile: CompanyProfile | null, setUser: (user: any) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
@@ -132,7 +134,7 @@ const Navbar = ({ canAccessDashboard, setUser }: { canAccessDashboard: boolean, 
           <Link to="/" className="flex items-center gap-2" onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}>
             <UtensilsIcon className={scrolled || isDashboard ? "text-gold" : "text-white"} size={24} />
             <span className={`font-display font-bold text-xl tracking-tight ${scrolled || isDashboard ? "text-white" : "text-white"}`}>
-              HEMINGWAYS <span className="text-gold">JOMTIEN</span>
+              {companyProfile?.name.split(' ')[0] || "HEMINGWAYS"} <span className="text-gold">{companyProfile?.name.split(' ').slice(1).join(' ') || "JOMTIEN"}</span>
             </span>
           </Link>
         </div>
@@ -229,7 +231,7 @@ const Navbar = ({ canAccessDashboard, setUser }: { canAccessDashboard: boolean, 
   );
 };
 
-const Hero = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
+const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   return (
     <section className="relative h-[90vh] flex items-center justify-center overflow-hidden bg-navy">
       {/* Subtle Dark Pattern Overlay */}
@@ -251,10 +253,10 @@ const Hero = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
           <div className="w-20 h-2px bg-gold/50 mb-6 rounded-full" />
           <h4 className="text-gold font-bold tracking-[0.3em] uppercase mb-4 text-sm md:text-base">ESTABLISHED SINCE 2004</h4>
           <h1 className="text-5xl md:text-8xl font-display font-bold text-white mb-6 drop-shadow-2xl">
-            HEMINGWAYS <span className="text-gold italic font-light">Jomtien</span>
+            {companyProfile?.name.split(' ')[0] || "HEMINGWAYS"} <span className="text-gold italic font-light">{companyProfile?.name.split(' ').slice(1).join(' ') || "Jomtien"}</span>
           </h1>
           <p className="text-xl md:text-2xl text-white/90 font-medium italic tracking-widest uppercase drop-shadow-lg max-w-3xl">
-            Jomtien's Biggest Expat Sports Bar & Restaurant
+            {companyProfile?.description || "Jomtien's Biggest Expat Sports Bar & Restaurant"}
           </p>
           <div className="mt-12 flex flex-wrap justify-center gap-6">
             <a href="#menu" className="navy-button flex items-center gap-2 border border-white/20 px-8 py-4 rounded-full font-bold transition-all hover:bg-white/5 active:scale-95 shadow-xl shadow-black/20">Explore Menu <ChevronRight size={18} /></a>
@@ -413,7 +415,7 @@ const Menu = () => {
       })) as Category[];
       setCategoryList(cats);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'categories');
+      console.warn("Categories listener error:", err.message);
     });
     return () => unsubscribe();
   }, []);
@@ -446,7 +448,7 @@ const Menu = () => {
         setActiveCategory(firstCat);
       }
     }, (err) => {
-      handleFirestoreError(err, 'list', 'menu');
+      console.warn("Menu listener error:", err.message);
     });
     return () => unsubscribe();
   }, [categoryList]);
@@ -585,7 +587,7 @@ return (
 );
 };
 
-const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
+const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   
   return (
@@ -597,7 +599,7 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
           viewport={{ once: true }}
           className="rounded-[32px] overflow-hidden h-[500px] shadow-xl relative"
         >
-          {apiKey && apiKey !== 'undefined' ? (
+          {companyProfile?.mapEmbedUrl ? (
             <iframe
               width="100%"
               height="100%"
@@ -605,14 +607,24 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
-              src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=Hemingways+Jomtien+Sai+2+Road+Pattaya`}
+              src={companyProfile.mapEmbedUrl}
+            ></iframe>
+          ) : apiKey && apiKey !== 'undefined' ? (
+            <iframe
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+              src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=place_id:${companyProfile?.googlePlaceId || "ChIJ5_lFroqWAjER6HN3niniP9o"}`}
             ></iframe>
           ) : (
         <div className="absolute inset-0 bg-navy/10 flex items-center justify-center">
           <div className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-xs">
             <MapPin className="mx-auto text-navy mb-4" size={32} />
             <h3 className="font-bold text-lg mb-2">Find Us Here</h3>
-            <p className="text-gray-600 text-sm">{businessInfo?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
+            <p className="text-gray-600 text-sm">{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
           </div>
         </div>
       )}
@@ -632,7 +644,7 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
           </div>
           <div>
             <h4 className="font-bold text-lg mb-1 text-ink">Address</h4>
-            <p className="text-gray-600">{businessInfo?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
+            <p className="text-gray-600">{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
           </div>
         </div>
 
@@ -642,7 +654,7 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
           </div>
           <div>
             <h4 className="font-bold text-lg mb-1 text-ink">Phone</h4>
-            <p className="text-gray-600">{businessInfo?.phone || "+66 38 232 422"}</p>
+            <p className="text-gray-600">{companyProfile?.phone || "+66 38 232 422"}</p>
           </div>
         </div>
 
@@ -653,8 +665,13 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
           <div>
             <h4 className="font-bold text-lg mb-1 text-ink">Hours</h4>
             <div className="text-gray-600 space-y-1">
-              {businessInfo?.hours.length ? (
-                businessInfo.hours.map((h, i) => <p key={i}>{h}</p>)
+              {companyProfile?.openingHours ? (
+                Object.entries(companyProfile.openingHours).map(([day, hours]) => (
+                  <p key={day} className="flex justify-between gap-4">
+                    <span className="capitalize w-24">{day}</span>
+                    <span>{hours}</span>
+                  </p>
+                ))
               ) : (
                 <>
                   <p>Open Daily: 10:00 AM - 12:00 AM</p>
@@ -667,11 +684,11 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
       </div>
 
       <div className="mt-12 flex gap-4">
-        <a href={businessInfo?.url || "https://www.facebook.com/hemingwaysjomtien"} target="_blank" rel="noopener noreferrer" className="bg-cream p-4 rounded-full text-navy hover:bg-navy hover:text-white transition-all">
+        <a href={companyProfile?.socialLinks.facebook || "https://www.facebook.com/hemingwaysjomtien"} target="_blank" rel="noopener noreferrer" className="bg-cream p-4 rounded-full text-navy hover:bg-navy hover:text-white transition-all">
           <Facebook size={24} />
         </a>
-        <a href={businessInfo?.url || "https://hemingwaysjomtien.com"} target="_blank" rel="noopener noreferrer" className="bg-cream p-4 rounded-full text-navy hover:bg-navy hover:text-white transition-all">
-          <Globe size={24} />
+        <a href={companyProfile?.socialLinks.instagram || "https://hemingwaysjomtien.com"} target="_blank" rel="noopener noreferrer" className="bg-cream p-4 rounded-full text-navy hover:bg-navy hover:text-white transition-all">
+          <Instagram size={24} />
         </a>
       </div>
     </motion.div>
@@ -680,7 +697,7 @@ const Location = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
 );
 };
 
-const Footer = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
+const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -714,24 +731,24 @@ const Footer = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
       <div className="flex items-center gap-2 mb-6 justify-center md:justify-start">
         <UtensilsIcon className="text-gold" size={24} />
         <span className="font-display font-bold text-2xl tracking-tight">
-          HEMINGWAYS <span className="text-gold italic font-light">Jomtien</span>
+          {companyProfile?.name.split(' ')[0] || "HEMINGWAYS"} <span className="text-gold italic font-light">{companyProfile?.name.split(' ').slice(1).join(' ') || "Jomtien"}</span>
         </span>
       </div>
       <p className="text-white/60 max-w-sm mb-8 mx-auto md:mx-0">
-        Jomtien's biggest expat sports bar and restaurant. Quality food, cold beer, and all your favorite sports on 15 screens.
+        {companyProfile?.description || "Jomtien's biggest expat sports bar and restaurant. Quality food, cold beer, and all your favorite sports on 15 screens."}
       </p>
       <div className="flex flex-col gap-4">
         <div className="flex gap-4 justify-center md:justify-start">
-          <a href="https://www.facebook.com/hemingwaysjomtien" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-gold transition-colors">
+          <a href={companyProfile?.socialLinks.facebook || "https://www.facebook.com/hemingwaysjomtien"} target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-gold transition-colors">
             <Facebook size={24} />
           </a>
-          <a href="https://hemingwaysjomtien.com" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-gold transition-colors">
-            <Globe size={24} />
+          <a href={companyProfile?.socialLinks.instagram || "https://hemingwaysjomtien.com"} target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-gold transition-colors">
+            <Instagram size={24} />
           </a>
         </div>
         <div className="space-y-1">
           <p className="text-white/40 text-sm uppercase tracking-widest font-bold">Address</p>
-          <p className="text-white/60 text-sm">Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150</p>
+          <p className="text-white/60 text-sm">{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
         </div>
       </div>
     </div>
@@ -796,7 +813,7 @@ const SportsSchedule = () => {
       setEvents(sportsEvents);
       setLoading(false);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'sports_schedule');
+      console.warn("Sports schedule listener error:", err.message);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -861,7 +878,7 @@ const Specials = () => {
       setSpecials(items);
       setLoading(false);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'specials');
+      console.warn("Specials listener error:", err.message);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -994,23 +1011,24 @@ const Reviews = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
   );
 };
 
-const MainSite = ({ isAdmin, businessInfo }: { isAdmin: boolean, businessInfo: BusinessInfo | null }) => (
+const MainSite = ({ isAdmin, businessInfo, companyProfile }: { isAdmin: boolean, businessInfo: BusinessInfo | null, companyProfile: CompanyProfile | null }) => (
 <div className="min-h-screen">
-<Hero businessInfo={businessInfo} />
+<Hero companyProfile={companyProfile} />
 <Features />
 <About />
 <Menu />
 <Specials />
 <SportsSchedule />
 <Reviews businessInfo={businessInfo} />
-<Location businessInfo={businessInfo} />
-<Footer businessInfo={businessInfo} />
+<Location companyProfile={companyProfile} />
+<Footer companyProfile={companyProfile} />
 </div>
 );
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -1021,6 +1039,8 @@ export default function App() {
         setUser={setUser} 
         businessInfo={businessInfo} 
         setBusinessInfo={setBusinessInfo} 
+        companyProfile={companyProfile}
+        setCompanyProfile={setCompanyProfile}
         error={error} 
         setError={setError} 
       />
@@ -1028,7 +1048,7 @@ export default function App() {
   );
 }
 
-function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setError }: any) {
+function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfile, setCompanyProfile, error, setError }: any) {
   const location = useLocation();
   const isDigitalMenu = location.pathname === "/menu" || location.pathname === "/digital-menu";
   const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import";
@@ -1079,6 +1099,22 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setEr
         console.error("Failed to fetch business info:", err);
         setError(err.message || "An unexpected error occurred while fetching business details.");
       });
+
+    // Fetch Company Profile
+    const unsubscribe = onSnapshot(doc(db, 'companyProfile', 'config'), (snapshot) => {
+      try {
+        if (snapshot.exists()) {
+          setCompanyProfile(snapshot.data() as CompanyProfile);
+        }
+      } catch (err) {
+        console.error("Error processing company profile snapshot:", err);
+      }
+    }, (err) => {
+      console.warn("Company profile listener permission or access issue:", err.message);
+      // Don't throw here to avoid crashing the main app loop
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -1098,7 +1134,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setEr
           </button>
         </div>
       )}
-      {!isDigitalMenu && !isDashboard && !isStaffApp && !isEmployee && <Navbar canAccessDashboard={isMarketing} setUser={setUser} businessInfo={null} />}
+      {!isDigitalMenu && !isDashboard && !isStaffApp && !isEmployee && <Navbar canAccessDashboard={isMarketing} setUser={setUser} companyProfile={companyProfile} />}
       {isAdmin && error && !isDigitalMenu && (
         <div className="pt-24 px-6">
           <div className="max-w-7xl mx-auto bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3 text-sm">
@@ -1108,7 +1144,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setEr
         </div>
       )}
       <Routes>
-        <Route path="/" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Redirecting to Staff Portal...</div> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} />} />
+        <Route path="/" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Redirecting to Staff Portal...</div> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} companyProfile={companyProfile} />} />
         <Route path="/menu" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Access Denied</div> : <DigitalMenuDisplay />} />
         <Route path="/digital-menu" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Access Denied</div> : <DigitalMenuDisplay />} />
         <Route path="/expense" element={isStaff ? <ExpenseEntry /> : <div className="pt-32 text-center h-screen bg-cream">Access Denied. Please login with a staff account.</div>} />
@@ -1122,6 +1158,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, error, setEr
           <Route path="users" element={isAdmin ? <UserManagement /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="loyalty" element={isAdmin ? <LoyaltyDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="images" element={(isAdmin || isMarketing) ? <ImageManagement /> : <div className="p-20 text-center">Access Denied</div>} />
+          <Route path="profile" element={(isAdmin || isMarketing) ? <CompanyProfileDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
           <Route path="logs" element={isAdmin ? <SystemLogs /> : <div className="p-20 text-center">Access Denied</div>} />
         </Route>
 

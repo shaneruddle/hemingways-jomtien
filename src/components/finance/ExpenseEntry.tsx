@@ -49,6 +49,8 @@ const ExpenseEntry: React.FC = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const cats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FinanceCategory[];
       setCategories(cats);
+    }, (err) => {
+      console.warn("Expense categories listener error:", err.message);
     });
 
     // Fetch user profile to check role for "Back to Dashboard" button

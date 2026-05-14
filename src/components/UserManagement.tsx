@@ -45,10 +45,9 @@ export default function UserManagement() {
       setUsers(userList);
       setLoading(false);
     }, (err) => {
-      console.error("Users snapshot error:", err);
+      console.warn("Users snapshot error:", err.message);
       setError("Failed to load users. You might not have permission.");
       setLoading(false);
-      handleFirestoreError(err, 'list' as OperationType, 'users');
     });
 
     return () => unsubscribe();

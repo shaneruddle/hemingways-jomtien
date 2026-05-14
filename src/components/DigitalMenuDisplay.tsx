@@ -56,7 +56,7 @@ const DigitalMenuDisplay = () => {
       })) as Category[];
       setCategoryList(cats);
     }, (err) => {
-      handleFirestoreError(err, 'list', 'categories');
+      console.warn("Categories listener error:", err.message);
     });
     return () => unsubscribe();
   }, []);

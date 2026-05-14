@@ -29,6 +29,34 @@ export interface MenuItem {
   uid?: string;
 }
 
+export interface CompanyProfile {
+  id?: string;
+  name: string;
+  address: string;
+  description: string;
+  phone: string;
+  whatsapp: string;
+  lineId: string;
+  email: string;
+  googlePlaceId: string;
+  mapEmbedUrl: string;
+  openingHours: {
+    monday: string;
+    tuesday: string;
+    wednesday: string;
+    thursday: string;
+    friday: string;
+    saturday: string;
+    sunday: string;
+  };
+  socialLinks: {
+    facebook: string;
+    instagram: string;
+    tripAdvisor: string;
+  };
+  updatedAt: string;
+}
+
 export interface Category {
   id?: string;
   name: string;
