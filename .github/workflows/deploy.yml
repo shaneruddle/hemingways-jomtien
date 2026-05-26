@@ -9,7 +9,7 @@ env:
   PROJECT_ID: hemingways-jomtien-website
   SERVICE: hemingways-jomtien
   REGION: asia-southeast1
-  IMAGE: gcr.io/hemingways-jomtien-website/hemingways-jomtien
+  IMAGE: asia-southeast1-docker.pkg.dev/hemingways-jomtien-website/hemingways-jomtien/app
 
 jobs:
   deploy:
@@ -29,8 +29,8 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker --quiet
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
 
       - name: Build Docker image
         run: |
