@@ -1,6 +1,3 @@
-import { ref, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
-
 /**
  * ImageService: A robust service for resolving image URLs from various sources.
  * It handles Firebase Storage (gs://), local assets, and full URLs.
@@ -55,42 +52,27 @@ export class ImageService {
     if (trimmedSrc.startsWith('gs://')) {
       const parts = trimmedSrc.split('/');
       if (parts.length >= 4) {
+        const bucket = parts[2];
         // Extract the path after gs://bucket/
-        let path = parts.slice(3).join('/');
-        path = path.replace(/-20/g, ' ').replace(/%20/g, ' ');
-        
-        try {
-          const storageRef = ref(storage, path);
-          const url = await getDownloadURL(storageRef);
-          this.cache.set(src, url);
-          return url;
-        } catch (error) {
-          console.warn(`ImageService: Failed to resolve gsUrl "${trimmedSrc}" as "${path}". Fallback to logo.`);
-          return '/logo.png';
-        }
+        let pathName = parts.slice(3).join('/');
+        pathName = pathName.replace(/-20/g, ' ').replace(/%20/g, ' ');
+        const url = `/api/image-proxy?path=${encodeURIComponent(pathName)}&bucket=${encodeURIComponent(bucket)}`;
+        this.cache.set(src, url);
+        return url;
       }
     }
 
     // 4. Handle direct storage paths or local assets
     const cleanPath = trimmedSrc.replace(/^\/+/, '').replace(/-20/g, ' ').replace(/%20/g, ' ');
     
-    // Check if it's a known local asset first
-    if (trimmedSrc.startsWith('/logo.png') || trimmedSrc.startsWith('/favicon')) {
+    // Check if it's a known local asset or api route first
+    if (trimmedSrc.startsWith('/logo.png') || trimmedSrc.startsWith('/favicon') || trimmedSrc.startsWith('/api/')) {
       return trimmedSrc;
     }
 
-    try {
-      const storageRef = ref(storage, cleanPath);
-      const url = await getDownloadURL(storageRef);
-      this.cache.set(src, url);
-      return url;
-    } catch (e) {
-      // If it starts with / and failed storage, it might be a local public file
-      if (trimmedSrc.startsWith('/')) {
-        return trimmedSrc;
-      }
-      return '/logo.png';
-    }
+    const url = `/api/image-proxy?path=${encodeURIComponent(cleanPath)}`;
+    this.cache.set(src, url);
+    return url;
   }
 
   /**

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, onSnapshot, query, where, doc, getDoc } from 'firebase/firestore';
-import { db, auth, storage } from '../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth } from '../../firebase';
 import { GoogleGenAI, Type } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -190,16 +189,40 @@ const ExpenseEntry: React.FC = () => {
       const now = new Date();
       const monthFolder = format(now, 'MMMM yyyy'); // e.g. "April 2026"
       
-      // Upload all files to storage
+      // Upload all files to storage via the backend secure upload helper
       for (const file of files) {
         const timestamp = Date.now();
         const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
         const storagePath = `receipts/${monthFolder}/${fileName}`;
-        const storageRef = ref(storage, storagePath);
         
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-        receiptUrls.push(downloadUrl);
+        // Read file as base64
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+
+        const uploadResponse = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            image: base64Data,
+            storagePath,
+            contentType: file.type
+          })
+        });
+
+        if (!uploadResponse.ok) {
+          const errJson = await uploadResponse.json().catch(() => ({}));
+          throw new Error(errJson.error || `HTTP error! status: ${uploadResponse.status}`);
+        }
+
+        const uploadResult = await uploadResponse.json();
+        // Save the proxy url or gsUrl
+        receiptUrls.push(uploadResult.gsUrl || `gs://hemingways-jomtien-website.firebasestorage.app/${storagePath}`);
       }
 
       await addDoc(collection(db, 'finance_entries'), {

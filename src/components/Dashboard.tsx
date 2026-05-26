@@ -12,8 +12,8 @@ import {
   onSnapshot,
   writeBatch
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
+import { ref, uploadBytes } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { imageService } from '../services/imageService';
 import { MenuItem, Category, OperationType } from '../types';
@@ -424,7 +424,7 @@ export default function Dashboard() {
     setIsFixingBuckets(true);
     let fixedCount = 0;
     try {
-      const currentBucket = firebaseConfig.storageBucket || 'hemingways-jomtien.firebasestorage.app';
+      const currentBucket = firebaseConfig.storageBucket || 'hemingways-jomtien-website.firebasestorage.app';
       const batch = writeBatch(db);
       
       items.forEach(item => {
@@ -644,13 +644,49 @@ export default function Dashboard() {
   };
 
   const slugify = (text: string) => {
-    return text
+    if (!text) return 'item';
+    const slug = text
       .toString()
-      .toLowerCase()
       .trim()
+      .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^\w-]+/g, '')
       .replace(/--+/g, '-');
+    return slug || `item-${Date.now()}`;
+  };
+
+  const startAdd = () => {
+    setEditingItem(null);
+    setInitialPaths({});
+    setFormData({
+      name: '',
+      name_chinese: '',
+      name_russian: '',
+      name_thai: '',
+      description: '',
+      description_chinese: '',
+      description_russian: '',
+      description_thai: '',
+      price: '',
+      priceLabel: '',
+      price2: '',
+      price2Label: '',
+      price3: '',
+      price3Label: '',
+      price4: '',
+      price4Label: '',
+      category: 'Smoothie Bowls',
+      image: '',
+      secondaryImage: '',
+      primaryPhotoPath: '',
+      secondaryPhotoPath: '',
+      highResImage: '',
+      socialImage: '',
+      promoImages: [],
+      published: true,
+      order: 0
+    });
+    setIsAdding(true);
   };
 
   const startEdit = (item: MenuItem) => {
@@ -688,18 +724,12 @@ export default function Dashboard() {
       return;
     }
 
-    if (!formData.name) {
-      setError("Please enter an item name before uploading images to ensure correct folder organization.");
-      toast.error("Please enter item name first");
-      return;
-    }
-
     setUploading(true);
     setError(null);
 
     let storagePath = '';
     try {
-      const itemSlug = slugify(formData.name);
+      const itemSlug = formData.name ? slugify(formData.name) : `item_${Date.now()}`;
       let fileName = file.name.replace(/\s+/g, '_');
       
       // Use standardized filenames for core slots if possible, or keep original with timestamp
@@ -712,21 +742,58 @@ export default function Dashboard() {
       else if (field === 'promoImages') fileName = `promo_${index ?? Date.now()}_${fileName}`;
 
       storagePath = `menu-items/${itemSlug}/${fileName}`;
-      const storageRef = ref(storage, storagePath);
       
-      console.log(`Uploading to: ${storagePath}`);
-      console.log("Storage Instance Bucket:", storage.app.options.storageBucket);
+      // 1. Convert to optimized WebP on the client side using browser canvas
+      let fileToUpload: File | Blob = file;
+      if (file.type.startsWith("image/") && !file.name.endsWith(".svg")) {
+        try {
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+          });
+          
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const webpBlob = await new Promise<Blob | null>((resolve) => {
+              canvas.toBlob((blob) => resolve(blob), "image/webp", 0.85);
+            });
+            
+            if (webpBlob) {
+              const cleanName = fileName.replace(/\.[^/.]+$/, "");
+              fileToUpload = new File([webpBlob], `${cleanName}.webp`, { type: "image/webp" });
+              
+              // Ensure storage path matches webp
+              const pathParts = storagePath.split('.');
+              if (pathParts.length > 1) {
+                pathParts[pathParts.length - 1] = 'webp';
+                storagePath = pathParts.join('.');
+              } else {
+                storagePath = `${storagePath}.webp`;
+              }
+            }
+          }
+          URL.revokeObjectURL(img.src);
+        } catch (webpErr) {
+          console.warn("Client-side WebP conversion failed, reverting to original file:", webpErr);
+          fileToUpload = file;
+        }
+      }
+      
+      console.log(`Uploading directly from client to Firebase Storage ref: ${storagePath}`);
       console.log("Auth State:", auth.currentUser ? "Logged In" : "Logged Out");
       
-      // Upload the file
-      await uploadBytes(storageRef, file);
+      // 2. Direct upload to Firebase Storage via client SDK
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, fileToUpload);
       
-      // Get the gs:// URL
-      const bucket = firebaseConfig.storageBucket || storage.app.options.storageBucket || 'hemingways-jomtien.firebasestorage.app';
-      console.log("Using Storage Bucket:", bucket);
-      const gsUrl = `gs://${bucket}/${storagePath}`;
-      
-      console.log(`Upload successful. GS URL: ${gsUrl}`);
+      const gsUrl = `gs://${firebaseConfig.storageBucket || 'hemingways-jomtien-website.firebasestorage.app'}/${storagePath}`;
+      console.log("Uploaded successfully from client! GS URL:", gsUrl);
       
       // Clear cache just in case, though unique filename should handle it
       imageService.clearCache(gsUrl);
@@ -770,8 +837,10 @@ export default function Dashboard() {
       let downloadUrl = gsUrl;
       if (gsUrl.startsWith('gs://')) {
         // More robust path extraction: gs://bucket/path/to/file
-        const path = gsUrl.split('/').slice(3).join('/');
-        downloadUrl = await getDownloadURL(ref(storage, path));
+        const parts = gsUrl.split('/');
+        const bucket = parts[2];
+        const path = parts.slice(3).join('/');
+        downloadUrl = window.location.origin + `/api/image-proxy?path=${encodeURIComponent(path)}&bucket=${encodeURIComponent(bucket)}`;
       } else if (gsUrl.startsWith('/')) {
         downloadUrl = window.location.origin + gsUrl;
       }
@@ -814,21 +883,21 @@ export default function Dashboard() {
       const oldPath = oldGsUrl.replace('gs://', '').split('/').slice(1).join('/');
       const newPath = newGsUrl.replace('gs://', '').split('/').slice(1).join('/');
       
-      const oldRef = ref(storage, oldPath);
-      const newRef = ref(storage, newPath);
+      const response = await fetch('/api/rename-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fullPath: oldPath,
+          newPath: newPath
+        })
+      });
 
-      // 1. Get download URL
-      const downloadUrl = await getDownloadURL(oldRef);
-      
-      // 2. Fetch blob
-      const response = await fetch(downloadUrl);
-      const blob = await response.blob();
-      
-      // 3. Upload to new location
-      await uploadBytes(newRef, blob);
-      
-      // 4. Delete old file
-      await deleteObject(oldRef);
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP error! status: ${response.status}`);
+      }
       
       // Update initialPaths so the sync button disappears
       setInitialPaths(prev => {
@@ -861,7 +930,7 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap gap-4">
             <button 
-              onClick={() => setIsAdding(true)}
+              onClick={startAdd}
               className="flex items-center gap-2 px-6 py-2 bg-navy text-white rounded-full hover:bg-opacity-90 transition-all text-sm font-medium shadow-lg"
             >
               <Plus size={18} /> Add New Item
@@ -1207,11 +1276,11 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-8">
+                  <div className="max-w-2xl mx-auto space-y-4">
                     {/* Primary Photo (Optimized WebP) */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-ink uppercase tracking-wider">1) Primary Photo Path (Priority)</h4>
+                        <h4 className="text-sm font-bold text-ink uppercase tracking-wider">Primary Photo Path (Priority)</h4>
                         <span className="text-[10px] font-bold text-gold bg-gold/5 px-2 py-0.5 rounded">Exact Path</span>
                       </div>
                       <ImageSlot
@@ -1225,133 +1294,6 @@ export default function Dashboard() {
                         onRename={(old, curr) => handleRenameFile(old, curr, 'primaryPhotoPath')}
                         uploading={uploading}
                       />
-                    </div>
-
-                    {/* Legacy Primary Photo */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-ink uppercase tracking-wider">2) Legacy Image Field (Fallback)</h4>
-                        <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded">Legacy</span>
-                      </div>
-                      <ImageSlot
-                        label="Legacy Image"
-                        value={formData.image || ''}
-                        initialValue={initialPaths.image}
-                        onUpload={(e) => handleFileUpload(e, 'image')}
-                        onRemove={() => setFormData(prev => ({ ...prev, image: '' }))}
-                        onChange={(val) => setFormData(prev => ({ ...prev, image: val }))}
-                        onDownload={() => handleDownload(formData.image || '')}
-                        onRename={(old, curr) => handleRenameFile(old, curr, 'image')}
-                        uploading={uploading}
-                      />
-                    </div>
-
-                    {/* Secondary Photo Path */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-ink uppercase tracking-wider">3) Secondary Photo Path</h4>
-                        <span className="text-[10px] font-bold text-gold bg-gold/5 px-2 py-0.5 rounded">Exact Path</span>
-                      </div>
-                      <ImageSlot
-                        label="Secondary Path"
-                        value={formData.secondaryPhotoPath || ''}
-                        initialValue={initialPaths.secondaryPhotoPath}
-                        onUpload={(e) => handleFileUpload(e, 'secondaryPhotoPath')}
-                        onRemove={() => setFormData(prev => ({ ...prev, secondaryPhotoPath: '' }))}
-                        onChange={(val) => setFormData(prev => ({ ...prev, secondaryPhotoPath: val }))}
-                        onDownload={() => handleDownload(formData.secondaryPhotoPath || '')}
-                        onRename={(old, curr) => handleRenameFile(old, curr, 'secondaryPhotoPath')}
-                        uploading={uploading}
-                      />
-                    </div>
-
-                    {/* High-Res Source */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-ink uppercase tracking-wider">4) High-Res Source</h4>
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Original Quality</span>
-                      </div>
-                      <ImageSlot
-                        label="High-Res"
-                        value={formData.highResImage || ''}
-                        initialValue={initialPaths.highResImage}
-                        onUpload={(e) => handleFileUpload(e, 'highResImage')}
-                        onRemove={() => setFormData(prev => ({ ...prev, highResImage: '' }))}
-                        onChange={(val) => setFormData(prev => ({ ...prev, highResImage: val }))}
-                        onDownload={() => handleDownload(formData.highResImage || '')}
-                        onRename={(old, curr) => handleRenameFile(old, curr, 'highResImage')}
-                        uploading={uploading}
-                      />
-                    </div>
-
-                    {/* Social Media Graphic */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-ink uppercase tracking-wider">5) Social Graphic</h4>
-                        <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Instagram/FB</span>
-                      </div>
-                      <ImageSlot
-                        label="Social"
-                        value={formData.socialImage || ''}
-                        initialValue={initialPaths.socialImage}
-                        onUpload={(e) => handleFileUpload(e, 'socialImage')}
-                        onRemove={() => setFormData(prev => ({ ...prev, socialImage: '' }))}
-                        onChange={(val) => setFormData(prev => ({ ...prev, socialImage: val }))}
-                        onDownload={() => handleDownload(formData.socialImage || '')}
-                        onRename={(old, curr) => handleRenameFile(old, curr, 'socialImage')}
-                        uploading={uploading}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Promotional Materials */}
-                  <div className="space-y-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-ink uppercase tracking-wider">6) Promotional Materials</h4>
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, promoImages: [...(prev.promoImages || []), ''] }))}
-                        className="text-xs font-bold text-navy hover:bg-navy/5 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                      >
-                        <Plus size={14} /> Add Spot
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {formData.promoImages?.map((url, index) => (
-                        <ImageSlot
-                          key={index}
-                          label={`Promo ${index + 1}`}
-                          value={url}
-                          initialValue={initialPaths[`promo_${index}`]}
-                          onUpload={(e) => handleFileUpload(e, 'promoImages', index)}
-                          onRemove={() => {
-                            const newPromos = [...(formData.promoImages || [])];
-                            newPromos.splice(index, 1);
-                            setFormData({ ...formData, promoImages: newPromos });
-                          }}
-                          onChange={(val) => {
-                            const newPromos = [...(formData.promoImages || [])];
-                            newPromos[index] = val;
-                            setFormData({ ...formData, promoImages: newPromos });
-                          }}
-                          onDownload={() => handleDownload(url)}
-                          onRename={(old, curr) => handleRenameFile(old, curr, 'promoImages', index)}
-                          uploading={uploading}
-                        />
-                      ))}
-                      {(!formData.promoImages || formData.promoImages.length === 0) && (
-                        <div className="col-span-full py-12 border-2 border-dashed border-gray-100 rounded-3xl flex flex-col items-center justify-center text-gray-300 bg-gray-50/50">
-                          <ImageIcon size={40} />
-                          <p className="text-xs font-bold uppercase mt-3 tracking-widest">No Promotional Materials Uploaded</p>
-                          <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, promoImages: [''] }))}
-                            className="mt-4 text-xs font-bold text-navy border border-navy px-4 py-2 rounded-full hover:bg-navy hover:text-white transition-all"
-                          >
-                            Add First Spot
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>

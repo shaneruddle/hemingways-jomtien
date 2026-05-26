@@ -6,6 +6,7 @@ import fetch from "node-fetch";
 import fs from "fs";
 import sharp from "sharp";
 import nodemailer from "nodemailer";
+import admin from "firebase-admin";
 
 dotenv.config();
 
@@ -19,23 +20,48 @@ async function startServer() {
   // Serve public assets with logging for debugging
   const publicDir = path.join(process.cwd(), 'public');
   
-  // Explicit route for menu images to ensure they are served correctly
-  app.get('/menu-items/:filename', (req, res, next) => {
-    const filePath = path.join(publicDir, 'menu-items', req.params.filename);
+  // Helper to determine if a route requests an image file (helps bypass JS/CSS assets)
+  const isImageRequest = (pathStr: string) => /\.(webp|jpg|jpeg|png|gif|svg)$/i.test(pathStr);
+
+  // Explicit route for menu images and other static folders to ensure they are served correctly
+  // Support nested subdirectory structures (like menu-items/french-onion-soup/...) and redirect to image-proxy if not on local disk
+  app.get('/menu-items/*', (req, res, next) => {
+    if (!isImageRequest(req.path)) {
+      return next();
+    }
+    const relativePath = req.path.replace(/^\/+/, '');
+    const filePath = path.join(publicDir, relativePath);
     if (fs.existsSync(filePath)) {
-      console.log(`Serving menu item image: ${req.params.filename}`);
       return res.sendFile(filePath);
     }
-    next();
+    // Forward/Redirect to Firebase image proxy
+    return res.redirect(`/api/image-proxy?path=${encodeURIComponent(relativePath)}`);
   });
 
-  app.get('/menu/:filename', (req, res, next) => {
-    const filePath = path.join(publicDir, 'menu', req.params.filename);
+  app.get('/menu/*', (req, res, next) => {
+    if (!isImageRequest(req.path)) {
+      return next();
+    }
+    const relativePath = req.path.replace(/^\/+/, '');
+    const filePath = path.join(publicDir, relativePath);
     if (fs.existsSync(filePath)) {
-      console.log(`Serving menu image: ${req.params.filename}`);
       return res.sendFile(filePath);
     }
-    next();
+    // Forward/Redirect to Firebase image proxy
+    return res.redirect(`/api/image-proxy?path=${encodeURIComponent(relativePath)}`);
+  });
+
+  app.get('/assets/*', (req, res, next) => {
+    if (!isImageRequest(req.path)) {
+      return next();
+    }
+    const relativePath = req.path.replace(/^\/+/, '');
+    const filePath = path.join(publicDir, relativePath);
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+    // Forward/Redirect to Firebase image proxy
+    return res.redirect(`/api/image-proxy?path=${encodeURIComponent(relativePath)}`);
   });
 
   app.get('/logo.png', (req, res) => {
@@ -60,22 +86,359 @@ async function startServer() {
       const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, 'base64');
 
-      const publicDir = path.join(process.cwd(), 'public');
-      if (!fs.existsSync(publicDir)) {
-        fs.mkdirSync(publicDir, { recursive: true });
+      const optimizedBuffer = await sharp(buffer)
+        .webp({ quality: 85 })
+        .toBuffer();
+
+      const bucketName = "hemingways-jomtien-website.firebasestorage.app";
+      if (admin.apps.length === 0) {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          storageBucket: bucketName
+        });
+      }
+      
+      const bucket = admin.storage().bucket(bucketName);
+      const fileRef = bucket.file('assets/hero.webp');
+
+      await fileRef.save(optimizedBuffer, {
+        metadata: {
+          contentType: 'image/webp',
+          cacheControl: 'public, max-age=31536000'
+        }
+      });
+
+      console.log(`Hero image saved directly to Firebase Storage at assets/hero.webp`);
+      res.json({ success: true, url: `/api/image-proxy?path=${encodeURIComponent('assets/hero.webp')}` });
+    } catch (error: any) {
+      console.error("Error saving hero image to Firebase Storage:", error);
+      res.status(500).json({ error: "Failed to save hero image to Firebase Storage: " + error.message });
+    }
+  });
+
+  app.post("/api/upload-image", async (req, res) => {
+    const { image, storagePath, contentType } = req.body;
+    if (!image || !storagePath) {
+      return res.status(400).json({ error: "Missing image or storagePath" });
+    }
+
+    try {
+      // Decode base64 image data
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, 'base64');
+      const mimeType = contentType || "image/webp";
+
+      // Optimize image to WebP using sharp if config allows
+      let optimizedBuffer = buffer;
+      let finalStoragePath = storagePath;
+      let finalMimeType = mimeType;
+
+      if (mimeType.startsWith("image/") && !storagePath.endsWith(".svg")) {
+        try {
+          optimizedBuffer = await sharp(buffer)
+            .webp({ quality: 80 })
+            .toBuffer();
+          // Change extension in storagePath to .webp
+          const pathParts = storagePath.split('.');
+          if (pathParts.length > 1) {
+            pathParts[pathParts.length - 1] = 'webp';
+            finalStoragePath = pathParts.join('.');
+          } else {
+            finalStoragePath = `${storagePath}.webp`;
+          }
+          finalMimeType = "image/webp";
+        } catch (sharpError) {
+          console.warn("Sharp optimization failed, using original buffer:", sharpError);
+        }
       }
 
-      const outputPath = path.join(publicDir, 'hero.webp');
+      const bucketName = "hemingways-jomtien-website.firebasestorage.app";
+      if (admin.apps.length === 0) {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          storageBucket: bucketName
+        });
+      }
       
-      await sharp(buffer)
-        .webp({ quality: 85 })
-        .toFile(outputPath);
+      const bucket = admin.storage().bucket(bucketName);
+      const fileRef = bucket.file(finalStoragePath);
 
-      console.log(`Hero image saved to ${outputPath}`);
-      res.json({ success: true, url: "/hero.webp" });
+      // Save directly to Firebase Storage via Admin SDK (not onto local ephemeral disk)
+      await fileRef.save(optimizedBuffer, {
+        metadata: {
+          contentType: finalMimeType,
+          cacheControl: 'public, max-age=31536000'
+        }
+      });
+
+      const gsUrl = `gs://${bucketName}/${finalStoragePath}`;
+      console.log(`Successfully uploaded image directly to Firebase Storage: ${gsUrl}`);
+
+      const proxyUrl = `/api/image-proxy?path=${encodeURIComponent(finalStoragePath)}`;
+      res.json({
+        success: true,
+        url: proxyUrl,
+        gsUrl: gsUrl,
+        source: 'firebase'
+      });
+    } catch (error: any) {
+      console.error("Error uploading image directly to Firebase Storage:", error);
+      res.status(500).json({ error: error.message || "Failed to process image upload to Firebase Storage" });
+    }
+  });
+
+  app.get("/api/image-proxy", async (req, res) => {
+    try {
+      const pathParam = req.query.path as string;
+      if (!pathParam) return res.status(400).send('No path provided');
+      const cleanPath = pathParam.replace(/^\/+/, '');
+      const bucketName = "hemingways-jomtien-website.firebasestorage.app";
+      
+      // Get download URL via GCS REST API
+      const encodedPath = encodeURIComponent(cleanPath);
+      const metaUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o/${encodedPath}`;
+      
+      let gotImage = false;
+      try {
+        const metaResponse = await fetch(metaUrl);
+        if (metaResponse.ok) {
+          const meta = await metaResponse.json() as any;
+          const downloadToken = meta.downloadTokens;
+          const downloadUrl = downloadToken 
+            ? `${metaUrl}?alt=media&token=${downloadToken}` 
+            : `${metaUrl}?alt=media`;
+          
+          const imgResponse = await fetch(downloadUrl);
+          if (imgResponse.ok) {
+            const contentType = meta.contentType || 'image/webp';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            const arrayBuffer = await imgResponse.arrayBuffer();
+            res.send(Buffer.from(arrayBuffer));
+            gotImage = true;
+            return;
+          }
+        }
+      } catch (fetchError: any) {
+        console.warn(`image-proxy GCS fetch failed for ${cleanPath}:`, fetchError.message);
+      }
+
+      if (!gotImage) {
+        // Fallback to local filesystem
+        const localFilePath = path.join(process.cwd(), 'public', cleanPath);
+        if (fs.existsSync(localFilePath)) {
+          let contentType = "image/webp";
+          const ext = path.extname(localFilePath).toLowerCase();
+          if (ext === '.svg') contentType = 'image/svg+xml';
+          else if (ext === '.png') contentType = 'image/png';
+          else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+          else if (ext === '.webp') contentType = 'image/webp';
+          else if (ext === '.gif') contentType = 'image/gif';
+
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "public, max-age=31536000");
+          return res.sendFile(localFilePath);
+        }
+
+        // Default fallback: logo.png
+        const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+        if (fs.existsSync(logoPath) && cleanPath !== 'logo.png') {
+          res.setHeader("Content-Type", "image/png");
+          return res.sendFile(logoPath);
+        }
+
+        return res.status(404).send('Image not found');
+      }
     } catch (error) {
-      console.error("Error saving hero image:", error);
-      res.status(500).json({ error: "Failed to save hero image" });
+      console.error('Image proxy error:', error);
+      res.status(500).send('Error fetching image');
+    }
+  });
+
+  app.get("/api/list-images", async (req, res) => {
+    try {
+      const folder = (req.query.folder as string) || 'assets';
+      const bucketName = "hemingways-jomtien-website.firebasestorage.app";
+      let images: any[] = [];
+      const prefix = folder.endsWith('/') ? folder : `${folder}/`;
+
+      // 1. Use Firebase Storage REST API to list files
+      try {
+        const encodedPrefix = encodeURIComponent(prefix);
+        const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucketName)}/o?prefix=${encodedPrefix}&maxResults=1000`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json() as any;
+          const items = data.items || [];
+          images = items
+            .filter((item: any) => !item.name.endsWith('/'))
+            .filter((item: any) => /\.(webp|jpg|jpeg|png|gif|svg)$/i.test(item.name))
+            .map((item: any) => {
+              const name = item.name;
+              const fileName = name.split('/').pop() || name;
+              const proxyUrl = `/api/image-proxy?path=${encodeURIComponent(name)}`;
+              return {
+                id: name,
+                name: fileName,
+                url: proxyUrl,
+                folder: folder,
+                path: name,
+                gsUrl: `gs://${bucketName}/${name}`,
+                createdAt: item.timeCreated || new Date().toISOString(),
+                size: parseInt(item.size || '0')
+              };
+            });
+          console.log(`Listed ${images.length} images recursively via Storage REST API in ${folder}/`);
+        }
+      } catch (restErr: any) {
+        console.warn(`REST API listing failed for folder ${folder}:`, restErr.message);
+      }
+
+      // 2. Fallback to local files list if still empty
+      if (images.length === 0) {
+        const folderDir = path.join(process.cwd(), 'public', folder);
+        if (fs.existsSync(folderDir)) {
+          const localFiles = await fs.promises.readdir(folderDir);
+          const localImageFiles = localFiles.filter((filename) => /\.(webp|jpg|jpeg|png|gif|svg)$/i.test(filename));
+          const mappedFiles = await Promise.all(localImageFiles.map(async (filename) => {
+            const fullPath = path.join(folderDir, filename);
+            const relativePath = `${folder}/${filename}`;
+            const stats = await fs.promises.stat(fullPath);
+            let contentType = 'image/jpeg';
+            const ext = path.extname(filename).toLowerCase();
+            if (ext === '.svg') contentType = 'image/svg+xml';
+            else if (ext === '.png') contentType = 'image/png';
+            else if (ext === '.webp') contentType = 'image/webp';
+            else if (ext === '.gif') contentType = 'image/gif';
+            
+            return {
+              id: relativePath,
+              name: filename,
+              url: `/api/image-proxy?path=${encodeURIComponent(relativePath)}`,
+              folder: folder,
+              path: relativePath,
+              gsUrl: `gs://${bucketName}/${relativePath}`,
+              createdAt: stats.birthtime.toISOString(),
+              size: stats.size
+            };
+          }));
+          images = mappedFiles;
+        }
+      }
+
+      // Sort by creation date descending
+      images.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      res.json(images);
+    } catch (error: any) {
+      console.error('Error listing images:', error);
+      res.status(500).json({ error: error.message || 'Failed to list images' });
+    }
+  });
+
+  app.post("/api/delete-image", async (req, res) => {
+    const { fullPath } = req.body;
+    if (!fullPath) {
+      return res.status(400).json({ error: "Missing fullPath" });
+    }
+
+    try {
+      let fbSuccess = false;
+
+      // 1. Try Firebase Storage deletion
+      try {
+        if (admin.apps.length === 0) {
+          admin.initializeApp({
+            credential: admin.credential.applicationDefault(),
+            storageBucket: "hemingways-jomtien-website.firebasestorage.app"
+          });
+        }
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(fullPath);
+        const [exists] = await file.exists();
+        if (exists) {
+          await file.delete();
+          fbSuccess = true;
+          console.log(`Backend deleted image from Firebase Storage: ${fullPath}`);
+        }
+      } catch (adminError: any) {
+        console.error("Firebase Admin Storage delete failed:", adminError.message);
+      }
+
+      // 2. Local fallback deletion
+      const localFilePath = path.join(process.cwd(), 'public', fullPath);
+      if (fs.existsSync(localFilePath)) {
+        await fs.promises.unlink(localFilePath);
+        console.log(`Backend deleted local fallback file: ${fullPath}`);
+      }
+
+      res.json({ success: true, fbDeleted: fbSuccess });
+    } catch (error: any) {
+      console.error("Error deleting image:", error);
+      res.status(500).json({ error: error.message || "Failed to delete image" });
+    }
+  });
+
+  app.post("/api/rename-image", async (req, res) => {
+    const { fullPath, newPath } = req.body;
+    if (!fullPath || !newPath) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+
+    try {
+      let fbSuccess = false;
+      let newMetadata: any = {};
+
+      // 1. Try Firebase Admin Storage rename (copy + delete)
+      try {
+        if (admin.apps.length === 0) {
+          admin.initializeApp({
+            credential: admin.credential.applicationDefault(),
+            storageBucket: "hemingways-jomtien-website.firebasestorage.app"
+          });
+        }
+        const bucket = admin.storage().bucket();
+        const oldFile = bucket.file(fullPath);
+        const newFile = bucket.file(newPath);
+
+        const [exists] = await oldFile.exists();
+        if (exists) {
+          await oldFile.copy(newFile);
+          await oldFile.delete();
+          fbSuccess = true;
+          
+          const [meta] = await newFile.getMetadata();
+          newMetadata = meta;
+          console.log(`Backend renamed image in Firebase Storage from ${fullPath} to ${newPath}`);
+        }
+      } catch (adminError: any) {
+        console.error("Firebase Admin Storage rename failed:", adminError.message);
+      }
+
+      // 2. Local fallback rename
+      const oldLocalPath = path.join(process.cwd(), 'public', fullPath);
+      const newLocalPath = path.join(process.cwd(), 'public', newPath);
+      
+      if (fs.existsSync(oldLocalPath)) {
+        const localDir = path.dirname(newLocalPath);
+        if (!fs.existsSync(localDir)) {
+          fs.mkdirSync(localDir, { recursive: true });
+        }
+        await fs.promises.rename(oldLocalPath, newLocalPath);
+        console.log(`Backend renamed local file from ${fullPath} to ${newPath}`);
+      }
+
+      res.json({
+        success: true,
+        fbRenamed: fbSuccess,
+        gsUrl: `gs://hemingways-jomtien-website.firebasestorage.app/${newPath}`,
+        url: `/api/image-proxy?path=${encodeURIComponent(newPath)}`,
+        size: parseInt(newMetadata.size || '0'),
+        contentType: newMetadata.contentType || 'image/webp',
+        timeCreated: newMetadata.timeCreated || new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Error renaming image:", error);
+      res.status(500).json({ error: error.message || "Failed to rename image" });
     }
   });
 

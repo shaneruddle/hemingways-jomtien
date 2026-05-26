@@ -14,18 +14,7 @@ import {
   Save,
   X as CloseIcon
 } from 'lucide-react';
-import { 
-  ref, 
-  uploadBytesResumable, 
-  getDownloadURL, 
-  listAll, 
-  deleteObject,
-  getMetadata,
-  uploadBytes,
-  getBytes,
-  getBlob
-} from 'firebase/storage';
-import { storage, auth } from '../firebase';
+import { auth } from '../firebase';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { logActivity } from '../utils/logger';
@@ -62,26 +51,12 @@ export default function ImageManagement() {
   const fetchImages = async () => {
     setLoading(true);
     try {
-      const folderRef = ref(storage, selectedFolder);
-      const result = await listAll(folderRef);
-      
-      const imagePromises = result.items.map(async (item) => {
-        const url = await getDownloadURL(item);
-        const metadata = await getMetadata(item);
-        const bucket = storage.app.options.storageBucket || 'hemingways-jomtien.firebasestorage.app';
-        return {
-          name: item.name,
-          fullPath: item.fullPath,
-          gsUrl: `gs://${bucket}/${item.fullPath}`,
-          url,
-          size: metadata.size,
-          contentType: metadata.contentType || 'image/jpeg',
-          timeCreated: metadata.timeCreated,
-        };
-      });
-
-      const imageData = await Promise.all(imagePromises);
-      setImages(imageData.sort((a, b) => new Date(b.timeCreated).getTime() - new Date(a.timeCreated).getTime()));
+      const response = await fetch(`/api/list-images?folder=${selectedFolder}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setImages(data);
     } catch (error) {
       console.error('Error fetching images:', error);
       toast.error('Failed to load images');
@@ -103,6 +78,46 @@ export default function ImageManagement() {
       .replace(/^-+|-+$/g, '');
   };
 
+  const handleBackendUpload = async (file: File, storagePath: string) => {
+    try {
+      setUploadProgress(40);
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+      });
+      setUploadProgress(70);
+
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image: base64Data,
+          storagePath,
+          contentType: file.type
+        })
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP error! status: ${response.status}`);
+      }
+
+      setUploadProgress(100);
+      await logActivity('Image Uploaded', `Uploaded image (via backend): ${file.name} to ${storagePath}`, 'image');
+      toast.success('Image uploaded successfully via server fallback!');
+      setUploading(false);
+      fetchImages();
+    } catch (fallbackErr: any) {
+      console.error('Backend fallback upload also failed:', fallbackErr);
+      toast.error('Upload failed: ' + fallbackErr.message);
+      setUploading(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -114,32 +129,12 @@ export default function ImageManagement() {
     }
 
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(10);
 
     try {
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
       const storagePath = `${selectedFolder}/${fileName}`;
-      const storageRef = ref(storage, storagePath);
-      
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        }, 
-        (error) => {
-          console.error('Upload error:', error);
-          toast.error('Upload failed: ' + error.message);
-          setUploading(false);
-        }, 
-        async () => {
-          await logActivity('Image Uploaded', `Uploaded image: ${file.name} to ${selectedFolder}`, 'image');
-          toast.success('Image uploaded successfully');
-          setUploading(false);
-          fetchImages();
-        }
-      );
+      await handleBackendUpload(file, storagePath);
     } catch (error) {
       console.error('Error starting upload:', error);
       toast.error('Failed to start upload');
@@ -151,14 +146,25 @@ export default function ImageManagement() {
     if (!window.confirm(`Are you sure you want to delete ${image.name}?`)) return;
 
     try {
-      const imageRef = ref(storage, image.fullPath);
-      await deleteObject(imageRef);
+      const response = await fetch('/api/delete-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fullPath: image.fullPath })
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP error! status: ${response.status}`);
+      }
+
       await logActivity('Image Deleted', `Deleted image: ${image.name} from ${image.fullPath}`, 'image');
       toast.success('Image deleted');
       setImages(images.filter(img => img.fullPath !== image.fullPath));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting image:', error);
-      toast.error('Failed to delete image');
+      toast.error('Failed to delete image: ' + error.message);
     }
   };
 
@@ -199,60 +205,40 @@ export default function ImageManagement() {
     const toastId = toast.loading(`Renaming to ${trimmedName}...`);
     
     try {
-      // 1. Get the file data directly from storage
-      const oldRef = ref(storage, image.fullPath);
-      
-      let blob;
-      try {
-        // Use getBlob for better compatibility
-        blob = await getBlob(oldRef, 20 * 1024 * 1024); // 20MB limit
-      } catch (downloadError: any) {
-        console.warn('getBlob failed, trying getBytes fallback', downloadError);
-        const buffer = await getBytes(oldRef, 20 * 1024 * 1024);
-        blob = new Blob([buffer], { type: image.contentType });
-      }
-
-      // 2. Upload with new name
       // Derive folder from fullPath instead of relying on selectedFolder state
       const pathParts = image.fullPath.split('/');
       pathParts.pop(); // remove filename
       const folderPath = pathParts.join('/');
       const newPath = folderPath ? `${folderPath}/${trimmedName}` : trimmedName;
-      
-      const newRef = ref(storage, newPath);
-      await uploadBytes(newRef, blob, { 
-        contentType: image.contentType,
-        customMetadata: {
-          renamedFrom: image.name,
-          renamedAt: new Date().toISOString()
-        }
+
+      const response = await fetch('/api/rename-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fullPath: image.fullPath,
+          newPath: newPath
+        })
       });
 
-      // 3. Delete old file
-      try {
-        await deleteObject(oldRef);
-      } catch (deleteError: any) {
-        console.error('Error deleting old file during rename:', deleteError);
-        toast.warning('New file created, but old file could not be deleted. You may have a duplicate.', { id: toastId });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP error! status: ${response.status}`);
       }
 
-      // 4. Get new metadata and URL for immediate state update
-      const [newUrl, newMetadata] = await Promise.all([
-        getDownloadURL(newRef),
-        getMetadata(newRef)
-      ]);
-
+      const data = await response.json();
       const updatedImage: StoredImage = {
         name: trimmedName,
         fullPath: newPath,
-        gsUrl: `gs://${storage.app.options.storageBucket || 'hemingways-jomtien.firebasestorage.app'}/${newPath}`,
-        url: newUrl,
-        size: newMetadata.size,
-        contentType: newMetadata.contentType || image.contentType,
-        timeCreated: newMetadata.timeCreated,
+        gsUrl: data.gsUrl,
+        url: data.url,
+        size: data.size,
+        contentType: data.contentType,
+        timeCreated: data.timeCreated,
       };
 
-      // 5. Update local state immediately for better UX
+      // Update local state immediately for better UX
       setImages(prev => prev.map(img => img.fullPath === image.fullPath ? updatedImage : img));
       
       await logActivity('Image Renamed', `Renamed image: ${image.name} to ${trimmedName} in ${folderPath}`, 'image');
@@ -262,16 +248,6 @@ export default function ImageManagement() {
       console.error('Error renaming image:', error);
       
       let errorMessage = error.message || 'Unknown error';
-      if (error.code === 'storage/retry-limit-exceeded') {
-        errorMessage = 'Connection timed out. This is usually caused by missing CORS configuration on your Firebase Storage bucket. Please check the instructions I provided in the chat to fix this.';
-      } else if (error.code === 'storage/object-not-found') {
-        errorMessage = 'Original image not found. It may have been moved or deleted.';
-      } else if (error.code === 'storage/unauthorized') {
-        errorMessage = 'You do not have permission to rename this image. Check your storage rules.';
-      } else if (error.message?.includes('CORS')) {
-        errorMessage = 'CORS error: The storage bucket is not configured to allow downloads from this domain.';
-      }
-
       toast.error(`Failed to rename: ${errorMessage}`, { id: toastId, duration: 6000 });
       // Refresh list in case of error to ensure sync
       fetchImages();
