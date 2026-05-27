@@ -2,7 +2,6 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
-import fetch from "node-fetch";
 import fs from "fs";
 import sharp from "sharp";
 import nodemailer from "nodemailer";
