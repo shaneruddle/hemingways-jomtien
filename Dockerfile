@@ -22,6 +22,7 @@ COPY --from=builder /app/public ./public
 # Install only production deps
 RUN npm ci --omit=dev
 
+ENV NODE_ENV=production
 ENV PORT=8080
 EXPOSE 8080
 
