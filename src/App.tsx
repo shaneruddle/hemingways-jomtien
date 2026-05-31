@@ -4,7 +4,6 @@
  */
 
 import { motion, AnimatePresence } from "motion/react";
-import { GoogleGenAI } from "@google/genai";
 import { 
   Users,
   LogOut,
