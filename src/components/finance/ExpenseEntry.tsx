@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, onSnapshot, query, where, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
-import { GoogleGenAI, Type } from "@google/genai";
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   Camera, 
   Upload, 
@@ -28,18 +27,17 @@ const ExpenseEntry: React.FC = () => {
   const navigate = useNavigate();
   const [images, setImages] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
-  const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [extractedData, setExtractedData] = useState<{
-    amount: number;
-    description: string;
-    categoryName: string;
-    categoryId: string;
-    date: string;
-    lineItems: { description: string; amount: number; quantity?: number; weight?: string }[];
-  } | null>(null);
+  const [extractedData, setExtractedData] = useState({
+    amount: 0,
+    description: '',
+    categoryName: '',
+    categoryId: '',
+    date: new Date().toISOString().split('T')[0],
+    lineItems: [] as { description: string; amount: number; quantity?: number; weight?: string }[],
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,10 +73,6 @@ const ExpenseEntry: React.FC = () => {
           const result = reader.result as string;
           setImages(prev => [...prev, result]);
           
-          // Only extract from the first image if none extracted yet
-          if (images.length === 0 && !extractedData) {
-            extractData(result);
-          }
         };
         reader.readAsDataURL(file);
       });
@@ -87,101 +81,13 @@ const ExpenseEntry: React.FC = () => {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
-    setFiles(prev => prev.filter((_, i) => i !== index));
-    if (images.length <= 1) {
-      setExtractedData(null);
     }
   };
 
-  const extractData = async (base64Image: string) => {
-    setIsExtracting(true);
-    setExtractedData(null);
-    
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const base64Data = base64Image.split(',')[1];
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            parts: [
-              { text: `Extract expense information from this receipt. 
-                Available categories: ${categories.map(c => c.name).join(', ')}.
-                IMPORTANT: Return all text in English only.
-                Return the data in JSON format with the following fields:
-                - amount (number, total amount)
-                - description (string, overall description in English)
-                - categoryName (string, must match one of the available categories if possible, otherwise 'General')
-                - date (string, YYYY-MM-DD format, use today if not found)
-                - lineItems (array of objects with 'description' (English), 'amount', optional 'quantity', and optional 'weight' (e.g. '500g', '1kg'))
-              ` },
-              { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              amount: { type: Type.NUMBER },
-              description: { type: Type.STRING },
-              categoryName: { type: Type.STRING },
-              date: { type: Type.STRING },
-              lineItems: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    description: { type: Type.STRING },
-                    amount: { type: Type.NUMBER },
-                    quantity: { type: Type.NUMBER },
-                    weight: { type: Type.STRING }
-                  },
-                  required: ["description", "amount"]
-                }
-              }
-            },
-            required: ["amount", "description", "categoryName", "date", "lineItems"]
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text || '{}');
-      
-      // Match category ID
-      const matchedCategory = categories.find(c => 
-        c.name.toLowerCase() === result.categoryName.toLowerCase()
-      ) || categories[0];
-
-      setExtractedData({
-        ...result,
-        categoryId: matchedCategory?.id || '',
-        categoryName: matchedCategory?.name || result.categoryName,
-        lineItems: result.lineItems || []
-      });
-      
-      toast.success("Receipt info extracted!");
-    } catch (error) {
-      console.error("Extraction error:", error);
-      toast.error("Failed to extract info. Please enter manually.");
-      setExtractedData({
-        amount: 0,
-        description: '',
-        categoryName: categories[0]?.name || 'General',
-        categoryId: categories[0]?.id || '',
-        date: new Date().toISOString().split('T')[0],
-        lineItems: []
-      });
-    } finally {
-      setIsExtracting(false);
-    }
-  };
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!extractedData || !auth.currentUser || files.length === 0) return;
+    if (!auth.currentUser || files.length === 0) return;
 
     setIsSaving(true);
     try {
@@ -239,7 +145,14 @@ const ExpenseEntry: React.FC = () => {
       toast.success("Expense saved successfully!");
       setImages([]);
       setFiles([]);
-      setExtractedData(null);
+      setExtractedData({
+      amount: 0,
+      description: '',
+      categoryName: '',
+      categoryId: '',
+      date: new Date().toISOString().split('T')[0],
+      lineItems: [],
+    });
     } catch (error) {
       console.error("Save error:", error);
       toast.error("Failed to save expense.");
@@ -305,12 +218,6 @@ const ExpenseEntry: React.FC = () => {
                   >
                     <X size={14} />
                   </button>
-                  {isExtracting && idx === 0 && (
-                    <div className="absolute inset-0 bg-ink/40 backdrop-blur-[2px] flex flex-col items-center justify-center text-white">
-                      <Loader2 size={24} className="animate-spin mb-2" />
-                      <p className="font-bold tracking-widest uppercase text-[8px]">Extracting...</p>
-                    </div>
-                  )}
                 </div>
               ))}
               <button 
@@ -332,9 +239,6 @@ const ExpenseEntry: React.FC = () => {
               multiple
             />
 
-            {/* Extracted Data Form */}
-            <AnimatePresence>
-              {extractedData && (
                 <motion.form 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -498,8 +402,6 @@ const ExpenseEntry: React.FC = () => {
                     )}
                   </button>
                 </motion.form>
-              )}
-            </AnimatePresence>
           </div>
         )}
       </div>
