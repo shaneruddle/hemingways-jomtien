@@ -42,7 +42,6 @@ import { Link } from 'react-router-dom';
 import { handleFirestoreError } from '../../utils/firestore';
 import { OperationType, FinanceEntry as FinanceEntryType, FinanceCategory as FinanceCategoryType, Employee } from '../../types';
 import { logActivity } from '../../utils/logger';
-import FinanceAI from './FinanceAI';
 import Payroll from './Payroll';
 
 const FinanceDashboard: React.FC = () => {
@@ -50,7 +49,7 @@ const FinanceDashboard: React.FC = () => {
   const [categories, setCategories] = useState<FinanceCategoryType[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'entries' | 'categories' | 'reports' | 'ai' | 'payroll'>('entries');
+  const [activeTab, setActiveTab] = useState<'entries' | 'categories' | 'reports' | 'payroll'>('entries');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   
   // Filters & Search
@@ -726,12 +725,6 @@ const FinanceDashboard: React.FC = () => {
             className={`px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'reports' ? 'bg-navy text-white' : 'text-gray-500 hover:text-ink'}`}
           >
             Reports
-          </button>
-          <button 
-            onClick={() => setActiveTab('ai')}
-            className={`px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'ai' ? 'bg-navy text-white' : 'text-gray-500 hover:text-ink'}`}
-          >
-            AI Assistant
           </button>
           <button 
             onClick={() => setActiveTab('payroll')}
@@ -1494,7 +1487,6 @@ const FinanceDashboard: React.FC = () => {
 
         {activeTab === 'ai' && (
           <div className="max-w-4xl mx-auto">
-            <FinanceAI entries={entries} />
           </div>
         )}
 
