@@ -19,7 +19,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = React.memo(({ language
         <button
           key={lang.code}
           onClick={() => setLanguage(lang.code as Language)}
-          className={`px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-[10px] sm:text-sm font-bold transition-all ${
+          className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-bold transition-all ${
             language === lang.code 
             ? "bg-gold text-white shadow-lg scale-105" 
             : "text-gray-400 hover:text-ink"
