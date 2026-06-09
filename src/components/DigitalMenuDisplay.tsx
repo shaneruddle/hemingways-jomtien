@@ -213,7 +213,7 @@ const DigitalMenuDisplay = () => {
 
         {/* Category Tabs - Sticky Bar */}
         <div className="sticky top-0 z-50 py-3 -mx-1 sm:-mx-2 px-1 sm:px-2 mb-4 lg:mb-8 bg-cream/95 backdrop-blur-md transition-all duration-300 border-b border-gray-100/50">
-         <div className="flex flex-wrap gap-3 px-2 pb-1">
+         <div className="flex flex-wrap justify-center gap-3 px-2 pb-1">
             {categories.map((cat) => (
               <button
                 key={cat}
