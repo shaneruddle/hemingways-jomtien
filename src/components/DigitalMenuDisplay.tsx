@@ -221,7 +221,7 @@ const DigitalMenuDisplay = () => {
                   setActiveCategory(cat);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className={`px-4 py-2 rounded-full font-bold text-sm transition-all border-2 ${
+                className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
                   activeCategory === cat 
                   ? "bg-navy border-navy text-white shadow-xl shadow-navy/20 scale-105" 
                   : "bg-white border-gray-200 text-gray-600 hover:border-navy hover:text-navy active:scale-95"
