@@ -6,7 +6,6 @@ import {
   doc, 
   onSnapshot,
   query,
-  orderBy
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { UserProfile, OperationType } from '../types';
@@ -36,14 +35,25 @@ export default function UserManagement() {
   const [editingRole, setEditingRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    // No orderBy — avoids issues with documents missing the createdAt field.
+    // Sort in memory after fetching.
+    const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as UserProfile[];
+
+      // Sort by createdAt descending; users without createdAt go to the end
+      userList.sort((a, b) => {
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+
       setUsers(userList);
       setLoading(false);
+      setError(null);
     }, (err) => {
       console.warn("Users snapshot error:", err.message);
       setError("Failed to load users. You might not have permission.");
@@ -138,7 +148,7 @@ export default function UserManagement() {
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                      No users found matching your search.
+                      {searchTerm ? 'No users found matching your search.' : 'No users found. Users appear here after their first login.'}
                     </td>
                   </tr>
                 ) : (

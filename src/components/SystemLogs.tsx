@@ -5,18 +5,13 @@ import {
   orderBy, 
   limit, 
   onSnapshot,
-  Timestamp,
-  where
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { SystemLog } from '../types';
 import { 
   Database, 
   Search, 
-  Filter, 
   Clock, 
-  User, 
-  Tag, 
   ChevronLeft, 
   ChevronRight,
   RefreshCw,
@@ -54,6 +49,17 @@ const CategoryBadge = ({ category }: { category: SystemLog['category'] }) => {
   );
 };
 
+function formatTimestamp(ts: any): string {
+  try {
+    // Handle Firestore Timestamp, ISO string, or Date
+    const date = ts?.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    return format(date, 'MMM d, HH:mm:ss');
+  } catch {
+    return 'Invalid date';
+  }
+}
+
 export default function SystemLogs() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,20 +69,13 @@ export default function SystemLogs() {
 
   useEffect(() => {
     setLoading(true);
-    let q = query(
+    // Always fetch without category filter — no composite index required.
+    // Category filtering is done client-side below.
+    const q = query(
       collection(db, 'system_logs'),
       orderBy('timestamp', 'desc'),
       limit(pageSize)
     );
-
-    if (activeCategory !== 'all') {
-      q = query(
-        collection(db, 'system_logs'),
-        where('category', '==', activeCategory),
-        orderBy('timestamp', 'desc'),
-        limit(pageSize)
-      );
-    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logData = snapshot.docs.map(doc => ({
@@ -91,13 +90,16 @@ export default function SystemLogs() {
     });
 
     return () => unsubscribe();
-  }, [activeCategory, pageSize]);
+  }, [pageSize]);
 
-  const filteredLogs = logs.filter(log => 
-    log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLogs = logs.filter(log => {
+    const matchesCategory = activeCategory === 'all' || log.category === activeCategory;
+    const matchesSearch = !searchTerm || 
+      log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.userEmail?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -194,13 +196,13 @@ export default function SystemLogs() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-gray-500 text-sm">
                           <Clock size={14} />
-                          {format(new Date(log.timestamp), 'MMM d, HH:mm:ss')}
+                          {formatTimestamp(log.timestamp)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                            {log.userEmail[0].toUpperCase()}
+                            {(log.userEmail?.[0] || '?').toUpperCase()}
                           </div>
                           <span className="text-sm font-medium text-ink truncate max-w-[150px]" title={log.userEmail}>
                             {log.userEmail}
@@ -229,7 +231,7 @@ export default function SystemLogs() {
         {!loading && filteredLogs.length > 0 && (
           <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
             <p className="text-xs text-gray-400 font-medium">
-              Showing latest {filteredLogs.length} activities
+              Showing {filteredLogs.length} of latest {logs.length} activities
             </p>
             <div className="flex items-center gap-2">
               <button disabled className="p-1.5 rounded-lg border border-gray-200 text-gray-300 cursor-not-allowed">

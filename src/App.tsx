@@ -39,7 +39,7 @@ import {
   Navigate
 } from "react-router-dom";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, orderBy, onSnapshot, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, getDocs, doc, getDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "./firebase";
 import { MenuItem, Category, Special, SportsEvent } from "./types";
 import { handleFirestoreError } from "./utils/firestore";
@@ -259,8 +259,8 @@ const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => 
             {companyProfile?.description || "Jomtien's Biggest Expat Sports Bar & Restaurant"}
           </p>
           <div className="mt-12 flex flex-wrap justify-center gap-6">
-            <a href="#menu" className="navy-button flex items-center gap-2 border border-white/20 px-8 py-4 rounded-full font-bold transition-all hover:bg-white/5 active:scale-95 shadow-xl shadow-black/20">Explore Menu <ChevronRight size={18} /></a>
-            <a href="#location" className="gold-button flex items-center gap-2 px-8 py-4 rounded-full font-bold transition-all hover:opacity-90 active:scale-95 shadow-xl shadow-gold/20">Find Us <MapPin size={18} /></a>
+            <a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }} className="navy-button flex items-center gap-2 border border-white/20 px-8 py-4 rounded-full font-bold transition-all hover:bg-white/5 active:scale-95 shadow-xl shadow-black/20 cursor-pointer">Explore Menu <ChevronRight size={18} /></a>
+            <a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('location')?.scrollIntoView({ behavior: 'smooth' }); }} className="gold-button flex items-center gap-2 px-8 py-4 rounded-full font-bold transition-all hover:opacity-90 active:scale-95 shadow-xl shadow-gold/20 cursor-pointer">Find Us <MapPin size={18} /></a>
           </div>
         </motion.div>
       </div>
@@ -403,7 +403,7 @@ type Language = 'en' | 'zh' | 'ru' | 'th';
 const Menu = () => {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState("Smoothie Bowls");
+  const [activeCategory, setActiveCategory] = useState("");
   const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
@@ -706,18 +706,17 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formState),
+      await addDoc(collection(db, 'contact_submissions'), {
+        ...formState,
+        createdAt: new Date().toISOString(),
+        source: 'website_footer',
       });
-      if (!response.ok) throw new Error('Failed to send message');
       setSubmitted(true);
-      toast.success("Thank you for getting in touch! We will get back to you as soon as possible. Hemingways Jomtien");
+      toast.success("Thank you! We'll be in touch soon. — Hemingways Jomtien");
       setFormState({ name: '', email: '', message: '' });
       setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
-      console.error("Error sending contact form:", error instanceof Error ? error.message : 'Unknown error');
+      console.error("Error saving contact form:", error instanceof Error ? error.message : 'Unknown error');
       toast.error("Failed to send message. Please try again later.");
     } finally {
       setIsSubmitting(false);
@@ -725,7 +724,7 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
   };
 
   return (
-<footer className="bg-navy text-white py-16 px-6">
+<footer id="contact" className="bg-navy text-white py-16 px-6">
   <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 text-center md:text-left">
     <div className="col-span-2">
       <div className="flex items-center gap-2 mb-6 justify-center md:justify-start">
@@ -756,11 +755,11 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
     <div>
       <h4 className="font-bold mb-6 text-gold uppercase tracking-wider text-sm">Explore</h4>
       <ul className="space-y-4 text-white/60">
-        <li><a href="#" className="hover:text-gold transition-colors">Home</a></li>
-        <li><a href="#menu" className="hover:text-gold transition-colors">Food Menu</a></li>
-        <li><a href="#sports" className="hover:text-gold transition-colors">Sports Schedule</a></li>
-        <li><a href="#specials" className="hover:text-gold transition-colors">Daily Specials</a></li>
-        <li><a href="#location" className="hover:text-gold transition-colors">Location</a></li>
+        <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Home</a></li>
+        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Food Menu</a></li>
+        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('sports')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Sports Schedule</a></li>
+        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('specials')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Daily Specials</a></li>
+        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('location')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Location</a></li>
       </ul>
     </div>
 

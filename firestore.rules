@@ -138,7 +138,12 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(id);
     }
 
-    // --- GLOBAL SAFETY NET (MOVED TO BOTTOM) ---
+    match /contact_submissions/{id} {
+      allow create: if true; // anyone can submit contact form
+      allow read: if isAdmin();
+    }
+
+        // --- GLOBAL SAFETY NET (MOVED TO BOTTOM) ---
     match /{document=**} {
       allow read, write: if false;
     }
