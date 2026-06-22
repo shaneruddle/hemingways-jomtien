@@ -4,6 +4,7 @@ import { db } from '../../firebase';
 import { Upload, CheckCircle, AlertTriangle, ArrowLeft, FileText, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { logActivity } from '../../utils/logger';
 
 // ── Category maps ──────────────────────────────────────────────────────────────
 
@@ -283,6 +284,7 @@ export default function BulkFinanceImport() {
 
     setImported({ expenses: expCount, income: incCount });
     setStep('done');
+    await logActivity('Bulk Finance Import', `${expCount.toLocaleString()} expenses + ${incCount} income records imported from CSV`, 'finance');
     toast.success(`Import complete — ${expCount.toLocaleString()} expenses, ${incCount} income records`);
     } catch (err: any) {
       console.error('Import failed:', err);

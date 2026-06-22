@@ -7,6 +7,7 @@ import { db } from '../../firebase';
 import { IngredientPurchase } from './types';
 import { Plus, Trash2, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Pencil, X, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity } from '../../utils/logger';
 
 interface RecipeIngredient {
   purchase_id: string;
@@ -160,9 +161,11 @@ export default function RecipeCosting() {
     try {
       if (editingRecipe) {
         await updateDoc(doc(db, 'recipes', editingRecipe.id), data);
+        await logActivity('Recipe Updated', `${form.name} · ฿${form.menu_price}`, 'finance');
         toast.success('Recipe updated');
       } else {
         await addDoc(collection(db, 'recipes'), { ...data, created_at: new Date().toISOString() });
+        await logActivity('Recipe Created', `${form.name} · ฿${form.menu_price}`, 'finance');
         toast.success('Recipe added');
       }
       setShowForm(false);
@@ -171,7 +174,9 @@ export default function RecipeCosting() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this recipe?')) return;
+    const recipe = recipes?.find((r: any) => r.id === id);
     await deleteDoc(doc(db, 'recipes', id));
+    await logActivity('Recipe Deleted', recipe?.name || id, 'finance');
     toast.success('Deleted');
   };
 

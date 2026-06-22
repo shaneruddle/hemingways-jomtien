@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../../firebase';
+import { logActivity } from '../../utils/logger';
 import { LogIn, Mail, Lock, Loader2, ArrowLeft, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -34,6 +35,7 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      await logActivity('Staff Login', `Email login · ${email}`, 'user');
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error: any) {
@@ -55,7 +57,8 @@ export default function AdminLogin() {
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      await logActivity('Staff Login', `Google login · ${result.user.email}`, 'user');
       toast.success('Successfully logged in!');
       navigate('/dashboard');
     } catch (error: any) {

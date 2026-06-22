@@ -4,6 +4,7 @@ import { db } from '../../firebase';
 import { IngredientPurchase } from './types';
 import { Search, Pencil, Trash2, Check, X, Scale, Image, Plus, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity } from '../../utils/logger';
 
 const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
 const LBL_CLS = 'block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1';
@@ -143,6 +144,7 @@ export default function Ingredients() {
         total_cost: c.total_cost,
         date: editBuf.date,
       });
+      await logActivity('Ingredient Purchase Updated', `${editBuf.ingredient_name} · ฿${editBuf.totalPaid} · ${editBuf.date}`, 'finance');
       setEditingId(null);
       toast.success('Updated');
     } catch { toast.error('Failed to save'); }
@@ -150,7 +152,9 @@ export default function Ingredients() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this entry?')) return;
+    const entry = purchases.find(p => p.id === id);
     await deleteDoc(doc(db, 'ingredient_purchases', id));
+    await logActivity('Ingredient Purchase Deleted', entry ? `${entry.ingredient_name} · ฿${entry.total_cost}` : id, 'finance');
     toast.success('Deleted');
   };
 
@@ -188,6 +192,7 @@ export default function Ingredients() {
         created_at: new Date().toISOString(),
         starred: false,
       });
+      await logActivity('Ingredient Purchase Added', `${addForm.ingredient_name.trim()} · ฿${addForm.totalPaid} · ${addForm.supplier.trim() || 'no supplier'} · ${addForm.date}`, 'finance');
       toast.success('Entry added');
       setShowAddModal(false);
       setAddForm({
