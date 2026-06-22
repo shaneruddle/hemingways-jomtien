@@ -1057,6 +1057,14 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
                   {link.label}
                 </a>
               ))}
+              <Link
+                to="/menu"
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Digital Menu
+              </Link>
             </div>
           </div>
         </div>
