@@ -114,6 +114,34 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // NEW FINANCE MODULE
+    match /finance_expenses/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    match /finance_income/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    match /finance_ingredients/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /ingredient_purchases/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /recipes/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
     match /employees/{id} {
       allow read: if isStaff();
       allow write: if isAdmin() && isValidId(id);

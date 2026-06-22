@@ -230,16 +230,16 @@ export default function BulkFinanceImport() {
     let expCount = 0;
     let incCount = 0;
 
-    // Batch write helper
     const BATCH_SIZE = 400;
 
+    try {
     // Write expenses
     for (let i = 0; i < expenseRows.length; i += BATCH_SIZE) {
       const batch = writeBatch(db);
       const chunk = expenseRows.slice(i, i + BATCH_SIZE);
       for (const row of chunk) {
-        const catId   = expenseMap[row.category] || 'other';
-        const catName = EXPENSE_CATEGORIES.find(c => c.id === catId)?.name || 'Other';
+        const catId   = expenseMap[row.category] || 'miscellaneous';
+        const catName = EXPENSE_CATEGORIES.find(c => c.id === catId)?.name || row.category;
         batch.set(doc(collection(db, 'finance_expenses')), {
           date:          row.date,
           supplier:      row.description,
@@ -284,6 +284,11 @@ export default function BulkFinanceImport() {
     setImported({ expenses: expCount, income: incCount });
     setStep('done');
     toast.success(`Import complete — ${expCount.toLocaleString()} expenses, ${incCount} income records`);
+    } catch (err: any) {
+      console.error('Import failed:', err);
+      toast.error(`Import failed: ${err?.message || 'Permission denied or network error'}. Check console for details.`);
+      setStep('mapping');
+    }
   };
 
   const expenseStats = categoryStats.filter(s => s.type === 'Expense');
