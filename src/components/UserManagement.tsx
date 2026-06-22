@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function UserManagement() {
+export default function UserManagement({ isSuperAdmin = false, isAdmin = false }: { isSuperAdmin?: boolean; isAdmin?: boolean }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,7 +63,14 @@ export default function UserManagement() {
     return () => unsubscribe();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: 'admin' | 'marketing' | 'cashier' | 'employee') => {
+  const canEditRole = (targetUser: UserProfile): boolean => {
+    if (targetUser.email === auth.currentUser?.email) return false;
+    if (isSuperAdmin) return true;
+    if (isAdmin) return !['admin', 'super_admin'].includes(targetUser.role || '');
+    return false; // Manager and below: view only
+  };
+
+  const handleRoleChange = async (userId: string, newRole: 'super_admin' | 'admin' | 'manager' | 'marketing' | 'cashier' | 'employee') => {
     try {
       await updateDoc(doc(db, 'users', userId), {
         role: newRole
@@ -170,16 +177,18 @@ export default function UserManagement() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         {editingRole === user.id ? (
                           <div className="flex items-center gap-2">
-                            <select 
+                            <select
                               className="text-xs font-bold border border-gray-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-gold bg-white"
                               defaultValue={user.role}
                               onChange={(e) => handleRoleChange(user.id!, e.target.value as any)}
                               autoFocus
                             >
-                              <option value="employee">Employee</option>
-                              <option value="cashier">Cashier</option>
+                              {isSuperAdmin && <option value="super_admin">Super Admin</option>}
+                              {isSuperAdmin && <option value="admin">Admin</option>}
+                              <option value="manager">Manager</option>
                               <option value="marketing">Marketing</option>
-                              <option value="admin">Admin</option>
+                              <option value="cashier">Cashier</option>
+                              <option value="employee">Employee</option>
                             </select>
                             <button 
                               onClick={() => setEditingRole(null)} 
@@ -190,24 +199,28 @@ export default function UserManagement() {
                             </button>
                           </div>
                         ) : (
-                          <button 
-                            onClick={() => user.email !== auth.currentUser?.email && setEditingRole(user.id!)}
+                          <button
+                            onClick={() => canEditRole(user) && setEditingRole(user.id!)}
                             className={`group px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 w-fit transition-all ${
-                              user.email !== auth.currentUser?.email ? 'hover:ring-2 hover:ring-navy/20 cursor-pointer' : 'cursor-default'
+                              canEditRole(user) ? 'hover:ring-2 hover:ring-navy/20 cursor-pointer' : 'cursor-default'
                             } ${
-                              user.role === 'admin' 
-                                ? 'bg-purple-100 text-purple-700' 
+                              user.role === 'super_admin'
+                                ? 'bg-red-100 text-red-700'
+                                : user.role === 'admin'
+                                ? 'bg-purple-100 text-purple-700'
+                                : user.role === 'manager'
+                                ? 'bg-blue-100 text-blue-700'
                                 : user.role === 'marketing'
                                 ? 'bg-indigo-100 text-indigo-700'
                                 : user.role === 'cashier'
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : 'bg-gray-100 text-gray-500'
                             }`}
-                            title={user.email !== auth.currentUser?.email ? "Click to change role" : "You cannot change your own role"}
+                            title={canEditRole(user) ? "Click to change role" : user.email === auth.currentUser?.email ? "You cannot change your own role" : "You don't have permission to change this role"}
                           >
-                            {user.role === 'admin' && <Shield size={10} />}
+                            {(user.role === 'super_admin' || user.role === 'admin') && <Shield size={10} />}
                             {user.role}
-                            {user.email !== auth.currentUser?.email && (
+                            {canEditRole(user) && (
                               <MoreVertical size={10} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
                             )}
                           </button>
@@ -226,15 +239,15 @@ export default function UserManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button 
-                          onClick={() => setEditingRole(editingRole === user.id ? null : user.id!)}
+                        <button
+                          onClick={() => canEditRole(user) && setEditingRole(editingRole === user.id ? null : user.id!)}
                           className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            user.email === auth.currentUser?.email 
-                              ? 'text-gray-300 cursor-not-allowed' 
+                            !canEditRole(user)
+                              ? 'text-gray-300 cursor-not-allowed'
                               : 'text-navy hover:bg-navy/10'
                           }`}
-                          disabled={user.email === auth.currentUser?.email}
-                          title={user.email === auth.currentUser?.email ? "You cannot change your own role" : "Change user role"}
+                          disabled={!canEditRole(user)}
+                          title={!canEditRole(user) ? (user.email === auth.currentUser?.email ? "You cannot change your own role" : "You don't have permission to change this role") : "Change user role"}
                         >
                           <Shield size={14} />
                           {editingRole === user.id ? 'Cancel' : 'Change Role'}

@@ -5,15 +5,15 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { GoogleGenAI } from "@google/genai";
-import { 
+import {
   Users,
   LogOut,
-  MapPin, 
-  Phone, 
-  Clock, 
-  Instagram, 
-  Facebook, 
-  Menu as MenuIcon, 
+  MapPin,
+  Phone,
+  Clock,
+  Instagram,
+  Facebook,
+  Menu as MenuIcon,
   X,
   ChevronRight,
   Globe,
@@ -29,11 +29,11 @@ import {
   Utensils as UtensilsIcon
 } from "lucide-react";
 import { useState, useEffect, useMemo, FormEvent } from "react";
-import { 
-  HashRouter as Router, 
-  Routes, 
-  Route, 
-  Link, 
+import {
+  HashRouter as Router,
+  Routes,
+  Route,
+  Link,
   useNavigate,
   useLocation,
   Navigate
@@ -105,8 +105,6 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
 
     const sectionId = href;
     if (location.pathname !== '/') {
-      // Just let the browser navigate to home then hash if needed
-      // Actually navigate manually to ensure hash router works
       navigate('/#' + sectionId);
     } else {
       e.preventDefault();
@@ -127,35 +125,92 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
     }
   }, [location.pathname, location.hash]);
 
+  const navBg = isDashboard
+    ? 'var(--ink-800)'
+    : scrolled
+      ? 'rgba(12,12,12,0.92)'
+      : 'transparent';
+
+  const navStyle: React.CSSProperties = {
+    position: isDashboard ? 'sticky' : 'fixed',
+    top: 0,
+    width: '100%',
+    zIndex: 50,
+    background: navBg,
+    backdropFilter: scrolled && !isDashboard ? 'blur(14px)' : undefined,
+    WebkitBackdropFilter: scrolled && !isDashboard ? 'blur(14px)' : undefined,
+    borderBottom: isDashboard ? `1px solid var(--border)` : scrolled ? `1px solid var(--border)` : 'none',
+    transition: 'background 0.3s ease, border-color 0.3s ease',
+    padding: scrolled ? '12px 0' : '20px 0',
+  };
+
+  const linkStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-condensed)',
+    fontWeight: 600,
+    fontSize: 13,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--cream-100)',
+    textDecoration: 'none',
+    transition: 'color 0.2s ease',
+  };
+
   return (
-    <nav className={`${isDashboard ? "sticky top-0 bg-white border-b border-gray-100 py-3 shadow-sm" : "fixed top-0 w-full transition-all duration-300 " + (scrolled ? "bg-navy shadow-md py-3" : "bg-transparent py-6")} z-50 w-full`}>
-      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2" onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}>
-            <UtensilsIcon className={scrolled || isDashboard ? "text-gold" : "text-white"} size={24} />
-            <span className={`font-display font-bold text-xl tracking-tight ${scrolled || isDashboard ? "text-white" : "text-white"}`}>
-              {companyProfile?.name.split(' ')[0] || "HEMINGWAYS"} <span className="text-gold">{companyProfile?.name.split(' ').slice(1).join(' ') || "JOMTIEN"}</span>
-            </span>
-          </Link>
-        </div>
-        
-        <div className="hidden lg:flex space-x-6 items-center">
+    <nav style={navStyle}>
+      {!isDashboard && !scrolled && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          height: 90,
+          background: 'linear-gradient(to bottom, rgba(8,8,8,0.75) 0%, rgba(8,8,8,0) 100%)',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }} />
+      )}
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Logo */}
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}>
+          <img src="/assets/logo/hemingways-logo-white.png" height={42} alt="Hemingways Jomtien" style={{ height: 42, width: 'auto' }} />
+        </Link>
+
+        {/* Desktop Nav */}
+        <div className="hidden lg:flex" style={{ alignItems: 'center', gap: 28 }}>
           {!isDashboard ? (
             <>
               {navLinks.map((item) => (
-                <a 
-                  key={item.name} 
+                <a
+                  key={item.name}
                   href={item.href === '/' ? '#top' : `#${item.href}`}
                   onClick={(e) => handleNavClick(e, item.href)}
-                  className={`text-sm font-bold uppercase tracking-wider hover:text-gold transition-colors ${scrolled ? "text-white" : "text-white"}`}
+                  style={linkStyle}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--cream-100)')}
                 >
                   {item.name}
                 </a>
               ))}
+              {/* Phone */}
+              <a
+                href={`tel:${companyProfile?.phone || '+6638232422'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold-400)', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textDecoration: 'none' }}
+              >
+                <Phone size={14} />
+                {companyProfile?.phone || '+66 38 232 422'}
+              </a>
+              <a
+                href="#contact"
+                onClick={(e) => handleNavClick(e, 'contact')}
+                className="hw-btn-warm"
+                style={{ padding: '10px 20px', fontSize: 13 }}
+              >
+                Reserve
+              </a>
               {canAccessDashboard && (
-                <Link 
-                  to="/dashboard" 
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs transition-all ${scrolled ? "bg-gold text-white hover:bg-white hover:text-navy" : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm"}`}
+                <Link
+                  to="/dashboard"
+                  style={{ ...linkStyle, display: 'flex', alignItems: 'center', gap: 6 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--cream-100)')}
                 >
                   <Settings size={14} /> Dashboard
                 </Link>
@@ -163,62 +218,74 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
               <Auth onUserChange={setUser} />
             </>
           ) : (
-            <div className="flex items-center gap-4">
-              <Link 
-                to="/" 
-                className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm bg-navy text-white hover:bg-gold transition-all"
-              >
-                <ArrowLeft size={16} /> Back to Site
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <Link to="/" className="hw-btn-outline" style={{ padding: '9px 18px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ArrowLeft size={14} /> Back to Site
               </Link>
               <Auth onUserChange={setUser} />
             </div>
           )}
         </div>
 
-        <button className="lg:hidden" onClick={() => setIsOpen(!isOpen)}>
-          {isOpen ? <X className="text-white" /> : <MenuIcon className="text-white" />}
+        {/* Mobile Hamburger */}
+        <button
+          className="lg:hidden"
+          onClick={() => setIsOpen(!isOpen)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cream-50)', padding: 4 }}
+        >
+          {isOpen ? <X size={24} /> : <MenuIcon size={24} />}
         </button>
       </div>
 
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden bg-navy border-t border-white/10 overflow-hidden"
+            style={{ background: 'var(--ink-800)', borderTop: `1px solid var(--border)`, overflow: 'hidden' }}
+            className="lg:hidden"
           >
-            <div className={`p-6 flex flex-col space-y-4`}>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
               {!isDashboard ? (
                 <>
                   {navLinks.map((item) => (
-                    <a 
-                      key={item.name} 
+                    <a
+                      key={item.name}
                       href={item.href === '/' ? '#top' : `#${item.href}`}
-                      className="text-lg font-bold text-white uppercase tracking-wider hover:text-gold"
                       onClick={(e) => handleNavClick(e, item.href)}
+                      style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 16, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--cream-50)', textDecoration: 'none' }}
                     >
                       {item.name}
                     </a>
                   ))}
-                  <div className="pt-4 border-t border-white/10">
+                  <div style={{ borderTop: `1px solid var(--border)`, paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <a
+                      href="#contact"
+                      onClick={(e) => handleNavClick(e, 'contact')}
+                      className="hw-btn-warm"
+                      style={{ textAlign: 'center' }}
+                    >
+                      Reserve a Table
+                    </a>
+                    {canAccessDashboard && (
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setIsOpen(false)}
+                        style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 15, color: 'var(--gold-400)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+                      >
+                        <Settings size={16} /> Dashboard
+                      </Link>
+                    )}
                     <Auth onUserChange={setUser} />
                   </div>
-                  {canAccessDashboard && (
-                    <Link 
-                      to="/dashboard" 
-                      className="flex items-center gap-2 text-lg font-bold text-gold"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Settings size={18} /> Dashboard
-                    </Link>
-                  )}
                 </>
               ) : (
-                <Link 
-                  to="/" 
-                  className="flex items-center gap-2 text-lg font-bold text-gold"
+                <Link
+                  to="/"
                   onClick={() => setIsOpen(false)}
+                  style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 16, color: 'var(--gold-400)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   <ArrowLeft size={18} /> Back to Site
                 </Link>
@@ -233,34 +300,102 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
 
 const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   return (
-    <section className="relative h-[90vh] flex items-center justify-center overflow-hidden bg-navy">
-      {/* Subtle Dark Pattern Overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.08] pointer-events-none z-0"
-        style={{ 
-          backgroundImage: `linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)`,
-          backgroundSize: '8px 8px' 
+    <section
+      style={{
+        position: 'relative',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'flex-end',
+        overflow: 'hidden',
+        marginTop: -90,
+        background: 'var(--ink-900)',
+      }}
+    >
+      {/* Background image */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: 'url(/assets/cajun-food.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          zIndex: 0,
         }}
       />
-      
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center">
+      {/* Scrim */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(to top, rgba(8,8,8,0.95) 8%, rgba(8,8,8,0.45) 55%, rgba(8,8,8,0.75) 100%)',
+          zIndex: 1,
+        }}
+      />
+
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 'var(--container)', margin: '0 auto', padding: '0 24px 72px' }}>
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.8 }}
-          className="flex flex-col items-center"
+          transition={{ delay: 0.3, duration: 0.8 }}
         >
-          <div className="w-20 h-2px bg-gold/50 mb-6 rounded-full" />
-          <h4 className="text-gold font-bold tracking-[0.3em] uppercase mb-4 text-sm md:text-base">ESTABLISHED SINCE 2004</h4>
-          <h1 className="text-5xl md:text-8xl font-display font-bold text-white mb-6 drop-shadow-2xl">
-            {companyProfile?.name.split(' ')[0] || "HEMINGWAYS"} <span className="text-gold italic font-light">{companyProfile?.name.split(' ').slice(1).join(' ') || "Jomtien"}</span>
+          {/* Badge */}
+          <div style={{ marginBottom: 20 }}>
+            <span
+              className="hw-badge hw-badge-dark"
+              style={{ fontFamily: 'var(--font-condensed)', fontSize: 12, letterSpacing: '0.14em' }}
+            >
+              ★ JOMTIEN · PATTAYA · SINCE 2004 ★
+            </span>
+          </div>
+
+          {/* Headline */}
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(48px, 7vw, 88px)',
+              lineHeight: 1.0,
+              color: 'var(--cream-50)',
+              textTransform: 'uppercase',
+              margin: '0 0 20px',
+              maxWidth: 820,
+            }}
+          >
+            YOUR LOCAL FOR SPORT,{' '}
+            <span style={{ color: 'var(--gold-500)' }}>FOOD & ATMOSPHERE</span>
           </h1>
-          <p className="text-xl md:text-2xl text-white/90 font-medium italic tracking-widest uppercase drop-shadow-lg max-w-3xl">
-            {companyProfile?.description || "Jomtien's Biggest Expat Sports Bar & Restaurant"}
+
+          {/* Sub */}
+          <p
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontStyle: 'italic',
+              fontSize: 19,
+              color: 'var(--cream-100)',
+              marginBottom: 36,
+              maxWidth: 540,
+              lineHeight: 1.6,
+            }}
+          >
+            {companyProfile?.description || "Great food, cold drinks and every big match on the big screens. Open daily — pull up a stool."}
           </p>
-          <div className="mt-12 flex flex-wrap justify-center gap-6">
-            <a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }} className="navy-button flex items-center gap-2 border border-white/20 px-8 py-4 rounded-full font-bold transition-all hover:bg-white/5 active:scale-95 shadow-xl shadow-black/20 cursor-pointer">Explore Menu <ChevronRight size={18} /></a>
-            <a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('location')?.scrollIntoView({ behavior: 'smooth' }); }} className="gold-button flex items-center gap-2 px-8 py-4 rounded-full font-bold transition-all hover:opacity-90 active:scale-95 shadow-xl shadow-gold/20 cursor-pointer">Find Us <MapPin size={18} /></a>
+
+          {/* CTAs */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+            <a
+              href="#contact"
+              onClick={(e) => { e.preventDefault(); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }}
+              className="hw-btn-warm"
+            >
+              Reserve a Table
+            </a>
+            <a
+              href="#menu"
+              onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }}
+              className="hw-btn-outline"
+            >
+              View the Menu
+            </a>
           </div>
         </motion.div>
       </div>
@@ -268,128 +403,151 @@ const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => 
   );
 };
 
+const TriadStrip = () => (
+  <div
+    style={{
+      background: 'var(--gold-500)',
+      padding: '16px 28px',
+      textAlign: 'center',
+    }}
+  >
+    <span
+      style={{
+        fontFamily: 'var(--font-condensed)',
+        fontWeight: 700,
+        fontSize: 18,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: 'var(--ink-900)',
+      }}
+    >
+      ★ Great Food · Cold Drinks · Live Sport ★
+    </span>
+  </div>
+);
+
 const About = () => {
-  const images = { 
-    pub: "gs://gen-lang-client-0190564722.firebasestorage.app/assets/about_pub.webp", 
-    staff: "gs://gen-lang-client-0190564722.firebasestorage.app/assets/about_staff.webp" 
+  const images = {
+    pub: "gs://gen-lang-client-0190564722.firebasestorage.app/assets/about_pub.webp",
+    staff: "gs://gen-lang-client-0190564722.firebasestorage.app/assets/about_staff.webp"
   };
 
-return (
-<section id="about" className="py-24 px-6 bg-white overflow-hidden">
-  <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-    <motion.div
-      initial={{ opacity: 0, x: -50 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-    >
-      <h4 className="text-gold font-bold tracking-widest uppercase mb-2 text-sm">Our Story</h4>
-      <h2 className="text-4xl md:text-5xl font-display font-bold mb-8 text-navy">Welcome to Hemingways</h2>
-      <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-        Hemingway's is Jomtien's biggest expat sports bar and restaurant. We pride ourselves on being a cornerstone of the local community, offering a warm and welcoming atmosphere for residents and visitors alike.
-      </p>
-      <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-        With our English management and staff, we provide a familiar and friendly service that makes every visit special. Whether you're here to catch the big game on one of our 15 screens, enjoy some quality draught beer, or indulge in our famous pub favorites, you'll find the perfect spot at Hemingway's.
-      </p>
-      
-      <div className="grid grid-cols-2 gap-8">
-        <div className="flex items-start gap-4">
-          <div className="bg-navy/5 p-3 rounded-2xl text-navy">
-            <UtensilsIcon size={24} />
-          </div>
-          <div>
-            <h4 className="font-bold text-ink">Famous Pub Food</h4>
-            <p className="text-sm text-gray-500">Quality Western & Thai</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-4">
-          <div className="bg-navy/5 p-3 rounded-2xl text-navy">
-            <Users size={24} />
-          </div>
-          <div>
-            <h4 className="font-bold text-ink">Community Hub</h4>
-            <p className="text-sm text-gray-500">Expat Friendly Environment</p>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-    
-    <div className="relative">
-      <div className="grid grid-cols-2 gap-4">
+  return (
+    <section id="about" style={{ background: 'var(--ink-800)', padding: '80px 24px', overflow: 'hidden' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }} className="grid md:grid-cols-2 gap-16 items-center">
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="relative pt-12"
+          initial={{ opacity: 0, x: -50 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
         >
-          <div className="absolute inset-x-0 bottom-0 top-12 bg-gold/10 rounded-3xl -z-10 transform -rotate-3"></div>
-          <FirebaseImage 
-            src={normalizeImageUrl(images.pub)} 
-            alt="Hemingways Pub" 
-            className="rounded-3xl w-full bg-gray-100 shadow-xl border-4 border-white aspect-[4/5] object-cover"
-          />
+          <div style={{ marginBottom: 8 }}>
+            <span className="hw-badge hw-badge-gold">Our Story</span>
+          </div>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(32px, 4vw, 48px)',
+              color: 'var(--cream-50)',
+              textTransform: 'uppercase',
+              margin: '12px 0 24px',
+            }}
+          >
+            Welcome to Hemingways
+          </h2>
+          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--cream-100)', lineHeight: 1.75, marginBottom: 16 }}>
+            Hemingway's is Jomtien's biggest expat sports bar and restaurant. We pride ourselves on being a cornerstone of the local community, offering a warm and welcoming atmosphere for residents and visitors alike.
+          </p>
+          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.75, marginBottom: 32 }}>
+            With our English management and staff, we provide a familiar and friendly service that makes every visit special. Whether you're here to catch the big game on one of our 15 screens, enjoy quality draught beer, or indulge in our famous pub favorites — you'll always find a great spot at Hemingway's.
+          </p>
+          <div className="grid grid-cols-2 gap-6">
+            {[
+              { icon: <UtensilsIcon size={20} />, title: 'Famous Pub Food', desc: 'Quality Western & Thai' },
+              { icon: <Users size={20} />, title: 'Community Hub', desc: 'Expat Friendly Environment' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ background: 'var(--ink-600)', borderRadius: 'var(--radius-md)', padding: 10, color: 'var(--gold-500)', flexShrink: 0 }}>
+                  {item.icon}
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 15, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.title}</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </motion.div>
-        
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="relative"
-        >
-          <div className="absolute inset-x-0 bottom-0 top-0 bg-navy/10 rounded-3xl -z-10 transform rotate-3"></div>
-          <FirebaseImage 
-            src={normalizeImageUrl(images.staff)} 
-            alt="Hemingways Staff" 
-            className="rounded-3xl w-full bg-gray-100 shadow-xl border-4 border-white aspect-[4/5] object-cover"
-          />
-        </motion.div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, position: 'relative' }}>
+          <motion.div whileHover={{ scale: 1.02 }} style={{ paddingTop: 48 }}>
+            <FirebaseImage
+              src={normalizeImageUrl(images.pub)}
+              alt="Hemingways Pub"
+              className="w-full"
+              style={{ borderRadius: 'var(--radius-md)', aspectRatio: '4/5', objectFit: 'cover', boxShadow: 'var(--shadow-card)', border: `1px solid var(--border)` }}
+            />
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.02 }}>
+            <FirebaseImage
+              src={normalizeImageUrl(images.staff)}
+              alt="Hemingways Staff"
+              className="w-full"
+              style={{ borderRadius: 'var(--radius-md)', aspectRatio: '4/5', objectFit: 'cover', boxShadow: 'var(--shadow-card)', border: `1px solid var(--border)` }}
+            />
+          </motion.div>
+        </div>
       </div>
-      <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-gold rounded-full flex items-center justify-center text-white text-center p-4 transform rotate-12 shadow-xl z-10 border-4 border-white">
-        <span className="font-display italic text-sm font-bold">Local Community Hub</span>
-      </div>
-    </div>
-  </div>
-</section>
-);
+    </section>
+  );
 };
 
 const Features = () => {
   const features = [
     {
-      icon: <Users className="text-gold" />,
+      icon: <Users size={22} />,
       title: "English Management",
       desc: "Friendly English staff and management team ensuring top-quality service."
     },
     {
-      icon: <UtensilsIcon className="text-gold" />,
+      icon: <UtensilsIcon size={22} />,
       title: "Famous Pub Food",
       desc: "Our quality western menu and traditional Thai food are local favorites."
     },
     {
-      icon: <Zap className="text-gold" />,
+      icon: <Zap size={22} />,
       title: "15 Screen TVs",
       desc: "Catch every sport from around the world on our crystal clear displays."
     },
     {
-      icon: <Droplets className="text-gold" />,
+      icon: <Droplets size={22} />,
       title: "Draught Beers",
       desc: "Wide selection of your favorite draught beers and ciders served cold."
     }
   ];
 
   return (
-    <section id="features" className="py-24 px-6 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-4 gap-8">
+    <section id="features" style={{ background: 'var(--ink-800)', padding: '80px 24px' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }}>
+        <div className="grid md:grid-cols-4 gap-6">
           {features.map((f, i) => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="p-8 rounded-[32px] bg-cream border border-navy/5 hover:border-gold/30 transition-all group"
+              className="hw-card"
+              style={{ padding: 28 }}
             >
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform">
+              <div style={{ background: 'var(--ink-600)', borderRadius: 'var(--radius-md)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, color: 'var(--gold-500)' }}>
                 {f.icon}
               </div>
-              <h3 className="text-xl font-bold mb-3 text-ink">{f.title}</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
+              <h3 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                {f.title}
+              </h3>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                {f.desc}
+              </p>
             </motion.div>
           ))}
         </div>
@@ -422,7 +580,7 @@ const Menu = () => {
 
   useEffect(() => {
     const q = query(
-      collection(db, "menu"), 
+      collection(db, "menu"),
       where("published", "==", true)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -430,21 +588,19 @@ const Menu = () => {
         id: doc.id,
         ...doc.data()
       })) as MenuItem[];
-      
-      // Sort in memory to avoid needing a composite index
+
       const sortedItems = menuItems.sort((a, b) => (a.order || 0) - (b.order || 0));
-      
+
       setItems(sortedItems);
       if (sortedItems.length > 0 && !activeCategory) {
-        // Find the first category from the ordered list that has items, excluding "More Add Ons"
-        const availableCats = categoryList.length > 0 
+        const availableCats = categoryList.length > 0
           ? categoryList.filter(c => c.name !== "More Add Ons")
           : [];
-        
+
         const firstCat = availableCats.length > 0
           ? availableCats.find(c => sortedItems.some(i => i.category === c.name))?.name || sortedItems.find(i => i.category !== "More Add Ons")?.category || sortedItems[0].category
           : sortedItems.find(i => i.category !== "More Add Ons")?.category || sortedItems[0].category;
-          
+
         setActiveCategory(firstCat);
       }
     }, (err) => {
@@ -460,144 +616,204 @@ const Menu = () => {
     } else {
       cats = Array.from(new Set<string>(items.map(item => item.category))).sort();
     }
-    // Exclude "More Add Ons" from the main landing page
     return cats.filter(cat => cat !== "More Add Ons");
   }, [items, categoryList]);
 
-const filteredItems = useMemo(() => {
-return items.filter(item => item.category === activeCategory);
-}, [items, activeCategory]);
+  const filteredItems = useMemo(() => {
+    return items.filter(item => item.category === activeCategory);
+  }, [items, activeCategory]);
 
-const getLocalizedName = (item: MenuItem) => {
-switch (language) {
-  case 'zh': return item.name_chinese || item.name;
-  case 'ru': return item.name_russian || item.name;
-  case 'th': return item.name_thai || item.name;
-  default: return item.name;
-}
-};
+  const getLocalizedName = (item: MenuItem) => {
+    switch (language) {
+      case 'zh': return item.name_chinese || item.name;
+      case 'ru': return item.name_russian || item.name;
+      case 'th': return item.name_thai || item.name;
+      default: return item.name;
+    }
+  };
 
-const getLocalizedDesc = (item: MenuItem) => {
-  switch (language) {
-    case 'zh': return item.description_chinese || item.description || "";
-    case 'ru': return item.description_russian || item.description || "";
-    case 'th': return item.description_thai || item.description || "";
-    default: return item.description || "";
-  }
-};
+  const getLocalizedDesc = (item: MenuItem) => {
+    switch (language) {
+      case 'zh': return item.description_chinese || item.description || "";
+      case 'ru': return item.description_russian || item.description || "";
+      case 'th': return item.description_thai || item.description || "";
+      default: return item.description || "";
+    }
+  };
 
-const renderPrice = (item: MenuItem) => {
-  const extraPriceData = [
-    { price: item.price2, label: item.price2Label },
-    { price: item.price3, label: item.price3Label },
-    { price: item.price4, label: item.price4Label }
-  ].filter(p => p.price && p.price.trim() !== '');
+  const renderPrice = (item: MenuItem) => {
+    const extraPriceData = [
+      { price: item.price2, label: item.price2Label },
+      { price: item.price3, label: item.price3Label },
+      { price: item.price4, label: item.price4Label }
+    ].filter(p => p.price && p.price.trim() !== '');
 
-  if (extraPriceData.length > 0) {
-    const formattedOptions = extraPriceData.map((p) => {
-      const labelText = p.label ? p.label.trim() : "";
-      const cleanPrice = p.price!.trim().replace('฿', '');
-      return `${labelText} ฿${cleanPrice}`.trim();
-    });
+    if (extraPriceData.length > 0) {
+      const formattedOptions = extraPriceData.map((p) => {
+        const labelText = p.label ? p.label.trim() : "";
+        const cleanPrice = p.price!.trim().replace('฿', '');
+        return `${labelText} ฿${cleanPrice}`.trim();
+      });
 
-    return (
-      <div className="mt-2 pt-2 border-t border-gray-50 text-lg font-black text-gold">
-        {formattedOptions.join(' ')}
-      </div>
-    );
-  }
+      return (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid var(--border)`, fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 16, color: 'var(--gold-400)' }}>
+          {formattedOptions.join(' ')}
+        </div>
+      );
+    }
 
-  return null;
-};
+    return null;
+  };
 
-return (
-<section id="menu" className="py-24 px-6 bg-cream min-h-screen">
-  <div className="max-w-7xl mx-auto">
-    <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-8">
-      <div className="text-center md:text-left">
-        <h2 className="text-4xl md:text-5xl font-display font-bold mb-4 text-navy">Premium Selection</h2>
-        <p className="text-lg text-gray-600 italic">
-          Authentic British Pub favorites, quality Western dishes, and traditional Thai specialties.
-        </p>
-      </div>
-      
-      <div className="flex bg-white p-1 rounded-full shadow-sm border border-gray-100 ring-1 ring-navy/5">
-        {[
-          { code: 'en', label: 'EN' },
-          { code: 'zh', label: '中文' },
-          { code: 'ru', label: 'RU' },
-          { code: 'th', label: 'TH' }
-        ].map((lang) => (
-          <button
-            key={lang.code}
-            onClick={() => setLanguage(lang.code as Language)}
-            className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-              language === lang.code 
-              ? "bg-navy text-white shadow-md" 
-              : "text-gray-400 hover:text-navy"
-            }`}
-          >
-            {lang.label}
-          </button>
-        ))}
-      </div>
-    </div>
+  const langs = [
+    { code: 'en', label: 'EN' },
+    { code: 'zh', label: '中文' },
+    { code: 'ru', label: 'RU' },
+    { code: 'th', label: 'TH' },
+  ];
 
-    <div className="flex flex-wrap justify-center gap-4 mb-12">
-      {categories.map((cat) => (
-        <button
-          key={cat}
-          onClick={() => setActiveCategory(cat)}
-          className={`px-6 py-2 rounded-full font-bold text-sm tracking-tight transition-all border ${
-            activeCategory === cat 
-            ? "bg-navy border-navy text-white shadow-lg" 
-            : "bg-white border-gray-100 text-gray-500 hover:border-gold hover:text-gold"
-          }`}
+  return (
+    <section id="menu" style={{ background: 'var(--ink-850)', padding: '80px 24px', minHeight: '60vh' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 48, gap: 24 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 8 }}>
+              GOOD FOOD, SERVED ALL DAY
+            </div>
+            <h2
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(40px, 5vw, 64px)',
+                color: 'var(--cream-50)',
+                textTransform: 'uppercase',
+                margin: 0,
+                lineHeight: 1,
+              }}
+            >
+              THE MENU
+            </h2>
+          </div>
+
+          {/* Language switcher */}
+          <div style={{ display: 'flex', gap: 4, background: 'var(--ink-700)', padding: 4, borderRadius: 'var(--radius-md)', border: `1px solid var(--border)` }}>
+            {langs.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => setLanguage(lang.code as Language)}
+                style={{
+                  padding: '8px 14px',
+                  background: language === lang.code ? 'var(--gold-500)' : 'transparent',
+                  color: language === lang.code ? 'var(--ink-900)' : 'var(--text-muted)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-condensed)',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease, color 0.15s ease',
+                }}
+              >
+                {lang.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Category tabs — sticky */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 64,
+            zIndex: 10,
+            background: 'var(--ink-800)',
+            borderBottom: `1px solid var(--border)`,
+            marginBottom: 40,
+            marginLeft: -24,
+            marginRight: -24,
+            padding: '0 24px',
+          }}
         >
-          {cat}
-        </button>
-      ))}
-    </div>
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 0 }} className="no-scrollbar">
+            {categories.map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  style={{
+                    padding: '14px 20px',
+                    background: 'transparent',
+                    color: isActive ? 'var(--gold-400)' : 'var(--text-muted)',
+                    border: 'none',
+                    borderBottom: isActive ? `2px solid var(--gold-500)` : '2px solid transparent',
+                    fontFamily: 'var(--font-condensed)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'color 0.15s ease, border-color 0.15s ease',
+                    flexShrink: 0,
+                  }}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-    <motion.div 
-      key={activeCategory + language}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="grid md:grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-16"
-    >
-      {filteredItems.map((item, idx) => (
-        <MenuItemCard
-          key={item.id || idx}
-          item={item}
-          language={language}
-          getLocalizedName={getLocalizedName}
-          getLocalizedDesc={getLocalizedDesc}
-          renderPrice={renderPrice}
-        />
-      ))}
-    </motion.div>
+        {/* Menu items */}
+        <motion.div
+          key={activeCategory + language}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid md:grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-0"
+        >
+          {filteredItems.map((item, idx) => (
+            <MenuItemCard
+              key={item.id || idx}
+              item={item}
+              language={language}
+              getLocalizedName={getLocalizedName}
+              getLocalizedDesc={getLocalizedDesc}
+              renderPrice={renderPrice}
+            />
+          ))}
+        </motion.div>
 
-    {filteredItems.length === 0 && (
-      <div className="text-center py-24 bg-white rounded-[32px] border-2 border-dashed border-gray-100">
-        <p className="text-gray-400 italic">No items found in this category.</p>
+        {filteredItems.length === 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '80px 24px',
+              border: `2px dashed var(--border)`,
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-muted)' }}>No items found in this category.</p>
+          </div>
+        )}
       </div>
-    )}
-  </div>
-</section>
-);
+    </section>
+  );
 };
 
 const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  
+
   return (
-    <section id="location" className="py-24 px-6 bg-white">
-      <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+    <section id="location" style={{ background: 'var(--ink-900)', padding: '80px 24px' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }} className="grid md:grid-cols-2 gap-16 items-center">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.97 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="rounded-[32px] overflow-hidden h-[500px] shadow-xl relative"
+          style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', height: 460, boxShadow: 'var(--shadow-card)', border: `1px solid var(--border)`, position: 'relative' }}
         >
           {companyProfile?.mapEmbedUrl ? (
             <iframe
@@ -608,7 +824,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
               src={companyProfile.mapEmbedUrl}
-            ></iframe>
+            />
           ) : apiKey && apiKey !== 'undefined' ? (
             <iframe
               width="100%"
@@ -618,83 +834,103 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
               src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=place_id:${companyProfile?.googlePlaceId || "ChIJ5_lFroqWAjER6HN3niniP9o"}`}
-            ></iframe>
+            />
           ) : (
-        <div className="absolute inset-0 bg-navy/10 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-xs">
-            <MapPin className="mx-auto text-navy mb-4" size={32} />
-            <h3 className="font-bold text-lg mb-2">Find Us Here</h3>
-            <p className="text-gray-600 text-sm">{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
-          </div>
-        </div>
-      )}
-    </motion.div>
+            <div style={{ position: 'absolute', inset: 0, background: 'var(--ink-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: 'var(--ink-800)', padding: 28, borderRadius: 'var(--radius-md)', textAlign: 'center', border: `1px solid var(--border)`, maxWidth: 280 }}>
+                <MapPin style={{ color: 'var(--gold-500)', margin: '0 auto 12px' }} size={32} />
+                <h3 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 16, color: 'var(--cream-50)', textTransform: 'uppercase', marginBottom: 8 }}>Find Us Here</h3>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)' }}>{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
+              </div>
+            </div>
+          )}
+        </motion.div>
 
-    <motion.div
-      initial={{ opacity: 0, x: 50 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-    >
-      <h2 className="text-4xl md:text-5xl font-display font-bold mb-8">Visit Us</h2>
-      
-      <div className="space-y-8">
-        <div className="flex items-start gap-4">
-          <div className="bg-cream p-3 rounded-full text-navy">
-            <MapPin size={24} />
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            <span className="hw-badge hw-badge-teal">Find Us</span>
           </div>
-          <div>
-            <h4 className="font-bold text-lg mb-1 text-ink">Address</h4>
-            <p className="text-gray-600">{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
-          </div>
-        </div>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(32px, 4vw, 52px)',
+              color: 'var(--cream-50)',
+              textTransform: 'uppercase',
+              margin: '12px 0 36px',
+            }}
+          >
+            VISIT US
+          </h2>
 
-        <div className="flex items-start gap-4">
-          <div className="bg-cream p-3 rounded-full text-navy">
-            <Phone size={24} />
-          </div>
-          <div>
-            <h4 className="font-bold text-lg mb-1 text-ink">Phone</h4>
-            <p className="text-gray-600">{companyProfile?.phone || "+66 38 232 422"}</p>
-          </div>
-        </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {[
+              { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150" },
+              { icon: <Phone size={20} />, label: 'Phone', value: companyProfile?.phone || "+66 38 232 422" },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                <div style={{ background: 'var(--ink-700)', borderRadius: 'var(--radius-md)', padding: 10, color: 'var(--gold-500)', flexShrink: 0, border: `1px solid var(--border)` }}>
+                  {item.icon}
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{item.label}</div>
+                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-100)' }}>{item.value}</p>
+                </div>
+              </div>
+            ))}
 
-        <div className="flex items-start gap-4">
-          <div className="bg-cream p-3 rounded-full text-navy">
-            <Clock size={24} />
-          </div>
-          <div>
-            <h4 className="font-bold text-lg mb-1 text-ink">Hours</h4>
-            <div className="text-gray-600 space-y-1">
-              {companyProfile?.openingHours ? (
-                Object.entries(companyProfile.openingHours).map(([day, hours]) => (
-                  <p key={day} className="flex justify-between gap-4">
-                    <span className="capitalize w-24">{day}</span>
-                    <span>{hours}</span>
-                  </p>
-                ))
-              ) : (
-                <>
-                  <p>Open Daily: 10:00 AM - 12:00 AM</p>
-                  <p>Food served until 11:00 PM</p>
-                </>
-              )}
+            {/* Hours */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+              <div style={{ background: 'var(--ink-700)', borderRadius: 'var(--radius-md)', padding: 10, color: 'var(--gold-500)', flexShrink: 0, border: `1px solid var(--border)` }}>
+                <Clock size={20} />
+              </div>
+              <div>
+                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Hours</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-100)' }}>
+                  {companyProfile?.openingHours ? (
+                    Object.entries(companyProfile.openingHours).map(([day, hours]) => (
+                      <p key={day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, margin: '2px 0' }}>
+                        <span style={{ textTransform: 'capitalize', minWidth: 96, color: 'var(--text-muted)' }}>{day}</span>
+                        <span>{hours}</span>
+                      </p>
+                    ))
+                  ) : (
+                    <>
+                      <p>Open Daily: 10:00 AM – 12:00 AM</p>
+                      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Food served until 11:00 PM</p>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mt-12 flex gap-4">
-        <a href={companyProfile?.socialLinks.facebook || "https://www.facebook.com/hemingwaysjomtien"} target="_blank" rel="noopener noreferrer" className="bg-cream p-4 rounded-full text-navy hover:bg-navy hover:text-white transition-all">
-          <Facebook size={24} />
-        </a>
-        <a href={companyProfile?.socialLinks.instagram || "https://hemingwaysjomtien.com"} target="_blank" rel="noopener noreferrer" className="bg-cream p-4 rounded-full text-navy hover:bg-navy hover:text-white transition-all">
-          <Instagram size={24} />
-        </a>
+          {/* Social */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 36 }}>
+            <a
+              href={companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+            >
+              <Facebook size={20} />
+            </a>
+            <a
+              href={companyProfile?.socialLinks?.instagram || "https://hemingwaysjomtien.com"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+            >
+              <Instagram size={20} />
+            </a>
+          </div>
+        </motion.div>
       </div>
-    </motion.div>
-  </div>
-</section>
-);
+    </section>
+  );
 };
 
 const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
@@ -723,80 +959,171 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-condensed)',
+    fontWeight: 600,
+    fontSize: 11,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+    display: 'block',
+    marginBottom: 6,
+  };
+
   return (
-<footer id="contact" className="bg-navy text-white py-16 px-6">
-  <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 text-center md:text-left">
-    <div className="col-span-2">
-      <div className="flex items-center gap-2 mb-6 justify-center md:justify-start">
-        <UtensilsIcon className="text-gold" size={24} />
-        <span className="font-display font-bold text-2xl tracking-tight">
-          {companyProfile?.name.split(' ')[0] || "HEMINGWAYS"} <span className="text-gold italic font-light">{companyProfile?.name.split(' ').slice(1).join(' ') || "Jomtien"}</span>
+    <footer id="contact" style={{ background: 'var(--ink-900)' }}>
+      {/* Top rule strip */}
+      <div style={{ borderTop: `1px solid var(--border)`, borderBottom: `1px solid var(--border)`, padding: '14px 24px', textAlign: 'center' }}>
+        <span style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <span style={{ color: 'var(--gold-500)' }}>★</span> Good Food · Cold Drinks · Great Times <span style={{ color: 'var(--gold-500)' }}>★</span>
         </span>
       </div>
-      <p className="text-white/60 max-w-sm mb-8 mx-auto md:mx-0">
-        {companyProfile?.description || "Jomtien's biggest expat sports bar and restaurant. Quality food, cold beer, and all your favorite sports on 15 screens."}
-      </p>
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-4 justify-center md:justify-start">
-          <a href={companyProfile?.socialLinks.facebook || "https://www.facebook.com/hemingwaysjomtien"} target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-gold transition-colors">
-            <Facebook size={24} />
-          </a>
-          <a href={companyProfile?.socialLinks.instagram || "https://hemingwaysjomtien.com"} target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-gold transition-colors">
-            <Instagram size={24} />
-          </a>
+
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto', padding: '64px 24px' }} className="grid md:grid-cols-3 gap-12">
+        {/* Col 1: Logo + social */}
+        <div>
+          <img src="/assets/logo/hemingways-logo-white.png" height={40} alt="Hemingways Jomtien" style={{ height: 40, width: 'auto', marginBottom: 16 }} />
+          <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24, maxWidth: 260 }}>
+            {companyProfile?.description || "Jomtien's biggest expat sports bar and restaurant. Quality food, cold beer, and all your favourite sports on 15 screens."}
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a
+              href={companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+            >
+              <Facebook size={18} />
+            </a>
+            <a
+              href={companyProfile?.socialLinks?.instagram || "https://hemingwaysjomtien.com"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+            >
+              <Instagram size={18} />
+            </a>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-white/40 text-sm uppercase tracking-widest font-bold">Address</p>
-          <p className="text-white/60 text-sm">{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
+
+        {/* Col 2: Find Us */}
+        <div>
+          <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 20 }}>
+            Find Us
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <MapPin size={15} style={{ color: 'var(--gold-500)', flexShrink: 0, marginTop: 2 }} />
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                {companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Phone size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
+                {companyProfile?.phone || "+66 38 232 422"}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Clock size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open Daily · 10:00 AM – 12:00 AM</span>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 28 }}>
+            <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 14 }}>
+              Explore
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { label: 'Home', id: null },
+                { label: 'Food Menu', id: 'menu' },
+                { label: 'Sports Schedule', id: 'sports' },
+                { label: 'Daily Specials', id: 'specials' },
+                { label: 'Location', id: 'location' },
+              ].map((link) => (
+                <a
+                  key={link.label}
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (link.id) document.getElementById(link.id)?.scrollIntoView({ behavior: 'smooth' });
+                    else window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Col 3: Contact form */}
+        <div>
+          <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 20 }}>
+            Get in Touch
+          </div>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
+            Reservations, group bookings, or just a quick question — drop us a message.
+          </p>
+          <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Name</label>
+              <input
+                className="hw-input"
+                type="text"
+                placeholder="Your name"
+                value={formState.name}
+                onChange={(e) => setFormState({ ...formState, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Email</label>
+              <input
+                className="hw-input"
+                type="email"
+                placeholder="your@email.com"
+                value={formState.email}
+                onChange={(e) => setFormState({ ...formState, email: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Message</label>
+              <textarea
+                className="hw-input"
+                placeholder="Your message..."
+                rows={3}
+                value={formState.message}
+                onChange={(e) => setFormState({ ...formState, message: e.target.value })}
+                style={{ resize: 'vertical' }}
+              />
+            </div>
+            <button
+              type="submit"
+              className="hw-btn-warm"
+              disabled={isSubmitting}
+              style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+            >
+              {isSubmitting ? 'Sending...' : 'Send Message'}
+            </button>
+          </form>
         </div>
       </div>
-    </div>
 
-    <div>
-      <h4 className="font-bold mb-6 text-gold uppercase tracking-wider text-sm">Explore</h4>
-      <ul className="space-y-4 text-white/60">
-        <li><a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Home</a></li>
-        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Food Menu</a></li>
-        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('sports')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Sports Schedule</a></li>
-        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('specials')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Daily Specials</a></li>
-        <li><a href="#" onClick={(e) => { e.preventDefault(); document.getElementById('location')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-gold transition-colors cursor-pointer">Location</a></li>
-      </ul>
-    </div>
-
-    <div>
-      <h4 className="font-bold mb-6 text-gold uppercase tracking-wider text-sm">Newsletter</h4>
-      <p className="text-sm text-white/50 mb-4 italic">Get updates on sports events & specials.</p>
-      <form 
-        className="flex flex-col gap-3" 
-        onSubmit={handleFormSubmit}
-      >
-        <input 
-          name="email"
-          type="email" 
-          placeholder="Your Email" 
-          value={formState.email}
-          onChange={(e) => setFormState({...formState, email: e.target.value})}
-          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-gold outline-none"
-          required
-        />
-        <button 
-          type="submit" 
-          disabled={isSubmitting}
-          className="gold-button text-sm py-2 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? 'Sending...' : 'Join Community'}
-        </button>
-      </form>
-    </div>
-  </div>
-  
-  <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 text-center text-white/20 text-xs">
-    <p>&copy; {new Date().getFullYear()} Hemingways Jomtien. All rights reserved.</p>
-  </div>
-</footer>
-);
+      {/* Bottom bar */}
+      <div style={{ borderTop: `1px solid var(--border)`, padding: '16px 24px', textAlign: 'center' }}>
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-faint)' }}>
+          © {new Date().getFullYear()} Hemingways Jomtien · Restaurant & Bar · Also now on Grab Food
+        </p>
+      </div>
+    </footer>
+  );
 };
-
 
 const SportsSchedule = () => {
   const [events, setEvents] = useState<SportsEvent[]>([]);
@@ -822,16 +1149,28 @@ const SportsSchedule = () => {
   if (events.length === 0) return null;
 
   return (
-    <section id="sports" className="py-24 px-6 bg-navy text-white overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h4 className="text-gold font-bold tracking-widest uppercase mb-2 text-sm">Live Sports</h4>
-          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">Sports Schedule</h2>
-          <p className="text-white/60 italic">Catch all the action on our 15 big screens.</p>
-          <div className="h-1 w-24 bg-gold mx-auto mt-6 rounded-full"></div>
+    <section id="sports" style={{ background: 'var(--ink-900)', padding: '80px 24px', overflow: 'hidden' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }}>
+        {/* Heading */}
+        <div style={{ marginBottom: 48, textAlign: 'center' }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(36px, 5vw, 60px)',
+              color: 'var(--cream-50)',
+              textTransform: 'uppercase',
+              margin: 0,
+            }}
+          >
+            LIVE SPORT{' '}
+            <span style={{ color: 'var(--gold-500)' }}>TODAY</span>
+          </h2>
+          <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: 'var(--text-muted)', marginTop: 12 }}>
+            Catch all the action on our 15 big screens.
+          </p>
         </div>
 
-        <div className="grid gap-4 max-w-4xl mx-auto">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860, margin: '0 auto' }}>
           {events.map((event, idx) => (
             <motion.div
               key={event.id || idx}
@@ -839,22 +1178,33 @@ const SportsSchedule = () => {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.05 }}
               viewport={{ once: true }}
-              className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 hover:bg-white/10 transition-all"
+              className="hw-card"
+              style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}
             >
-              <div className="flex items-center gap-6 text-center md:text-left flex-1">
-                <div className="min-w-[80px]">
-                  <div className="text-gold font-bold text-lg">{event.time}</div>
-                  <div className="text-white/40 text-xs uppercase font-bold">{event.date}</div>
-                </div>
-                <div className="h-8 w-px bg-white/10 hidden md:block"></div>
-                <div>
-                  <div className="text-xl font-bold text-white">{event.event}</div>
-                  <div className="text-gold/60 text-sm font-medium">{event.comp}</div>
-                </div>
+              {/* Time */}
+              <div style={{ minWidth: 80, textAlign: 'center', flexShrink: 0 }}>
+                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, color: 'var(--gold-400)' }}>{event.time}</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{event.date}</div>
               </div>
-              <div className="bg-gold/10 px-4 py-2 rounded-full border border-gold/20">
-                <span className="text-gold text-xs font-black uppercase tracking-widest">Live Now</span>
+
+              <div style={{ width: 1, height: 36, background: 'var(--border)', flexShrink: 0 }} className="hidden md:block" />
+
+              {/* Event info */}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{event.event}</div>
+                {event.comp && (
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{event.comp}</div>
+                )}
               </div>
+
+              {/* Live badge */}
+              <span className="hw-badge hw-badge-live" style={{ flexShrink: 0 }}>
+                <span
+                  className="hw-pulse"
+                  style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cream-50)', display: 'inline-block', flexShrink: 0 }}
+                />
+                LIVE
+              </span>
             </motion.div>
           ))}
         </div>
@@ -887,16 +1237,30 @@ const Specials = () => {
   if (specials.length === 0) return null;
 
   return (
-    <section id="specials" className="py-24 px-6 bg-white overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h4 className="text-gold font-bold tracking-widest uppercase mb-2 text-sm">Chef's Recommendations</h4>
-          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4 text-navy">Daily Specials</h2>
-          <p className="text-gray-600 italic">Freshly prepared favorites at unbeatable prices.</p>
-          <div className="h-1 w-24 bg-navy mx-auto mt-6 rounded-full"></div>
+    <section id="specials" style={{ background: 'var(--ink-850)', padding: '80px 24px', overflow: 'hidden' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }}>
+        {/* Heading */}
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--teal-500)', marginBottom: 10 }}>
+            Chef's Recommendations
+          </div>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(36px, 5vw, 56px)',
+              color: 'var(--cream-50)',
+              textTransform: 'uppercase',
+              margin: '0 0 12px',
+            }}
+          >
+            DAILY SPECIALS
+          </h2>
+          <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: 'var(--text-muted)' }}>
+            Freshly prepared favorites at unbeatable prices.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {specials.map((special, idx) => (
             <motion.div
               key={special.id || idx}
@@ -904,27 +1268,59 @@ const Specials = () => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               viewport={{ once: true }}
-              className="bg-cream rounded-[40px] overflow-hidden shadow-sm border border-navy/5 group hover:shadow-xl transition-all h-full flex flex-col"
+              className="hw-card hw-card-interactive"
+              style={{ display: 'flex', flexDirection: 'column' }}
             >
-              <div className="relative h-64 overflow-hidden">
-                <FirebaseImage 
-                  src={normalizeImageUrl(special.image || "/logo.png")} 
+              {/* Image */}
+              <div style={{ position: 'relative', height: 220, overflow: 'hidden' }}>
+                <FirebaseImage
+                  src={normalizeImageUrl(special.image || "/logo.png")}
                   alt={special.name}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  className="w-full h-full object-cover"
+                  style={{ transition: 'transform 0.5s ease' }}
                 />
+                {/* Price stamp */}
                 {special.price && (
-                  <div className="absolute top-6 right-6 bg-gold text-white px-6 py-2 rounded-full font-black shadow-lg">
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 14,
+                      right: 14,
+                      background: 'var(--red-500)',
+                      color: 'var(--cream-50)',
+                      fontFamily: 'var(--font-condensed)',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      padding: '6px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      letterSpacing: '0.06em',
+                    }}
+                  >
                     ฿{special.price}
                   </div>
                 )}
               </div>
-              <div className="p-8 flex-1 flex flex-col">
-                <h3 className="text-2xl font-display font-bold text-ink mb-3">{special.name}</h3>
-                <p className="text-gray-500 text-sm italic leading-relaxed mb-6 flex-1">
+
+              {/* Content */}
+              <div style={{ padding: '20px 20px 22px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-condensed)',
+                    fontWeight: 600,
+                    fontSize: 22,
+                    color: 'var(--cream-50)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    marginBottom: 8,
+                  }}
+                >
+                  {special.name}
+                </h3>
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.65, flex: 1 }}>
                   {special.description}
                 </p>
                 {special.endDate && (
-                  <div className="text-[10px] uppercase font-bold tracking-widest text-navy/40 border-t border-navy/5 pt-4">
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-faint)', marginTop: 14, paddingTop: 12, borderTop: `1px solid var(--border)` }}>
                     Available until {special.endDate}
                   </div>
                 )}
@@ -958,23 +1354,37 @@ const Reviews = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
   const reviewsToDisplay = businessInfo?.reviews?.length ? businessInfo.reviews : customReviews;
 
   return (
-    <section className="py-24 px-6 bg-cream overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h4 className="text-gold font-bold tracking-widest uppercase mb-2 text-sm">Guest Feedback</h4>
-          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4 text-navy">What Our Guests Say</h2>
-          <div className="flex items-center justify-center gap-2 text-gold mb-2">
-            <div className="flex">
+    <section style={{ background: 'var(--ink-800)', padding: '80px 24px', overflow: 'hidden' }}>
+      <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }}>
+        {/* Heading */}
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 10 }}>
+            Guest Feedback
+          </div>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(32px, 4vw, 52px)',
+              color: 'var(--cream-50)',
+              textTransform: 'uppercase',
+              margin: '0 0 14px',
+            }}
+          >
+            WHAT OUR GUESTS SAY
+          </h2>
+          {/* Stars + rating */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--gold-400)' }}>
+            <div style={{ display: 'flex' }}>
               {[...Array(5)].map((_, i) => (
-                <Star key={i} size={20} fill={i < Math.ceil(businessInfo?.rating || 4.8) ? "currentColor" : "none"} />
+                <Star key={i} size={18} fill={i < Math.ceil(businessInfo?.rating || 4.8) ? "currentColor" : "none"} />
               ))}
             </div>
-            <span className="font-bold text-lg">{businessInfo?.rating || 4.8}</span>
-            <span className="text-gray-400">({businessInfo?.user_ratings_total || 250}+ reviews)</span>
+            <span style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 18, color: 'var(--gold-400)' }}>{businessInfo?.rating || 4.8}</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>({businessInfo?.user_ratings_total || 250}+ reviews)</span>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reviewsToDisplay.slice(0, 3).map((review, idx) => (
             <motion.div
               key={idx}
@@ -982,24 +1392,34 @@ const Reviews = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               viewport={{ once: true }}
-              className="bg-white p-8 rounded-[32px] shadow-sm relative border border-gray-100"
+              className="hw-card"
+              style={{ padding: '28px 24px', position: 'relative' }}
             >
-              <Quote className="absolute top-6 right-8 text-cream/80" size={48} />
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-navy/5 flex items-center justify-center text-navy font-bold">
+              <Quote
+                style={{ position: 'absolute', top: 18, right: 18, color: 'var(--ink-500)', opacity: 0.6 }}
+                size={36}
+              />
+
+              {/* Author */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--ink-600)', border: `1px solid var(--border)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 16, color: 'var(--gold-400)', flexShrink: 0 }}>
                   {review.author_name[0]}
                 </div>
                 <div>
-                  <h4 className="font-bold text-ink">{review.author_name}</h4>
-                  <p className="text-xs text-gray-400">{review.relative_time_description}</p>
+                  <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 15, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{review.author_name}</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-faint)', marginTop: 1 }}>{review.relative_time_description}</div>
                 </div>
               </div>
-              <div className="flex text-gold mb-4">
+
+              {/* Stars */}
+              <div style={{ display: 'flex', color: 'var(--gold-400)', marginBottom: 12 }}>
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={14} fill={i < review.rating ? "currentColor" : "none"} />
+                  <Star key={i} size={13} fill={i < review.rating ? "currentColor" : "none"} />
                 ))}
               </div>
-              <p className="text-gray-600 italic text-sm leading-relaxed">
+
+              {/* Text */}
+              <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
                 "{review.text.length > 200 ? review.text.substring(0, 200) + '...' : review.text}"
               </p>
             </motion.div>
@@ -1011,17 +1431,18 @@ const Reviews = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
 };
 
 const MainSite = ({ isAdmin, businessInfo, companyProfile }: { isAdmin: boolean, businessInfo: BusinessInfo | null, companyProfile: CompanyProfile | null }) => (
-<div className="min-h-screen">
-<Hero companyProfile={companyProfile} />
-<Features />
-<About />
-<Menu />
-<Specials />
-<SportsSchedule />
-<Reviews businessInfo={businessInfo} />
-<Location companyProfile={companyProfile} />
-<Footer companyProfile={companyProfile} />
-</div>
+  <div style={{ minHeight: '100vh' }}>
+    <Hero companyProfile={companyProfile} />
+    <TriadStrip />
+    <Features />
+    <About />
+    <Menu />
+    <Specials />
+    <SportsSchedule />
+    <Reviews businessInfo={businessInfo} />
+    <Location companyProfile={companyProfile} />
+    <Footer companyProfile={companyProfile} />
+  </div>
 );
 
 export default function App() {
@@ -1033,15 +1454,15 @@ export default function App() {
   return (
     <Router>
       <Toaster position="top-center" richColors />
-      <AppContent 
-        user={user} 
-        setUser={setUser} 
-        businessInfo={businessInfo} 
-        setBusinessInfo={setBusinessInfo} 
+      <AppContent
+        user={user}
+        setUser={setUser}
+        businessInfo={businessInfo}
+        setBusinessInfo={setBusinessInfo}
         companyProfile={companyProfile}
         setCompanyProfile={setCompanyProfile}
-        error={error} 
-        setError={setError} 
+        error={error}
+        setError={setError}
       />
     </Router>
   );
@@ -1053,16 +1474,27 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
   const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import";
   const isStaffApp = location.pathname === "/expense";
 
+  const isSuperAdmin = useMemo(() => {
+    if (!user) return false;
+    const isHardcodedSuperAdmin = user.email?.toLowerCase() === "shaneruddle@gmail.com";
+    const hasSuperAdminRole = user.role === 'super_admin';
+    return isHardcodedSuperAdmin || hasSuperAdminRole;
+  }, [user]);
+
   const isAdmin = useMemo(() => {
     if (!user) return false;
     const isHardcodedAdmin = user.email?.toLowerCase() === "info@hemingwaysjomtien.com";
     const hasAdminRole = user.role === 'admin';
-    return isHardcodedAdmin || hasAdminRole;
-  }, [user]);
+    return isSuperAdmin || isHardcodedAdmin || hasAdminRole;
+  }, [user, isSuperAdmin]);
+
+  const isManager = useMemo(() => {
+    return isAdmin || user?.role === 'manager';
+  }, [user, isAdmin]);
 
   const isMarketing = useMemo(() => {
-    return isAdmin || user?.role === 'marketing';
-  }, [user, isAdmin]);
+    return isManager || user?.role === 'marketing';
+  }, [user, isManager]);
 
   const isStaff = useMemo(() => {
     return isAdmin || ['cashier', 'marketing'].includes(user?.role || '');
@@ -1110,72 +1542,79 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
       }
     }, (err) => {
       console.warn("Company profile listener permission or access issue:", err.message);
-      // Don't throw here to avoid crashing the main app loop
     });
 
     return () => unsubscribe();
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div style={{ minHeight: '100vh', background: 'var(--ink-850)' }}>
       {isEmployee && (
-        <div className="fixed inset-0 bg-cream z-[200] flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-20 h-20 bg-navy/10 rounded-full flex items-center justify-center text-navy mb-6">
-            <Users size={40} />
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--ink-850)', zIndex: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+          <div style={{ width: 72, height: 72, background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', marginBottom: 20 }}>
+            <Users size={36} />
           </div>
-          <h2 className="text-2xl font-bold text-ink mb-2">Employee Portal</h2>
-          <p className="text-gray-500 mb-8">Your account is pending approval. Please contact an administrator.</p>
-          <button 
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--cream-50)', textTransform: 'uppercase', marginBottom: 8 }}>Employee Portal</h2>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 28, maxWidth: 320 }}>Your account is pending approval. Please contact an administrator.</p>
+          <button
             onClick={() => signOut(auth)}
-            className="px-8 py-3 bg-navy text-white rounded-2xl font-bold hover:bg-gold transition-all shadow-lg shadow-navy/20 flex items-center gap-2"
+            className="hw-btn-outline"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            <LogOut size={18} /> Sign Out
+            <LogOut size={16} /> Sign Out
           </button>
         </div>
       )}
-      {!isDigitalMenu && !isDashboard && !isStaffApp && !isEmployee && <Navbar canAccessDashboard={isMarketing} setUser={setUser} companyProfile={companyProfile} />}
+
+      {!isDigitalMenu && !isDashboard && !isStaffApp && !isEmployee && (
+        <Navbar canAccessDashboard={isMarketing} setUser={setUser} companyProfile={companyProfile} />
+      )}
+
       {isAdmin && error && !isDigitalMenu && (
-        <div className="pt-24 px-6">
-          <div className="max-w-7xl mx-auto bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3 text-sm">
-            <Settings size={16} />
+        <div style={{ paddingTop: 96, paddingLeft: 24, paddingRight: 24 }}>
+          <div style={{ maxWidth: 'var(--container)', margin: '0 auto', background: 'rgba(225,30,21,0.12)', border: `1px solid rgba(225,30,21,0.3)`, color: 'var(--red-400)', padding: '12px 16px', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontFamily: 'var(--font-sans)' }}>
+            <Settings size={15} />
             <span><strong>Admin Notice:</strong> {error}</span>
           </div>
         </div>
       )}
+
       <Routes>
-        <Route path="/" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Redirecting to Staff Portal...</div> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} companyProfile={companyProfile} />} />
-        <Route path="/menu" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Access Denied</div> : <DigitalMenuDisplay />} />
-        <Route path="/digital-menu" element={isCashierOnly ? <div className="h-screen bg-cream flex items-center justify-center">Access Denied</div> : <DigitalMenuDisplay />} />
-        <Route path="/expense" element={isStaff ? <ExpenseEntry /> : <div className="pt-32 text-center h-screen bg-cream">Access Denied. Please login with a staff account.</div>} />
-        
+        <Route path="/" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Redirecting to Staff Portal...</div> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} companyProfile={companyProfile} />} />
+        <Route path="/menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenuDisplay />} />
+        <Route path="/digital-menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenuDisplay />} />
+        <Route path="/expense" element={isStaff ? <ExpenseEntry /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied. Please login with a staff account.</div>} />
+
         {/* Dashboard Routes with Sidebar Layout */}
-        <Route path="/dashboard" element={(isAdmin || isMarketing) ? <DashboardLayout user={user} /> : <div className="pt-32 text-center h-screen bg-cream flex flex-col items-center justify-center gap-4">Access Denied. <Auth onUserChange={setUser} /></div>}>
-          <Route index element={(isAdmin || isMarketing) ? <Dashboard /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="categories" element={(isAdmin || isMarketing) ? <CategoriesDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="finance" element={isAdmin ? <FinanceDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="finance/import" element={isAdmin ? <BulkFinanceImport /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="users" element={isAdmin ? <UserManagement /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="loyalty" element={isAdmin ? <LoyaltyDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="images" element={(isAdmin || isMarketing) ? <ImageManagement /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="profile" element={(isAdmin || isMarketing) ? <CompanyProfileDashboard /> : <div className="p-20 text-center">Access Denied</div>} />
-          <Route path="logs" element={isAdmin ? <SystemLogs /> : <div className="p-20 text-center">Access Denied</div>} />
+        <Route path="/dashboard" element={isMarketing ? <DashboardLayout user={user} /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. <Auth onUserChange={setUser} /></div>}>
+          <Route index element={isMarketing ? <Dashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="categories" element={isMarketing ? <CategoriesDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="finance" element={isManager ? <FinanceDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="finance/import" element={isManager ? <BulkFinanceImport /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="users" element={isManager ? <UserManagement isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="loyalty" element={isManager ? <LoyaltyDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="images" element={isMarketing ? <ImageManagement /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="profile" element={isMarketing ? <CompanyProfileDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="logs" element={isManager ? <SystemLogs /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
         </Route>
 
-        <Route path="/import" element={(isAdmin || isMarketing) ? <BulkImport /> : <div className="pt-32 text-center h-screen bg-cream flex flex-col items-center justify-center gap-4">Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
+        <Route path="/import" element={isMarketing ? <BulkImport /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
         <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
+
       {!isDigitalMenu && ((!isDashboard && !isStaffApp) || !user) && (
-        <div className="fixed bottom-4 right-4 z-[60]">
+        <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 60 }}>
           <Auth onUserChange={setUser} />
         </div>
       )}
+
       {isStaffApp && !user && (
-        <div className="fixed inset-0 bg-cream z-[100] flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-20 h-20 bg-navy/10 rounded-full flex items-center justify-center text-navy mb-6">
-            <Settings size={40} className="animate-pulse" />
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--ink-850)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+          <div style={{ width: 72, height: 72, background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', marginBottom: 20 }}>
+            <Settings size={36} style={{ animation: 'spin 2s linear infinite' }} />
           </div>
-          <h2 className="text-2xl font-bold text-ink mb-2">Staff Portal</h2>
-          <p className="text-gray-500 mb-8">Please login to enter expenses</p>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--cream-50)', textTransform: 'uppercase', marginBottom: 8 }}>Staff Portal</h2>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 28 }}>Please login to enter expenses</p>
           <Auth onUserChange={setUser} />
         </div>
       )}
