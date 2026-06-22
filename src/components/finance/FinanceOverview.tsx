@@ -3,7 +3,7 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { db } from '../../firebase';
 import { Expense, Income } from './types';
 import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const CATEGORY_COLORS = ['#C84B31', '#4A5240', '#E8DCC8', '#8B7355', '#6B8F71', '#D4A853'];
 
@@ -80,18 +80,18 @@ export default function FinanceOverview({ financeRole = 'owner' }: { financeRole
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-ink">Finance Overview</h1>
-        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]">
+        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]">
           {monthOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
         </select>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${showProfit ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {[
-          { label: 'Total Income', value: totalIncome, icon: <TrendingUp size={20} />, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Total Expenses', value: totalExpenses, icon: <TrendingDown size={20} />, color: 'text-red-500', bg: 'bg-red-50' },
-          { label: 'Net Profit', value: net, icon: net >= 0 ? <DollarSign size={20} /> : <AlertCircle size={20} />, color: net >= 0 ? 'text-green-600' : 'text-red-600', bg: net >= 0 ? 'bg-cream' : 'bg-red-50' },
-        ].map(({ label, value, icon, color, bg }) => (
+          { label: 'Total Income', value: totalIncome, icon: <TrendingUp size={20} />, color: 'text-green-600', bg: 'bg-green-50', show: true },
+          { label: 'Total Expenses', value: totalExpenses, icon: <TrendingDown size={20} />, color: 'text-red-500', bg: 'bg-red-50', show: true },
+          { label: 'Net Profit', value: net, icon: net >= 0 ? <DollarSign size={20} /> : <AlertCircle size={20} />, color: net >= 0 ? 'text-green-600' : 'text-red-600', bg: net >= 0 ? 'bg-cream' : 'bg-red-50', show: showProfit },
+        ].filter(c => c.show).map(({ label, value, icon, color, bg }) => (
           <div key={label} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-gray-500">{label}</span>
@@ -107,13 +107,15 @@ export default function FinanceOverview({ financeRole = 'owner' }: { financeRole
         {expensesByCategory.length > 0 && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="font-bold text-ink mb-4">Expenses by Category</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={expensesByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {expensesByCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-                </Pie>
+            <ResponsiveContainer width="100%" height={Math.max(180, expensesByCategory.slice(0, 10).length * 36)}>
+              <BarChart data={expensesByCategory.slice(0, 10).sort((a, b) => b.value - a.value)} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <XAxis type="number" tickFormatter={v => `฿${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
-              </PieChart>
+                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  {expensesByCategory.slice(0, 10).map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -121,13 +123,15 @@ export default function FinanceOverview({ financeRole = 'owner' }: { financeRole
         {incomeByCategory.length > 0 && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="font-bold text-ink mb-4">Income by Category</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={incomeByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {incomeByCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
-                </Pie>
+            <ResponsiveContainer width="100%" height={Math.max(180, incomeByCategory.length * 36)}>
+              <BarChart data={incomeByCategory.sort((a, b) => b.value - a.value)} layout="vertical" margin={{ left: 8, right: 16 }}>
+                <XAxis type="number" tickFormatter={v => `฿${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
-              </PieChart>
+                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  {incomeByCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}

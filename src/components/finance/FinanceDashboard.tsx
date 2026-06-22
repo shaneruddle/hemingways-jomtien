@@ -12,8 +12,10 @@ type FinanceRole = 'owner' | 'manager' | 'cashier';
 
 function getFinanceRole(user: any): FinanceRole {
   if (!user) return 'cashier';
-  if (user.email?.toLowerCase() === 'info@hemingwaysjomtien.com' || user.role === 'admin' || user.role === 'super_admin') return 'owner';
-  if (user.role === 'manager') return 'manager';
+  // Only super_admin sees net profit
+  if (user.role === 'super_admin') return 'owner';
+  // admin (including info@), manager see income + expenses but not profit
+  if (user.role === 'admin' || user.role === 'manager' || user.email?.toLowerCase() === 'info@hemingwaysjomtien.com') return 'manager';
   return 'cashier';
 }
 
