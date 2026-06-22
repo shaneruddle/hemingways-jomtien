@@ -1479,6 +1479,14 @@ export default function App() {
 
 function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfile, setCompanyProfile, error, setError }: any) {
   const location = useLocation();
+
+  // If landing on /digitalmenu with no hash route, redirect to #/menu
+  useEffect(() => {
+    if (window.location.pathname === '/digitalmenu' && !window.location.hash) {
+      window.location.replace(window.location.href + '#/menu');
+    }
+  }, []);
+
   const isDigitalMenu = location.pathname === "/menu" || location.pathname === "/digital-menu";
   const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import";
   const isStaffApp = location.pathname === "/expense";
