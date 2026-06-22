@@ -339,6 +339,7 @@ export default function DashboardLayout({ user }: { user: any }) {
                 <>
                   <SidebarSubItem label="Main Menu" to="/dashboard" isActive={isActive('/dashboard')} />
                   <SidebarSubItem label="Categories" to="/dashboard/categories" isActive={isActive('/dashboard/categories')} />
+                  <SidebarSubItem label="Specials" to="/dashboard/specials" isActive={isActive('/dashboard/specials')} />
                 </>
               )}
             </SidebarItem>

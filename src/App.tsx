@@ -65,6 +65,7 @@ import ImageManagement from "./components/ImageManagement";
 import SystemLogs from "./components/SystemLogs";
 import LoyaltyDashboard from "./components/LoyaltyDashboard";
 import CompanyProfileDashboard from "./components/CompanyProfileDashboard";
+import SpecialsDashboard from "./components/SpecialsDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
 import { CompanyProfile } from "./types";
@@ -1601,6 +1602,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
           <Route path="finance/import" element={isManager ? <BulkFinanceImport /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="users" element={isManager ? <UserManagement isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="loyalty" element={isManager ? <LoyaltyDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="specials" element={isMarketing ? <SpecialsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="images" element={isMarketing ? <ImageManagement /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="profile" element={isMarketing ? <CompanyProfileDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="logs" element={isManager ? <SystemLogs /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
