@@ -70,24 +70,24 @@ import { CSS } from '@dnd-kit/utilities';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
-  ink850:      '#141414',
-  ink800:      '#181816',
-  ink700:      '#1C1C1C',
-  ink600:      '#262524',
-  ink500:      '#3A3734',
+  ink850:      '#f8f9fb',   // page background
+  ink800:      '#ffffff',   // toolbar / panels
+  ink700:      '#ffffff',   // table rows / cards
+  ink600:      '#f3f4f6',   // hover / alt rows
+  ink500:      '#e5e7eb',   // dividers / subtle borders
   gold500:     '#D49F3D',
-  gold400:     '#E3B860',
+  gold400:     '#B97D15',   // darker gold — readable on white
   teal500:     '#1DA0A8',
   teal400:     '#34B2BA',
   red500:      '#E11E15',
-  cream50:     '#F6F1E6',
-  cream100:    '#E9E0CE',
-  muted:       '#A39A8C',
-  faint:       '#7E766A',
-  border:      'rgba(246,241,230,0.12)',
-  borderStrong:'rgba(246,241,230,0.28)',
-  shadowCard:  '0 10px 28px rgba(0,0,0,0.55)',
-  shadowPop:   '0 22px 60px rgba(0,0,0,0.65)',
+  cream50:     '#111827',   // primary text
+  cream100:    '#374151',   // secondary text
+  muted:       '#6b7280',   // muted text
+  faint:       '#9ca3af',   // faint text
+  border:      '#e5e7eb',   // solid light border
+  borderStrong:'#d1d5db',   // slightly stronger border
+  shadowCard:  '0 2px 8px rgba(0,0,0,0.08)',
+  shadowPop:   '0 8px 32px rgba(0,0,0,0.14)',
 };
 
 // ─── SortableRow ─────────────────────────────────────────────────────────────

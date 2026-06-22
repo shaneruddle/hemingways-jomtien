@@ -249,7 +249,7 @@ export default function DashboardLayout({ user }: { user: any }) {
   const userRole = user?.role || 'Staff';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: T.ink850 }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8f9fb' }}>
       {/* ── Sidebar ── */}
       <aside style={sidebarStyle}>
 
@@ -532,7 +532,7 @@ export default function DashboardLayout({ user }: { user: any }) {
         flex: 1,
         marginLeft: sidebarWidth,
         minHeight: '100vh',
-        background: T.ink850,
+        background: '#f8f9fb',
         transition: 'margin-left 0.25s ease',
       }}>
         <Outlet />

@@ -37,11 +37,11 @@ const DAY_OPTIONS = [
 const DAY_COLORS: Record<string, string> = {
   Monday:    'var(--teal-500)',
   Tuesday:   'var(--teal-600)',
-  Wednesday: 'var(--gold-500)',
+  Wednesday: '#D49F3D',
   Thursday:  'var(--gold-600)',
   Friday:    'var(--red-500)',
   Saturday:  'var(--teal-500)',
-  Sunday:    'var(--gold-500)',
+  Sunday:    '#D49F3D',
   Weekend:   'var(--teal-500)',
   Daily:     'var(--green-500)',
   'Every Day': 'var(--green-500)',
@@ -50,12 +50,12 @@ const DAY_COLORS: Record<string, string> = {
 // ── Shared inline-style helpers ──────────────────────────────
 const S = {
   page: {
-    background: 'var(--ink-850)',
+    background: '#f8f9fb',
     minHeight: '100vh',
   } as React.CSSProperties,
   header: {
-    background: 'var(--ink-800)',
-    borderBottom: '1px solid var(--border)',
+    background: '#ffffff',
+    borderBottom: '1px solid #e5e7eb',
     padding: '20px 28px',
     display: 'flex',
     alignItems: 'center',
@@ -67,22 +67,22 @@ const S = {
     fontSize: 11,
     letterSpacing: '0.14em',
     textTransform: 'uppercase' as const,
-    color: 'var(--gold-400)',
+    color: '#B97D15',
     marginBottom: 4,
   } as React.CSSProperties,
   title: {
     fontFamily: 'var(--font-display)',
     fontSize: 28,
-    color: 'var(--cream-50)',
+    color: '#111827',
     margin: 0,
     lineHeight: 1,
   } as React.CSSProperties,
   btnPrimary: {
     display: 'inline-flex', alignItems: 'center', gap: 8,
     padding: '10px 20px',
-    background: 'var(--teal-500)', color: 'var(--ink-900)',
-    border: '2px solid var(--teal-500)',
-    borderRadius: 'var(--radius-sm)',
+    background: '#1DA0A8', color: '#ffffff',
+    border: '2px solid #1DA0A8',
+    borderRadius: 2,
     fontFamily: 'var(--font-condensed)', fontWeight: 600,
     fontSize: 13, letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
@@ -92,9 +92,9 @@ const S = {
   btnDanger: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '8px 16px',
-    background: 'transparent', color: 'var(--red-500)',
-    border: '1px solid var(--red-500)',
-    borderRadius: 'var(--radius-sm)',
+    background: 'transparent', color: '#E11E15',
+    border: '1px solid #E11E15',
+    borderRadius: 2,
     fontFamily: 'var(--font-condensed)', fontWeight: 600,
     fontSize: 12, letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
@@ -103,8 +103,8 @@ const S = {
   btnGhost: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 12px',
-    background: 'transparent', color: 'var(--gold-400)',
-    border: 'none', borderRadius: 'var(--radius-sm)',
+    background: 'transparent', color: '#B97D15',
+    border: 'none', borderRadius: 2,
     fontFamily: 'var(--font-condensed)', fontWeight: 600,
     fontSize: 12, letterSpacing: '0.06em',
     textTransform: 'uppercase' as const,
@@ -115,14 +115,14 @@ const S = {
     fontWeight: 600, fontSize: 11,
     letterSpacing: '0.12em',
     textTransform: 'uppercase' as const,
-    color: 'var(--text-muted)',
+    color: '#6b7280',
     display: 'block', marginBottom: 7,
   } as React.CSSProperties,
   input: {
-    background: 'var(--ink-700)',
-    border: '1px solid var(--ink-500)',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--cream-50)',
+    background: '#ffffff',
+    border: '1px solid #d1d5db',
+    borderRadius: 2,
+    color: '#111827',
     fontFamily: 'var(--font-sans)',
     fontSize: 15, padding: '10px 13px',
     width: '100%', outline: 'none',
@@ -186,7 +186,7 @@ function ImageUploader({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {value && (
-        <div style={{ position: 'relative', width: '100%', height: 160, borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--ink-700)', border: '1px solid var(--border)' }}>
+        <div style={{ position: 'relative', width: '100%', height: 160, borderRadius: '2px', overflow: 'hidden', background: '#ffffff', border: '1px solid #e5e7eb' }}>
           <FirebaseImage
             src={normalizeImageUrl(value)}
             alt="Special"
@@ -194,7 +194,7 @@ function ImageUploader({
           />
           <button
             onClick={() => onChange('')}
-            style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--cream-50)', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
+            style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '2px', color: '#ffffff', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
           >
             <X size={14} />
           </button>
@@ -206,9 +206,9 @@ function ImageUploader({
         disabled={uploading}
         style={{
           ...S.btnGhost,
-          border: '1px dashed var(--ink-500)',
+          border: '1px dashed #d1d5db',
           padding: '10px 16px',
-          color: uploading ? 'var(--text-faint)' : 'var(--gold-400)',
+          color: uploading ? '#9ca3af' : '#B97D15',
           width: '100%', justifyContent: 'center',
         }}
       >
@@ -252,13 +252,13 @@ function SpecialModal({
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: 'var(--ink-800)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-pop)', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', boxShadow: '0 8px 32px rgba(0,0,0,0.14)', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
         {/* Modal header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--cream-50)', textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #e5e7eb' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: '#111827', textTransform: 'uppercase' }}>
             {isNew ? 'Add Special' : 'Edit Special'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: 4 }}>
             <X size={20} />
           </button>
         </div>
@@ -284,8 +284,8 @@ function SpecialModal({
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Doner Kebab Special"
               required
-              onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold-500)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(212,159,61,0.15)'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'var(--ink-500)'; e.currentTarget.style.boxShadow = 'none'; }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#D49F3D'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(212,159,61,0.15)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none'; }}
             />
           </div>
 
@@ -296,8 +296,8 @@ function SpecialModal({
               style={{ ...S.input, cursor: 'pointer' }}
               value={form.day}
               onChange={e => setForm(f => ({ ...f, day: e.target.value }))}
-              onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold-500)'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'var(--ink-500)'; }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#D49F3D'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; }}
             >
               {DAY_OPTIONS.map(d => (
                 <option key={d} value={d}>{d}</option>
@@ -313,14 +313,14 @@ function SpecialModal({
               style={S.input}
               value={form.order}
               onChange={e => setForm(f => ({ ...f, order: Number(e.target.value) }))}
-              onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold-500)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(212,159,61,0.15)'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'var(--ink-500)'; e.currentTarget.style.boxShadow = 'none'; }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#D49F3D'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(212,159,61,0.15)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none'; }}
             />
           </div>
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
-            <button type="button" onClick={onClose} style={{ ...S.btnGhost, border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '10px 18px' }}>
+            <button type="button" onClick={onClose} style={{ ...S.btnGhost, border: '1px solid #e5e7eb', color: '#6b7280', padding: '10px 18px' }}>
               Cancel
             </button>
             <button
@@ -398,7 +398,7 @@ export default function SpecialsDashboard() {
   if (loading) {
     return (
       <div style={{ ...S.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 36, height: 36, border: '3px solid var(--ink-500)', borderTopColor: 'var(--gold-500)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: 36, height: 36, border: '3px solid #d1d5db', borderTopColor: '#D49F3D', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -424,7 +424,7 @@ export default function SpecialsDashboard() {
 
       {/* Error */}
       {error && (
-        <div style={{ margin: '20px 28px 0', padding: '12px 16px', background: 'rgba(225,30,21,0.1)', border: '1px solid var(--red-500)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red-400)', fontFamily: 'var(--font-sans)', fontSize: 14 }}>
+        <div style={{ margin: '20px 28px 0', padding: '12px 16px', background: 'rgba(225,30,21,0.1)', border: '1px solid var(--red-500)', borderRadius: '2px', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--red-400)', fontFamily: 'var(--font-sans)', fontSize: 14 }}>
           <AlertCircle size={16} /> {error}
         </div>
       )}
@@ -432,12 +432,12 @@ export default function SpecialsDashboard() {
       {/* Grid */}
       <div style={{ padding: 28 }}>
         {specials.length === 0 ? (
-          <div style={{ background: 'var(--ink-700)', border: '2px dashed var(--border)', borderRadius: 'var(--radius-md)', padding: '60px 24px', textAlign: 'center' }}>
-            <div style={{ width: 48, height: 48, background: 'var(--ink-600)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: 'var(--text-faint)' }}>
+          <div style={{ background: '#ffffff', border: '2px dashed #e5e7eb', borderRadius: '4px', padding: '60px 24px', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, background: '#f3f4f6', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#9ca3af' }}>
               <ImageIcon size={24} />
             </div>
-            <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, textTransform: 'uppercase', color: 'var(--cream-50)', marginBottom: 8 }}>No Specials Yet</div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>Add your first special offer to display it on the site.</div>
+            <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>No Specials Yet</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Add your first special offer to display it on the site.</div>
             <button style={S.btnPrimary} onClick={() => setModal('add')}>
               <Plus size={15} /> Add First Special
             </button>
@@ -447,12 +447,12 @@ export default function SpecialsDashboard() {
             {specials.map(special => (
               <div
                 key={special.id}
-                style={{ background: 'var(--ink-700)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-card)', transition: 'border-color 0.2s ease' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', transition: 'border-color 0.2s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#d1d5db')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
               >
                 {/* Image */}
-                <div style={{ position: 'relative', height: 180, background: 'var(--ink-600)', overflow: 'hidden' }}>
+                <div style={{ position: 'relative', height: 180, background: '#f3f4f6', overflow: 'hidden' }}>
                   {special.image ? (
                     <FirebaseImage
                       src={normalizeImageUrl(special.image)}
@@ -460,18 +460,18 @@ export default function SpecialsDashboard() {
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-400)' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
                       <ImageIcon size={32} />
                     </div>
                   )}
                   {/* Day badge */}
                   <div style={{
                     position: 'absolute', top: 10, left: 10,
-                    background: DAY_COLORS[special.day] || 'var(--gold-500)',
-                    color: 'var(--ink-900)',
+                    background: DAY_COLORS[special.day] || '#D49F3D',
+                    color: '#0C0C0C',
                     fontFamily: 'var(--font-condensed)', fontWeight: 600,
                     fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
-                    padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+                    padding: '4px 10px', borderRadius: '2px',
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}>
                     <Calendar size={11} />
@@ -481,7 +481,7 @@ export default function SpecialsDashboard() {
 
                 {/* Body */}
                 <div style={{ padding: '14px 16px' }}>
-                  <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, textTransform: 'uppercase', color: 'var(--cream-50)', marginBottom: 12, letterSpacing: '0.02em' }}>
+                  <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, textTransform: 'uppercase', color: '#111827', marginBottom: 12, letterSpacing: '0.02em' }}>
                     {special.name}
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -489,16 +489,16 @@ export default function SpecialsDashboard() {
                       onClick={() => setModal(special)}
                       style={S.btnGhost}
                       onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-300)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#B97D15')}
                     >
                       <Edit2 size={13} /> Edit
                     </button>
                     <button
                       onClick={() => handleDelete(special)}
                       disabled={deleting === special.id}
-                      style={{ ...S.btnGhost, color: deleting === special.id ? 'var(--text-faint)' : 'var(--text-muted)' }}
+                      style={{ ...S.btnGhost, color: deleting === special.id ? '#9ca3af' : '#6b7280' }}
                       onMouseEnter={e => (e.currentTarget.style.color = 'var(--red-400)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = deleting === special.id ? 'var(--text-faint)' : 'var(--text-muted)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = deleting === special.id ? '#9ca3af' : '#6b7280')}
                     >
                       <Trash2 size={13} /> {deleting === special.id ? 'Deleting…' : 'Delete'}
                     </button>
