@@ -5,7 +5,8 @@ import LogIncome from './LogIncome';
 import Ingredients from './Ingredients';
 import RecipeCosting from './RecipeCosting';
 import FinanceReports from './FinanceReports';
-import { LayoutDashboard, Receipt, TrendingUp, Scale, FileBarChart, ChefHat } from 'lucide-react';
+import { LayoutDashboard, Receipt, TrendingUp, Scale, FileBarChart, ChefHat, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 type FinanceRole = 'owner' | 'manager' | 'cashier';
 
@@ -34,7 +35,7 @@ export default function FinanceDashboard({ user }: { user: any }) {
     <div className="min-h-screen bg-gray-50">
       {/* Tab nav */}
       <div className="bg-white border-b border-gray-100 px-6 sticky top-0 z-10">
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto items-center">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -49,6 +50,14 @@ export default function FinanceDashboard({ user }: { user: any }) {
               {tab.label}
             </button>
           ))}
+          {financeRole === 'owner' && (
+            <Link
+              to="/dashboard/finance/import"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-[#1DA0A8] whitespace-nowrap border border-gray-200 rounded-lg hover:border-[#1DA0A8] transition-colors my-auto mr-1"
+            >
+              <Upload size={12} /> Import CSV
+            </Link>
+          )}
         </div>
       </div>
 

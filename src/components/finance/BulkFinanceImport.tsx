@@ -1,621 +1,491 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { collection, addDoc, query, getDocs, where, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
-import { ArrowLeft, Upload, CheckCircle2, AlertCircle, FileText, ChevronRight, Database, X, Trash2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { collection, writeBatch, doc } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { Upload, CheckCircle, AlertTriangle, ArrowLeft, FileText, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { format, parseISO, parse, isValid } from 'date-fns';
-import { handleFirestoreError } from '../../utils/firestore';
-import { OperationType } from '../../types';
-import { logActivity } from '../../utils/logger';
 
-interface FinanceCategory {
-  id: string;
-  name: string;
-  type: 'income' | 'expense' | 'dividend';
-  uid: string;
+// ── Category maps ──────────────────────────────────────────────────────────────
+
+const EXPENSE_CATEGORIES = [
+  { id: 'food',      name: 'Food & Ingredients' },
+  { id: 'drinks',    name: 'Drinks & Beverages' },
+  { id: 'packaging', name: 'Packaging' },
+  { id: 'utilities', name: 'Utilities' },
+  { id: 'staff',     name: 'Staff' },
+  { id: 'equipment', name: 'Equipment' },
+  { id: 'rent',      name: 'Rent' },
+  { id: 'other',     name: 'Other' },
+];
+
+const INCOME_CATEGORIES = ['Food', 'Drinks', 'Meal Preps', 'Catering', 'Other'];
+
+const DEFAULT_EXPENSE_MAP: Record<string, string> = {
+  'Food Expense':            'food',
+  'Drink Expense':           'drinks',
+  'Salary & Staff Advances': 'staff',
+  'Staff Food':              'food',
+  'Taxi':                    'other',
+  'Tip Transfer':            'staff',
+  'Ice':                     'food',
+  'Cleaning & Supplies':     'utilities',
+  'Vouchers':                'other',
+  'Office Supplies':         'other',
+  'Kitchen Equipment':       'equipment',
+  'Gas':                     'utilities',
+  'Repairs & Maintenance':   'equipment',
+  'Miscellaneous':           'other',
+  'Internet':                'utilities',
+  'Accounting Services':     'other',
+  'Advertising & Promotion': 'other',
+  'Fuel & Petrol':           'other',
+  'Restaurant Equipment':    'equipment',
+  'Newspapers':              'other',
+  'Uncategorized Expense':   'other',
+  'Water Bill from PEA':     'utilities',
+  'Electricity':             'utilities',
+  'Subscriptions':           'utilities',
+  'Rent Expense':            'rent',
+  'Renovation Costs':        'equipment',
+  'Mobile Phone':            'utilities',
+  'Professional Fees':       'other',
+  'Licenses':                'other',
+  'Computer - Hardware':     'equipment',
+  'Social Security':         'staff',
+};
+
+const DEFAULT_INCOME_MAP: Record<string, string> = {
+  'Other Incomes':       'Other',
+  'Food & Drink Income ': 'Food',
+  'Food & Drink Income':  'Food',
+};
+
+// ── CSV parser ─────────────────────────────────────────────────────────────────
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
 }
 
-const BulkFinanceImport: React.FC = () => {
-  const [csvData, setCsvData] = useState('');
-  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
-  const [loading, setLoading] = useState(false);
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const values = parseCSVLine(line);
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h.trim()] = (values[i] || '').trim(); });
+    return row;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+function parseDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+function parseAmount(amtStr: string): number {
+  return parseFloat(amtStr.replace(/[^\d.]/g, '')) || 0;
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface ParsedRow {
+  amount: number;
+  category: string;
+  date: string;
+  description: string;
+  type: 'Expense' | 'Income';
+}
+
+interface CategoryStat {
+  original: string;
+  type: 'Expense' | 'Income';
+  count: number;
+  total: number;
+  mappedTo: string;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
+
+type Step = 'upload' | 'mapping' | 'importing' | 'done';
+
+export default function BulkFinanceImport() {
+  const [step, setStep] = useState<Step>('upload');
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
+  const [expenseMap, setExpenseMap] = useState<Record<string, string>>(DEFAULT_EXPENSE_MAP);
+  const [incomeMap, setIncomeMap] = useState<Record<string, string>>(DEFAULT_INCOME_MAP);
   const [progress, setProgress] = useState(0);
-  const [step, setStep] = useState<'input' | 'mapping'>('input');
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [mappings, setMappings] = useState<Record<string, string>>({});
-  const [parsedRows, setParsedRows] = useState<string[][]>([]);
-  const [existingCategories, setExistingCategories] = useState<FinanceCategory[]>([]);
-  const [confirmModal, setConfirmModal] = useState<{
-    show: boolean;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-  }>({
-    show: false,
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  });
-  const shouldCancel = useRef(false);
+  const [imported, setImported] = useState({ expenses: 0, income: 0 });
+  const [showAllCats, setShowAllCats] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const targetFields = [
-    { key: 'date', label: 'Date (YYYY-MM-DD) *', required: true },
-    { key: 'type', label: 'Type (income/expense/dividend) *', required: true },
-    { key: 'category', label: 'Category Name *', required: true },
-    { key: 'amount', label: 'Amount *', required: true },
-    { key: 'description', label: 'Description' },
-  ];
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const q = query(collection(db, 'finance_categories'));
-      const snapshot = await getDocs(q);
-      const cats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FinanceCategory[];
-      setExistingCategories(cats);
-    };
-    fetchCategories();
-  }, []);
-
-  const parseCSV = (text: string) => {
-    const rows: string[][] = [];
-    let currentRow: string[] = [];
-    let currentField = '';
-    let inQuotes = false;
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const nextChar = text[i + 1];
-
-      if (char === '"') {
-        if (inQuotes && nextChar === '"') {
-          currentField += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        currentRow.push(currentField);
-        currentField = '';
-      } else if ((char === '\n' || char === '\r') && !inQuotes) {
-        if (currentField || currentRow.length > 0) {
-          currentRow.push(currentField);
-          rows.push(currentRow);
-          currentRow = [];
-          currentField = '';
-        }
-        if (char === '\r' && nextChar === '\n') i++;
-      } else {
-        currentField += char;
-      }
-    }
-    if (currentField || currentRow.length > 0) {
-      currentRow.push(currentField);
-      rows.push(currentRow);
-    }
-    return rows;
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFile = useCallback((file: File) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      setCsvData(text);
-      setStatus({ type: 'info', message: `File "${file.name}" loaded. Click Analyze to continue.` });
-    };
-    reader.onerror = () => {
-      setStatus({ type: 'error', message: 'Failed to read file.' });
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const parsed = parseCSV(text);
+
+      const parsedRows: ParsedRow[] = parsed.map(r => ({
+        amount: parseAmount(r['Amount ฿'] || r['Amount'] || '0'),
+        category: r['Category']?.trim() || 'Other',
+        date: parseDate(r['Date of Transaction'] || r['Date'] || ''),
+        description: r['Description']?.trim() || '',
+        type: (r['Expense/Income']?.trim() as 'Expense' | 'Income') || 'Expense',
+      })).filter(r => r.amount > 0);
+
+      // Build per-category stats
+      const statsMap: Record<string, CategoryStat> = {};
+      for (const row of parsedRows) {
+        const key = `${row.type}::${row.category}`;
+        if (!statsMap[key]) {
+          const mappedTo = row.type === 'Expense'
+            ? (DEFAULT_EXPENSE_MAP[row.category] || 'other')
+            : (DEFAULT_INCOME_MAP[row.category] || DEFAULT_INCOME_MAP[row.category.trim()] || 'Other');
+          statsMap[key] = { original: row.category, type: row.type, count: 0, total: 0, mappedTo };
+        }
+        statsMap[key].count++;
+        statsMap[key].total += row.amount;
+      }
+
+      const stats = Object.values(statsMap).sort((a, b) => b.total - a.total);
+      setRows(parsedRows);
+      setCategoryStats(stats);
+
+      // Init maps with any new categories found
+      const newExpMap = { ...DEFAULT_EXPENSE_MAP };
+      const newIncMap = { ...DEFAULT_INCOME_MAP };
+      for (const s of stats) {
+        if (s.type === 'Expense' && !(s.original in newExpMap)) newExpMap[s.original] = 'other';
+        if (s.type === 'Income' && !(s.original in newIncMap)) newIncMap[s.original] = 'Other';
+      }
+      setExpenseMap(newExpMap);
+      setIncomeMap(newIncMap);
+      setStep('mapping');
     };
     reader.readAsText(file);
-  };
+  }, []);
 
-  const handleAnalyze = () => {
-    if (!csvData.trim()) return;
-    const rows = parseCSV(csvData);
-    if (rows.length < 2) {
-      setStatus({ type: 'error', message: 'Invalid CSV format. Header row and at least one data row required.' });
-      return;
-    }
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.name.endsWith('.csv')) handleFile(file);
+    else toast.error('Please drop a .csv file');
+  }, [handleFile]);
 
-    const csvHeaders = rows[0].map(h => h.trim().replace(/^"|"$/g, ''));
-    setHeaders(csvHeaders);
-    setParsedRows(rows.slice(1));
-    
-    // Attempt auto-mapping
-    const initialMappings: Record<string, string> = {};
-    targetFields.forEach(field => {
-      const match = csvHeaders.find(h => 
-        h.toLowerCase() === field.key.toLowerCase() || 
-        h.toLowerCase() === field.label.toLowerCase().replace(/\s/g, '_') ||
-        (field.key === 'amount' && h.toLowerCase() === 'value') ||
-        (field.key === 'category' && h.toLowerCase() === 'cat')
-      );
-      if (match) initialMappings[field.key] = match;
-    });
-    
-    setMappings(initialMappings);
-    setStep('mapping');
-    setStatus(null);
-  };
-
-  const pendingCategories = useRef<Record<string, Promise<FinanceCategory>>>({});
-
-  const getOrCreateCategory = async (name: string, type: 'income' | 'expense' | 'dividend') => {
-    const normalizedName = name.trim();
-    const cacheKey = `${normalizedName.toLowerCase()}|${type}`;
-    
-    const existing = existingCategories.find(c => 
-      c.name.toLowerCase() === normalizedName.toLowerCase() && c.type === type
-    );
-
-    if (existing) return existing;
-
-    // Check if this category is already being created in this batch
-    if (pendingCategories.current[cacheKey]) {
-      return await pendingCategories.current[cacheKey];
-    }
-
-    // Create new category with a promise to handle concurrent requests for same category
-    const createPromise = (async () => {
-      try {
-        const newCat = {
-          name: normalizedName,
-          type,
-          uid: auth.currentUser?.uid
-        };
-        const docRef = await addDoc(collection(db, 'finance_categories'), newCat);
-        const createdCat = { id: docRef.id, ...newCat } as FinanceCategory;
-        setExistingCategories(prev => [...prev, createdCat]);
-        return createdCat;
-      } finally {
-        delete pendingCategories.current[cacheKey];
-      }
-    })();
-
-    pendingCategories.current[cacheKey] = createPromise;
-    return await createPromise;
-  };
-
-  const normalizeDate = (d: any) => {
-    if (!d) return '';
-    const dateStr = typeof d === 'string' ? d : 
-                   (d && typeof (d as any).toDate === 'function') ? (d as any).toDate().toISOString() : '';
-    
-    if (!dateStr) return '';
-
-    // Try to extract YYYY-MM-DD or YYYY-M-D
-    const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (isoMatch) {
-      const year = parseInt(isoMatch[1]);
-      const month = parseInt(isoMatch[2]);
-      const day = parseInt(isoMatch[3]);
-      const date = new Date(year, month - 1, day);
-      if (isValid(date)) return format(date, 'yyyy-MM-dd');
-    }
-
-    // Try MM/DD/YYYY
-    const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (slashMatch) {
-      const month = parseInt(slashMatch[1]);
-      const day = parseInt(slashMatch[2]);
-      const year = parseInt(slashMatch[3]);
-      const date = new Date(year, month - 1, day);
-      if (isValid(date)) return format(date, 'yyyy-MM-dd');
-    }
-
-    // Fallback to native Date for other formats
-    const nativeDate = new Date(dateStr);
-    if (isValid(nativeDate)) return format(nativeDate, 'yyyy-MM-dd');
-
-    return dateStr.substring(0, 10);
-  };
-
-  const handleUpload = async () => {
-    setLoading(true);
-    shouldCancel.current = false;
-    setStatus({ type: 'info', message: 'Fetching existing entries to prevent duplicates...' });
+  const handleImport = async () => {
+    setStep('importing');
     setProgress(0);
 
-    try {
-      // Fetch existing entries to detect duplicates
-      const entriesSnapshot = await getDocs(query(collection(db, 'finance_entries'), where('uid', '==', auth.currentUser?.uid)));
-      
-      // Use a Set for faster lookup and to handle duplicates within the same CSV
-      const seenEntries = new Set(entriesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        const amount = typeof data.amount === 'number' ? data.amount : parseFloat(data.amount) || 0;
-        return `${data.type}|${amount.toFixed(2)}|${data.categoryId}|${data.date}|${data.description || ''}`;
-      }));
+    const expenseRows = rows.filter(r => r.type === 'Expense');
+    const incomeRows  = rows.filter(r => r.type === 'Income');
+    const total = rows.length;
+    let done = 0;
+    let expCount = 0;
+    let incCount = 0;
 
-      const total = parsedRows.length;
-      let count = 0;
-      let skipped = 0;
+    // Batch write helper
+    const BATCH_SIZE = 400;
 
-      setStatus({ type: 'info', message: 'Importing entries...' });
-
-      for (let i = 0; i < parsedRows.length; i++) {
-        if (shouldCancel.current) {
-          setStatus({ type: 'error', message: `Import cancelled. ${count} entries were imported, ${skipped} duplicates skipped.` });
-          toast.error('Import cancelled');
-          return;
-        }
-
-        const row = parsedRows[i];
-        const entryBase: any = {
-          createdBy: auth.currentUser?.email || 'Unknown',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          uid: auth.currentUser?.uid
-        };
-
-        let rowData: any = {};
-        targetFields.forEach(field => {
-          const csvHeader = mappings[field.key];
-          if (!csvHeader) return;
-          
-          const headerIndex = headers.indexOf(csvHeader);
-          if (headerIndex === -1) return;
-
-          let value = row[headerIndex]?.trim().replace(/^"|"$/g, '');
-          rowData[field.key] = value;
+    // Write expenses
+    for (let i = 0; i < expenseRows.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = expenseRows.slice(i, i + BATCH_SIZE);
+      for (const row of chunk) {
+        const catId   = expenseMap[row.category] || 'other';
+        const catName = EXPENSE_CATEGORIES.find(c => c.id === catId)?.name || 'Other';
+        batch.set(doc(collection(db, 'finance_expenses')), {
+          date:          row.date,
+          supplier:      row.description,
+          category_id:   catId,
+          category_name: catName,
+          total:         row.amount,
+          currency:      'THB',
+          items:         [],
+          receipt_url:   '',
+          notes:         `Imported from legacy system. Original category: ${row.category}`,
+          logged_by:     'csv_import',
+          created_at:    new Date().toISOString(),
         });
-
-        if (rowData.date && rowData.type && rowData.category && rowData.amount) {
-          const rawType = rowData.type.toLowerCase();
-          const type = rawType === 'income' ? 'income' : rawType === 'dividend' ? 'dividend' : 'expense';
-          const amount = parseFloat(rowData.amount.replace(/[^0-9.-]+/g, '')) || 0;
-          const normalizedDate = normalizeDate(rowData.date);
-          const description = rowData.description || '';
-          
-          const category = await getOrCreateCategory(rowData.category, type);
-          
-          // Check for duplicate using the Set
-          const entryKey = `${type}|${amount.toFixed(2)}|${category.id}|${normalizedDate}|${description}`;
-          
-          if (seenEntries.has(entryKey)) {
-            skipped++;
-            continue;
-          }
-
-          // Add to seenEntries IMMEDIATELY to prevent race conditions with identical rows in same CSV
-          seenEntries.add(entryKey);
-
-          const finalEntry = {
-            ...entryBase,
-            type,
-            amount,
-            categoryId: category.id,
-            categoryName: category.name,
-            description,
-            date: normalizedDate
-          };
-
-          try {
-            await addDoc(collection(db, 'finance_entries'), finalEntry);
-            count++;
-          } catch (err: any) {
-            // If we hit a "Document already exists" error, it's likely a retry success or rare collision
-            if (err.message?.includes('already exists')) {
-              console.warn("Document already exists error caught, skipping entry:", entryKey);
-              skipped++;
-            } else {
-              throw err;
-            }
-          }
-        }
-        setProgress(Math.round(((i + 1) / total) * 100));
       }
-
-      setStatus({ type: 'success', message: `Successfully imported ${count} finance entries! ${skipped} duplicates were skipped.` });
-      await logActivity('Bulk Finance Import', `Imported ${count} finance entries via CSV (${skipped} skipped)`, 'finance');
-      setCsvData('');
-      setStep('input');
-      toast.success(`Import complete: ${count} added, ${skipped} skipped.`);
-    } catch (err: any) {
-      console.error("Import error:", err);
-      setStatus({ type: 'error', message: `Import failed: ${err.message}` });
-      toast.error('Import failed');
-    } finally {
-      setLoading(false);
+      await batch.commit();
+      done += chunk.length;
+      expCount += chunk.length;
+      setProgress(Math.round((done / total) * 100));
     }
-  };
 
-  const handleClearAllEntries = async () => {
-    setConfirmModal({
-      show: true,
-      title: 'Clear All Entries',
-      message: 'Are you absolutely sure you want to delete ALL finance entries? This action cannot be undone.',
-      onConfirm: async () => {
-        setConfirmModal(prev => ({ ...prev, show: false }));
-        setLoading(true);
-        setStatus({ type: 'info', message: 'Deleting all finance entries...' });
-        
-        try {
-          const q = query(collection(db, 'finance_entries'));
-          const snapshot = await getDocs(q);
-          
-          let count = 0;
-          const total = snapshot.docs.length;
-          
-          if (total === 0) {
-            setStatus({ type: 'info', message: 'No entries found to delete.' });
-            setLoading(false);
-            return;
-          }
-
-          for (let i = 0; i < total; i++) {
-            const docSnap = snapshot.docs[i];
-            try {
-              await deleteDoc(doc(db, 'finance_entries', docSnap.id));
-              count++;
-              setProgress(Math.round(((i + 1) / total) * 100));
-            } catch (err) {
-              handleFirestoreError(err, 'delete', `finance_entries/${docSnap.id}`);
-            }
-          }
-
-          setStatus({ type: 'success', message: `Successfully deleted ${count} finance entries!` });
-          toast.success(`Deleted ${count} entries`);
-        } catch (err: any) {
-          console.error("Delete error:", err);
-          setStatus({ type: 'error', message: `Delete failed: ${err.message}` });
-          toast.error('Delete failed');
-        } finally {
-          setLoading(false);
-          setProgress(0);
-        }
+    // Write income
+    for (let i = 0; i < incomeRows.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = incomeRows.slice(i, i + BATCH_SIZE);
+      for (const row of chunk) {
+        const cat = incomeMap[row.category] || incomeMap[row.category.trim()] || 'Other';
+        batch.set(doc(collection(db, 'finance_income')), {
+          date:       row.date,
+          amount:     row.amount,
+          category:   cat,
+          notes:      `${row.description} — Imported from legacy system. Original category: ${row.category}`,
+          logged_by:  'csv_import',
+          created_at: new Date().toISOString(),
+        });
       }
-    });
+      await batch.commit();
+      done += chunk.length;
+      incCount += chunk.length;
+      setProgress(Math.round((done / total) * 100));
+    }
+
+    setImported({ expenses: expCount, income: incCount });
+    setStep('done');
+    toast.success(`Import complete — ${expCount.toLocaleString()} expenses, ${incCount} income records`);
   };
 
-  return (
-    <div className="min-h-screen bg-cream p-6 md:p-12 pt-24">
-      <div className="max-w-4xl mx-auto">
-        <Link to="/dashboard/finance" className="inline-flex items-center gap-2 text-navy hover:text-gold mb-8 font-medium transition-colors">
-          <ArrowLeft size={20} /> Back to Finance Dashboard
-        </Link>
+  const expenseStats = categoryStats.filter(s => s.type === 'Expense');
+  const incomeStats  = categoryStats.filter(s => s.type === 'Income');
+  const totalExpenses = expenseStats.reduce((s, r) => s + r.total, 0);
+  const totalIncome   = incomeStats.reduce((s, r) => s + r.total, 0);
+  const visibleExpStats = showAllCats ? expenseStats : expenseStats.slice(0, 10);
 
-        <div className="bg-white rounded-[32px] shadow-xl p-8 border border-gray-100">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-4">
-              <div className="bg-gold/10 p-4 rounded-2xl text-gold">
-                <span className="text-[32px] font-bold leading-none">฿</span>
-              </div>
-              <div>
-                <h1 className="text-3xl font-display font-bold text-ink">Bulk Finance Import</h1>
-                <p className="text-gray-500">
-                  {step === 'input' ? 'Upload your finance CSV data to begin.' : 'Map your CSV columns to the finance fields.'}
-                </p>
-              </div>
-            </div>
-            
-            {step === 'input' && (
-              <button
-                onClick={handleClearAllEntries}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 font-bold text-sm transition-all disabled:opacity-50"
-              >
-                <Trash2 size={18} /> Clear All Entries
-              </button>
-            )}
-          </div>
+  const INPUT_CLS = 'border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8] bg-white w-full';
+  const LBL_CLS   = 'block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1';
 
-          <AnimatePresence mode="wait">
-            {step === 'input' ? (
-              <motion.div 
-                key="input"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-6"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-[24px] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Upload className="w-10 h-10 mb-3 text-gray-400" />
-                        <p className="mb-2 text-sm text-gray-500 font-medium">
-                          <span className="font-bold text-gold">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="text-xs text-gray-400">CSV files only</p>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept=".csv"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                  </div>
+  // ── Step: Upload ───────────────────────────────────────────────────────────
 
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-gray-200"></span>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-gray-400 font-bold tracking-widest">Or paste content</span>
-                    </div>
-                  </div>
+  if (step === 'upload') return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <Link to="/dashboard/finance" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-6">
+        <ArrowLeft size={14} /> Back to Finance
+      </Link>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
-                      <FileText size={14} /> CSV Content
-                    </label>
-                    <textarea 
-                      className="w-full h-48 p-6 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-gold outline-none font-mono text-sm leading-relaxed bg-gray-50"
-                      placeholder='Paste CSV content here... (e.g. "Date","Type","Category","Amount","Description")'
-                      value={csvData}
-                      onChange={(e) => setCsvData(e.target.value)}
-                    />
-                  </div>
-                </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Import Finance CSV</h1>
+      <p className="text-gray-500 text-sm mb-8">Upload your legacy accounting export. We'll map the categories and write everything to Firestore.</p>
 
-                <div className="flex justify-end">
-                  <button 
-                    onClick={handleAnalyze}
-                    disabled={!csvData.trim()}
-                    className="bg-navy text-white flex items-center gap-2 px-12 py-4 rounded-2xl font-bold text-lg disabled:opacity-50 hover:bg-navy/90 transition-all"
-                  >
-                    Analyze CSV <ChevronRight size={20} />
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="mapping"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {targetFields.map((field) => (
-                    <div key={field.key} className="space-y-2">
-                      <label className="text-sm font-bold text-ink flex items-center justify-between">
-                        <span>{field.label}</span>
-                        {field.required && <span className="text-xs text-red-500 font-normal">Required</span>}
-                      </label>
-                      <select
-                        value={mappings[field.key] || ''}
-                        onChange={(e) => setMappings({ ...mappings, [field.key]: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-gold outline-none bg-white text-sm"
-                      >
-                        <option value="">-- Select CSV Column --</option>
-                        {headers.map((h) => (
-                          <option key={h} value={h}>{h}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
+      <div
+        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-2xl p-16 text-center transition-colors ${isDragging ? 'border-[#1DA0A8] bg-[#1DA0A8]/5' : 'border-gray-200 bg-gray-50'}`}
+      >
+        <Upload size={40} className="mx-auto mb-4 text-gray-300" />
+        <p className="font-semibold text-gray-700 mb-1">Drop your CSV file here</p>
+        <p className="text-sm text-gray-400 mb-6">or click to browse</p>
+        <label className="cursor-pointer">
+          <span className="px-6 py-2.5 bg-[#1DA0A8] text-white rounded-xl font-semibold text-sm hover:bg-[#18919a] transition-colors">
+            Choose File
+          </span>
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
+          />
+        </label>
+      </div>
 
-                <div className="flex justify-between items-center pt-6 border-t border-gray-100">
-                  <button 
-                    onClick={() => setStep('input')}
-                    className="text-gray-500 hover:text-ink font-medium transition-colors"
-                  >
-                    Back to Input
-                  </button>
-                  <button 
-                    onClick={handleUpload}
-                    disabled={loading || !mappings.date || !mappings.type || !mappings.category || !mappings.amount}
-                    className="bg-navy text-white flex items-center gap-2 px-12 py-4 rounded-2xl font-bold text-lg disabled:opacity-50 hover:bg-navy/90 transition-all"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                        Importing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 size={20} />
-                        Confirm & Start Import
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {loading && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm font-medium">
-                        <span className="text-navy">Processing {parsedRows.length} rows...</span>
-                        <span className="text-gold">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                        <motion.div 
-                          className="bg-gold h-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-center">
-                      <button
-                        onClick={() => {
-                          shouldCancel.current = true;
-                          toast.info('Cancelling import...');
-                        }}
-                        className="text-red-500 hover:text-red-600 font-bold text-sm flex items-center gap-2 px-4 py-2 rounded-xl border border-red-100 hover:bg-red-50 transition-all"
-                      >
-                        <X size={16} /> Stop Import
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {status && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`mt-8 p-6 rounded-2xl flex items-start gap-4 border ${
-                status.type === 'success' ? 'bg-green-50 border-green-100 text-green-800' :
-                status.type === 'error' ? 'bg-red-50 border-red-100 text-red-800' :
-                'bg-blue-50 border-blue-100 text-blue-800'
-              }`}
-            >
-              {status.type === 'success' ? <CheckCircle2 className="mt-1 shrink-0" /> : <AlertCircle className="mt-1 shrink-0" />}
-              <div>
-                <p className="font-bold">{status.type === 'success' ? 'Success!' : status.type === 'error' ? 'Error' : 'Info'}</p>
-                <p className="text-sm opacity-90">{status.message}</p>
-              </div>
-            </motion.div>
-          )}
-        </div>
-
-        {/* Confirmation Modal */}
-        <AnimatePresence>
-          {confirmModal.show && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white w-full max-w-sm rounded-[40px] overflow-hidden shadow-2xl p-8"
-              >
-                <h2 className="text-2xl font-bold text-ink mb-4">{confirmModal.title}</h2>
-                <p className="text-gray-600 mb-8">{confirmModal.message}</p>
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
-                    className="flex-1 px-6 py-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={confirmModal.onConfirm}
-                    className="flex-1 px-6 py-3 rounded-2xl font-bold bg-navy text-white hover:bg-navy/90 transition-all"
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        <div className="mt-8 bg-navy/5 p-6 rounded-2xl border border-navy/10">
-          <h3 className="font-bold text-navy mb-2 flex items-center gap-2">
-            <Database size={18} /> CSV Format Tips
-          </h3>
-          <ul className="text-sm text-navy/80 space-y-1 list-disc pl-5">
-            <li>Ensure the first row contains headers like <strong>Date, Type, Category, Amount</strong>.</li>
-            <li><strong>Date</strong> should be in YYYY-MM-DD format.</li>
-            <li><strong>Type</strong> should be "income", "expense", or "dividend".</li>
-            <li>New categories will be created automatically if they don't exist.</li>
-            <li>Amounts can include currency symbols or commas; they will be cleaned automatically.</li>
-          </ul>
-        </div>
+      <div className="mt-6 bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
+        <p className="font-semibold mb-1">Expected format</p>
+        <p className="text-blue-600 font-mono text-xs">Amount ฿, Category, Date of Transaction, Description, Expense/Income</p>
       </div>
     </div>
   );
-};
 
-export default BulkFinanceImport;
+  // ── Step: Mapping ──────────────────────────────────────────────────────────
+
+  if (step === 'mapping') return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <Link to="/dashboard/finance" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-6">
+        <ArrowLeft size={14} /> Back to Finance
+      </Link>
+
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Review Category Mapping</h1>
+      <p className="text-gray-500 text-sm mb-6">
+        Found <strong>{rows.length.toLocaleString()}</strong> records spanning{' '}
+        <strong>{rows[0]?.date}</strong> → <strong>{rows[rows.length - 1]?.date}</strong>.
+        Adjust mappings if needed, then import.
+      </p>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Expenses</p>
+          <p className="text-2xl font-bold text-gray-900">{expenseStats.reduce((s, r) => s + r.count, 0).toLocaleString()}</p>
+          <p className="text-sm text-gray-500">฿{totalExpenses.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Income</p>
+          <p className="text-2xl font-bold text-gray-900">{incomeStats.reduce((s, r) => s + r.count, 0).toLocaleString()}</p>
+          <p className="text-sm text-gray-500">฿{totalIncome.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Expense mapping table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-4 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="font-bold text-gray-800">Expense Categories ({expenseStats.length})</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Original Category</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rows</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Total ฿</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Maps to</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleExpStats.map((stat, i) => (
+                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="px-5 py-3 font-medium text-gray-700">{stat.original}</td>
+                  <td className="px-4 py-3 text-right text-gray-500">{stat.count.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-gray-500">฿{stat.total.toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={expenseMap[stat.original] || 'other'}
+                      onChange={e => setExpenseMap(prev => ({ ...prev, [stat.original]: e.target.value }))}
+                      className={INPUT_CLS}
+                    >
+                      {EXPENSE_CATEGORIES.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {expenseStats.length > 10 && (
+          <button
+            onClick={() => setShowAllCats(!showAllCats)}
+            className="w-full py-3 text-sm text-[#1DA0A8] font-medium hover:bg-gray-50 flex items-center justify-center gap-1 border-t border-gray-100"
+          >
+            {showAllCats ? <><ChevronUp size={14} /> Show less</> : <><ChevronDown size={14} /> Show all {expenseStats.length} categories</>}
+          </button>
+        )}
+      </div>
+
+      {/* Income mapping table */}
+      {incomeStats.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="font-bold text-gray-800">Income Categories ({incomeStats.length})</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Original Category</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Rows</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Total ฿</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Maps to</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incomeStats.map((stat, i) => (
+                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-5 py-3 font-medium text-gray-700">{stat.original}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">{stat.count.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-gray-500">฿{stat.total.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={incomeMap[stat.original] || incomeMap[stat.original.trim()] || 'Other'}
+                        onChange={e => setIncomeMap(prev => ({ ...prev, [stat.original]: e.target.value }))}
+                        className={INPUT_CLS}
+                      >
+                        {INCOME_CATEGORIES.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => setStep('upload')}
+          className="px-5 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50"
+        >
+          ← Back
+        </button>
+        <button
+          onClick={handleImport}
+          className="flex-1 py-3 bg-[#1DA0A8] text-white rounded-xl font-bold hover:bg-[#18919a] transition-colors text-sm"
+        >
+          Import {rows.length.toLocaleString()} Records to Firestore
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Step: Importing ────────────────────────────────────────────────────────
+
+  if (step === 'importing') return (
+    <div className="p-6 max-w-xl mx-auto flex flex-col items-center justify-center min-h-[60vh]">
+      <Loader2 size={48} className="text-[#1DA0A8] animate-spin mb-6" />
+      <h2 className="text-xl font-bold text-gray-900 mb-2">Importing…</h2>
+      <p className="text-gray-500 text-sm mb-6">Writing {rows.length.toLocaleString()} records in batches. Don't close this tab.</p>
+      <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+        <div
+          className="h-3 bg-[#1DA0A8] rounded-full transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <p className="text-sm text-gray-400 mt-3">{progress}% complete</p>
+    </div>
+  );
+
+  // ── Step: Done ─────────────────────────────────────────────────────────────
+
+  return (
+    <div className="p-6 max-w-xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center">
+      <CheckCircle size={56} className="text-green-500 mb-6" />
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Import Complete</h2>
+      <p className="text-gray-500 mb-6">All records are now in Firestore and will appear in your Finance dashboard.</p>
+
+      <div className="grid grid-cols-2 gap-4 w-full mb-8">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Expenses</p>
+          <p className="text-3xl font-bold text-gray-900">{imported.expenses.toLocaleString()}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Income</p>
+          <p className="text-3xl font-bold text-gray-900">{imported.income.toLocaleString()}</p>
+        </div>
+      </div>
+
+      <Link
+        to="/dashboard/finance"
+        className="w-full py-3 bg-[#1DA0A8] text-white rounded-xl font-bold hover:bg-[#18919a] transition-colors text-sm text-center block"
+      >
+        Go to Finance Dashboard
+      </Link>
+    </div>
+  );
+}
