@@ -45,11 +45,13 @@ import {
   Trash,
   RefreshCw,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Calculator
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import MenuItemCosting from './MenuItemCosting';
 import {
   DndContext,
   closestCenter,
@@ -96,9 +98,10 @@ interface SortableRowProps {
   startEdit: (item: MenuItem) => void;
   handleDelete: (id: string) => Promise<void>;
   togglePublished: (item: MenuItem) => Promise<void>;
+  startCosting: (item: MenuItem) => void;
 }
 
-const SortableRow: React.FC<SortableRowProps> = ({ item, startEdit, handleDelete, togglePublished }) => {
+const SortableRow: React.FC<SortableRowProps> = ({ item, startEdit, handleDelete, togglePublished, startCosting }) => {
   const {
     attributes,
     listeners,
@@ -258,6 +261,9 @@ const SortableRow: React.FC<SortableRowProps> = ({ item, startEdit, handleDelete
       {/* Actions */}
       <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', textAlign: 'right' }}>
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+          <ActionBtn onClick={() => startCosting(item)} hoverColor={T.teal400} title="Food Cost">
+            <Calculator size={16} />
+          </ActionBtn>
           <ActionBtn onClick={() => startEdit(item)} hoverColor={T.gold400} title="Edit">
             <Edit2 size={16} />
           </ActionBtn>
@@ -631,6 +637,7 @@ export default function Dashboard() {
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [costingItem, setCostingItem] = useState<MenuItem | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -1845,6 +1852,7 @@ export default function Dashboard() {
                       startEdit={startEdit}
                       handleDelete={handleDelete}
                       togglePublished={togglePublished}
+                      startCosting={setCostingItem}
                     />
                   ))}
                 </SortableContext>
@@ -1887,6 +1895,13 @@ export default function Dashboard() {
           )}
         </DndContext>
       </div>
+
+      {costingItem && (
+        <MenuItemCosting
+          item={costingItem}
+          onClose={() => setCostingItem(null)}
+        />
+      )}
     </div>
   );
 }
