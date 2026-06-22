@@ -1,30 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // --- PRIMITIVES ---
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
-    
     function isAdmin() { 
       return isSignedIn() && (
         (request.auth.token.email.lower() == "info@hemingwaysjomtien.com") ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin")
       );
     }
-    
     function isStaff() {
       return isSignedIn() && (
         isAdmin() ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["staff", "cashier", "marketing", "manager"])
       );
     }
-    
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-
-    // --- ENTITY VALIDATIONS ---
-
     function isValidMenuItem(data) {
       return data.keys().hasAll(['name', 'category', 'price']) &&
              data.name is string && data.name.size() <= 200 &&
@@ -32,20 +25,17 @@ service cloud.firestore {
              data.price is string && data.price.size() <= 100 &&
              (!('description' in data) || (data.description is string && data.description.size() <= 2000));
     }
-
     function isValidCategory(data) {
       return data.keys().hasAll(['name', 'order']) &&
              data.name is string && data.name.size() <= 100 &&
              data.order is int;
     }
-
     function isValidUser(data) {
       return data.keys().hasAll(['email', 'role', 'uid']) &&
              data.email is string && data.email.size() <= 100 &&
              data.role in ['admin', 'staff', 'user', 'cashier', 'marketing', 'employee', 'admin'] &&
              data.uid == request.auth.uid;
     }
-
     function isValidFinanceEntry(data) {
       return data.keys().hasAll(['type', 'amount', 'categoryId', 'date']) &&
              data.type in ['income', 'expense', 'dividend'] &&
@@ -53,46 +43,34 @@ service cloud.firestore {
              data.categoryId is string && isValidId(data.categoryId) &&
              data.date is string;
     }
-
-    // --- COLLECTIONS ---
-
-    // PUBLIC DATA (Move to top for easier evaluation)
     match /menu/{itemId} {
       allow get, list: if true;
       allow write: if isStaff();
     }
-
     match /categories/{categoryId} {
       allow get, list: if true;
       allow write: if isStaff();
     }
-
     match /specials/{specialId} {
       allow get, list: if true;
       allow write: if isStaff();
     }
-
     match /sports_schedule/{id} {
       allow get, list: if true;
       allow write: if isStaff();
     }
-
     match /companyProfile/{id} {
       allow get, list: if true;
       allow write: if isStaff();
     }
-
     match /settings/{settingId} {
       allow get, list: if true;
       allow write: if isAdmin();
     }
-
     match /test/connection {
       allow read: if true;
       allow write: if true;
     }
-
-    // AUTHENTICATED DATA
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming()); 
@@ -101,57 +79,49 @@ service cloud.firestore {
         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'email', 'photoURL', 'lastLogin']))
       );
     }
-
-    // FINANCE & PAYROLL (ADMIN ONLY)
     match /finance_categories/{id} {
       allow read: if isStaff();
       allow write: if isAdmin() && isValidId(id);
     }
-
     match /finance_entries/{id} {
       allow read: if isStaff();
       allow create: if isStaff() && isValidId(id) && isValidFinanceEntry(incoming());
       allow delete: if isAdmin();
     }
-
-    // NEW FINANCE MODULE
     match /finance_expenses/{id} {
       allow read: if isStaff();
       allow create: if isStaff();
       allow update, delete: if isAdmin();
     }
-
     match /finance_income/{id} {
       allow read: if isStaff();
       allow create: if isStaff();
       allow update, delete: if isAdmin();
     }
-
     match /finance_ingredients/{id} {
       allow read: if isStaff();
       allow write: if isStaff();
     }
-
     match /ingredient_purchases/{id} {
       allow read: if isStaff();
       allow write: if isStaff();
     }
-
     match /recipes/{id} {
       allow read: if isStaff();
       allow write: if isStaff();
     }
-
+    match /menu_recipes/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
     match /employees/{id} {
       allow read: if isStaff();
       allow write: if isAdmin() && isValidId(id);
     }
-
     match /payroll_summaries/{id} {
       allow read: if isStaff();
       allow write: if isAdmin() && isValidId(id);
     }
-
     match /loyalty_customers/{id} {
       allow read: if isStaff();
       allow write: if isAdmin() && isValidId(id);
@@ -160,18 +130,14 @@ service cloud.firestore {
         allow write: if isAdmin() && isValidId(txId);
       }
     }
-
     match /system_logs/{id} {
       allow read: if isAdmin();
       allow create: if isSignedIn() && isValidId(id);
     }
-
     match /contact_submissions/{id} {
-      allow create: if true; // anyone can submit contact form
+      allow create: if true;
       allow read: if isAdmin();
     }
-
-        // --- GLOBAL SAFETY NET (MOVED TO BOTTOM) ---
     match /{document=**} {
       allow read, write: if false;
     }
