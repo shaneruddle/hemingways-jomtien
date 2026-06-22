@@ -7,14 +7,44 @@ import { Check, Loader2, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 const EXPENSE_CATEGORIES = [
-  { id: 'food',       name: 'Food & Ingredients' },
-  { id: 'drinks',     name: 'Drinks & Beverages' },
-  { id: 'packaging',  name: 'Packaging' },
-  { id: 'utilities',  name: 'Utilities' },
-  { id: 'staff',      name: 'Staff' },
-  { id: 'equipment',  name: 'Equipment' },
-  { id: 'rent',       name: 'Rent' },
-  { id: 'other',      name: 'Other' },
+  // Food & Drink
+  { id: 'food_expense',          name: 'Food Expense' },
+  { id: 'drink_expense',         name: 'Drink Expense' },
+  { id: 'staff_food',            name: 'Staff Food' },
+  { id: 'ice',                   name: 'Ice' },
+  // Staff
+  { id: 'salary_staff',          name: 'Salary & Staff Advances' },
+  { id: 'tip_transfer',          name: 'Tip Transfer' },
+  { id: 'social_security',       name: 'Social Security' },
+  // Utilities
+  { id: 'electricity',           name: 'Electricity' },
+  { id: 'water_bill',            name: 'Water Bill from PEA' },
+  { id: 'gas',                   name: 'Gas' },
+  { id: 'internet',              name: 'Internet' },
+  { id: 'mobile_phone',          name: 'Mobile Phone' },
+  { id: 'cleaning_supplies',     name: 'Cleaning & Supplies' },
+  { id: 'subscriptions',         name: 'Subscriptions' },
+  // Equipment & Property
+  { id: 'kitchen_equipment',     name: 'Kitchen Equipment' },
+  { id: 'restaurant_equipment',  name: 'Restaurant Equipment' },
+  { id: 'computer_hardware',     name: 'Computer - Hardware' },
+  { id: 'renovation_costs',      name: 'Renovation Costs' },
+  { id: 'repairs_maintenance',   name: 'Repairs & Maintenance' },
+  { id: 'rent_expense',          name: 'Rent Expense' },
+  // Admin & Professional
+  { id: 'accounting_services',   name: 'Accounting Services' },
+  { id: 'advertising_promotion', name: 'Advertising & Promotion' },
+  { id: 'professional_fees',     name: 'Professional Fees' },
+  { id: 'licenses',              name: 'Licenses' },
+  // General
+  { id: 'office_supplies',       name: 'Office Supplies' },
+  { id: 'newspapers',            name: 'Newspapers' },
+  { id: 'vouchers',              name: 'Vouchers' },
+  { id: 'taxi',                  name: 'Taxi' },
+  { id: 'fuel_petrol',           name: 'Fuel & Petrol' },
+  { id: 'dividends',             name: 'Dividends' },
+  { id: 'miscellaneous',         name: 'Miscellaneous' },
+  { id: 'uncategorized',         name: 'Uncategorized Expense' },
 ];
 
 const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
@@ -25,8 +55,8 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 10),
     supplier: '',
-    category_id: 'food',
-    category_name: 'Food & Ingredients',
+    category_id: 'food_expense',
+    category_name: 'Food Expense',
     total: '',
     notes: '',
     items: [] as ExpenseItem[],
@@ -112,8 +142,8 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
       setFormData({
         date: new Date().toISOString().slice(0, 10),
         supplier: '',
-        category_id: 'food',
-        category_name: 'Food & Ingredients',
+        category_id: 'food_expense',
+        category_name: 'Food Expense',
         total: '',
         notes: '',
         items: [],
