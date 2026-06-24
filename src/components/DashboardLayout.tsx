@@ -333,13 +333,14 @@ export default function DashboardLayout({ user }: { user: any }) {
               isOpen={isMenuOpen}
               isCollapsed={isCollapsed}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              isActive={isSubActive('/dashboard/menu') || isActive('/dashboard') || isActive('/dashboard/categories')}
+              isActive={isSubActive('/dashboard/menu') || isActive('/dashboard') || isActive('/dashboard/categories') || isActive('/dashboard/specials') || isActive('/dashboard/drinks')}
             >
               {!isCollapsed && (
                 <>
                   <SidebarSubItem label="Main Menu" to="/dashboard" isActive={isActive('/dashboard')} />
                   <SidebarSubItem label="Categories" to="/dashboard/categories" isActive={isActive('/dashboard/categories')} />
                   <SidebarSubItem label="Specials" to="/dashboard/specials" isActive={isActive('/dashboard/specials')} />
+                  <SidebarSubItem label="Drinks" to="/dashboard/drinks" isActive={isActive('/dashboard/drinks')} />
                 </>
               )}
             </SidebarItem>

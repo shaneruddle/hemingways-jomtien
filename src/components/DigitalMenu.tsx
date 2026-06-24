@@ -27,6 +27,50 @@ interface SelectedIngredient {
   fat: number;
 }
 
+interface Special {
+  id: string;
+  name: string;
+  day: string;
+  image: string;
+  order: number;
+}
+
+interface Drink {
+  id: string;
+  name: string;
+  category: string;
+  drinkType: string;
+  description: string;
+  price: string;
+  order: number;
+  published: boolean;
+}
+
+// Sentinel values — never real category names
+const SPECIALS_TAB = '__specials__';
+const DRINKS_TAB   = '__drinks__';
+
+const DRINK_CATEGORY_ORDER = [
+  'Beers & Ciders',
+  'Cocktails & Alcopops',
+  'Spirits',
+  'Coffee & Tea',
+  'Soft Drinks & Shakes',
+];
+
+const DAY_COLORS: Record<string, string> = {
+  Monday:      '#1DA0A8',
+  Tuesday:     '#1DA0A8',
+  Wednesday:   '#D49F3D',
+  Thursday:    '#D49F3D',
+  Friday:      '#1DA0A8',
+  Saturday:    '#1DA0A8',
+  Sunday:      '#D49F3D',
+  Weekend:     '#1DA0A8',
+  Daily:       '#5cb85c',
+  'Every Day': '#5cb85c',
+};
+
 const DigitalMenu = () => {
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === 'true';
@@ -37,6 +81,8 @@ const DigitalMenu = () => {
   const [loading, setLoading] = useState({ menu: true });
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [specials, setSpecials] = useState<Special[]>([]);
+  const [drinks, setDrinks]     = useState<Drink[]>([]);
   const initialCategorySet = useRef(false);
 
   const isLoading = loading.menu || (isPreview && authLoading);
@@ -67,7 +113,7 @@ const DigitalMenu = () => {
     // Wait for auth to be determined if in preview mode
     if (isPreview && authLoading) return;
 
-    const q = isPreview 
+    const q = isPreview
       ? query(collection(db, "menu"))
       : query(collection(db, "menu"), where("published", "==", true));
 
@@ -76,10 +122,10 @@ const DigitalMenu = () => {
         id: doc.id,
         ...doc.data()
       })) as MenuItem[];
-      
+
       // Sort in memory to avoid needing a composite index
       const sortedItems = menuItems.sort((a, b) => (a.order || 0) - (b.order || 0));
-      
+
       setItems(sortedItems);
       setLoading(prev => ({ ...prev, menu: false }));
     }, (err) => {
@@ -89,10 +135,36 @@ const DigitalMenu = () => {
     return () => unsubscribe();
   }, [isPreview, authLoading, user]);
 
+  // Specials listener
+  useEffect(() => {
+    const q = query(collection(db, "specials"), orderBy("order", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setSpecials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Special)));
+    }, (err) => {
+      console.error("Specials snapshot error:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Drinks listener (published only)
+  useEffect(() => {
+    const q = query(
+      collection(db, "drinks"),
+      where("published", "==", true),
+      orderBy("order", "asc"),
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setDrinks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Drink)));
+    }, (err) => {
+      console.error("Drinks snapshot error:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Separate effect to handle initial category selection once both items and categoryList are ready
   useEffect(() => {
     if (!initialCategorySet.current && !isLoading && items.length > 0) {
-      const firstCat = categoryList.length > 0 
+      const firstCat = categoryList.length > 0
         ? categoryList.find(c => items.some(i => i.category === c.name))?.name || items[0].category
         : items[0].category;
       setActiveCategory(firstCat);
@@ -103,7 +175,7 @@ const DigitalMenu = () => {
   const categories = useMemo(() => {
     const itemCats = Array.from(new Set<string>(items.map(item => item.category)));
     let cats: string[] = [];
-    
+
     if (categoryList.length > 0) {
       const definedCats = categoryList.map(c => c.name);
       // Include defined categories first, then any other categories found in items
@@ -122,7 +194,13 @@ const DigitalMenu = () => {
 
   // Fallback if active category disappears
   useEffect(() => {
-    if (activeCategory && categories.length > 0 && !categories.includes(activeCategory)) {
+    if (
+      activeCategory &&
+      activeCategory !== SPECIALS_TAB &&
+      activeCategory !== DRINKS_TAB &&
+      categories.length > 0 &&
+      !categories.includes(activeCategory)
+    ) {
       setActiveCategory(categories[0]);
     }
   }, [categories, activeCategory]);
@@ -175,9 +253,9 @@ const DigitalMenu = () => {
           transition={{ repeat: Infinity, duration: 2 }}
           className="w-32 h-32"
         >
-          <FirebaseImage 
-            src={normalizeImageUrl("/logo.png")} 
-            alt="Loading..." 
+          <FirebaseImage
+            src={normalizeImageUrl("/logo.png")}
+            alt="Loading..."
             className="w-32 h-32 rounded-full object-cover border-4 border-gold shadow-xl"
           />
         </motion.div>
@@ -195,11 +273,11 @@ const DigitalMenu = () => {
             <h1 className="text-xl font-display font-bold text-navy mb-0.5">Hemingways</h1>
             <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Menu Display</p>
           </div>
-          
+
           <div className="mb-6 flex justify-center">
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
           </div>
-          
+
           <h2 className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-4">Categories</h2>
           <div className="space-y-1.5">
             {categories.map((cat) => (
@@ -207,14 +285,44 @@ const DigitalMenu = () => {
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all ${
-                  activeCategory === cat 
-                  ? "bg-navy text-white shadow-sm" 
+                  activeCategory === cat
+                  ? "bg-navy text-white shadow-sm"
                   : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 {cat}
               </button>
             ))}
+
+            {/* Specials tab — teal, always last */}
+            {specials.length > 0 && (
+              <button
+                onClick={() => setActiveCategory(SPECIALS_TAB)}
+                className="w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all mt-3"
+                style={
+                  activeCategory === SPECIALS_TAB
+                    ? { background: '#1DA0A8', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }
+                    : { color: '#1DA0A8', fontWeight: 600 }
+                }
+              >
+                ★ Specials
+              </button>
+            )}
+
+            {/* Drinks tab — amber, always last */}
+            {drinks.length > 0 && (
+              <button
+                onClick={() => setActiveCategory(DRINKS_TAB)}
+                className="w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all mt-2"
+                style={
+                  activeCategory === DRINKS_TAB
+                    ? { background: '#D49F3D', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }
+                    : { color: '#B97D15', fontWeight: 600 }
+                }
+              >
+                🍺 Drinks
+              </button>
+            )}
           </div>
         </aside>
 
@@ -223,7 +331,7 @@ const DigitalMenu = () => {
           <div className="lg:hidden mb-4 flex justify-center">
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
           </div>
-          
+
           {/* Mobile Categories (Horizontal Scroll) */}
           <div className="lg:hidden flex overflow-x-auto gap-2 mb-6 pb-2 no-scrollbar">
             {categories.map((cat) => (
@@ -231,45 +339,192 @@ const DigitalMenu = () => {
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`whitespace-nowrap px-3 py-1.5 rounded-full font-medium text-xs sm:text-sm transition-all ${
-                  activeCategory === cat 
-                  ? "bg-navy text-white shadow-md" 
+                  activeCategory === cat
+                  ? "bg-navy text-white shadow-md"
                   : "bg-white text-ink shadow-sm border border-gray-100"
                 }`}
               >
                 {cat}
               </button>
             ))}
+
+            {/* Specials tab — teal pill, always last */}
+            {specials.length > 0 && (
+              <button
+                onClick={() => setActiveCategory(SPECIALS_TAB)}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full font-medium text-xs sm:text-sm transition-all"
+                style={
+                  activeCategory === SPECIALS_TAB
+                    ? { background: '#1DA0A8', color: '#fff', boxShadow: '0 2px 6px rgba(29,160,168,0.4)' }
+                    : { background: 'rgba(29,160,168,0.1)', color: '#1DA0A8', border: '1px solid rgba(29,160,168,0.3)' }
+                }
+              >
+                ★ Specials
+              </button>
+            )}
+
+            {/* Drinks tab — amber pill, always last */}
+            {drinks.length > 0 && (
+              <button
+                onClick={() => setActiveCategory(DRINKS_TAB)}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full font-medium text-xs sm:text-sm transition-all"
+                style={
+                  activeCategory === DRINKS_TAB
+                    ? { background: '#D49F3D', color: '#fff', boxShadow: '0 2px 6px rgba(212,159,61,0.4)' }
+                    : { background: 'rgba(212,159,61,0.1)', color: '#B97D15', border: '1px solid rgba(212,159,61,0.3)' }
+                }
+              >
+                🍺 Drinks
+              </button>
+            )}
           </div>
 
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-2xl sm:text-3xl font-display font-bold text-ink">{activeCategory}</h2>
-            <div className="h-1 w-12 bg-navy mt-2 rounded-full"></div>
-          </div>
-          <motion.div 
-            key={activeCategory + language}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-8"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredItems.map((item, index) => (
-                <MenuItemCardGrid 
-                  key={item.id}
-                  item={item}
-                  language={language}
-                  getLocalizedName={getLocalizedName}
-                  getLocalizedDesc={getLocalizedDesc}
-                  renderPrice={renderPrice}
-                  priority={index < 2}
-                />
-              ))}
-            </div>
-          </motion.div>
+          {/* ── Drinks View ── */}
+          {activeCategory === DRINKS_TAB ? (
+            <>
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-2xl sm:text-3xl font-display font-bold text-ink">Drinks</h2>
+                <div className="h-1 w-12 mt-2 rounded-full" style={{ background: '#D49F3D' }}></div>
+              </div>
 
-          {filteredItems.length === 0 && (
-            <div className="text-center py-24 bg-white rounded-[32px] border-2 border-dashed border-gray-100">
-              <p className="text-gray-400 italic">No items found in this category.</p>
-            </div>
+              <motion.div
+                key="drinks"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-10"
+              >
+                {DRINK_CATEGORY_ORDER.filter(cat => drinks.some(d => d.category === cat)).map(cat => {
+                  const catDrinks = drinks.filter(d => d.category === cat);
+                  // group by drinkType within category
+                  const typeGroups = Array.from(new Set(catDrinks.map(d => d.drinkType)));
+                  return (
+                    <div key={cat}>
+                      {/* Category header */}
+                      <div className="mb-4">
+                        <h3 className="text-xl font-display font-bold text-navy uppercase tracking-wide">{cat}</h3>
+                        <div className="h-0.5 w-8 mt-1 rounded-full" style={{ background: '#D49F3D' }}></div>
+                      </div>
+
+                      <div className="flex flex-col gap-6">
+                        {typeGroups.map(type => {
+                          const typeDrinks = catDrinks.filter(d => d.drinkType === type);
+                          return (
+                            <div key={type}>
+                              {/* Type sub-header */}
+                              <div className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2 pb-1 border-b border-gray-100">
+                                {type}
+                              </div>
+                              <div className="divide-y divide-gray-50">
+                                {typeDrinks.map(drink => (
+                                  <div key={drink.id} className="flex items-baseline justify-between py-2.5 gap-4">
+                                    <div className="min-w-0">
+                                      <span className="font-medium text-ink text-sm sm:text-base leading-snug">{drink.name}</span>
+                                      {drink.description && (
+                                        <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{drink.description}</p>
+                                      )}
+                                    </div>
+                                    {drink.price && (
+                                      <span className="font-display font-bold text-navy whitespace-nowrap text-sm sm:text-base shrink-0">
+                                        ฿{drink.price}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            </>
+
+          ) : /* ── Specials View ── */
+          activeCategory === SPECIALS_TAB ? (
+            <>
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-2xl sm:text-3xl font-display font-bold text-ink">Specials</h2>
+                <div className="h-1 w-12 mt-2 rounded-full" style={{ background: '#1DA0A8' }}></div>
+              </div>
+
+              <motion.div
+                key="specials"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {specials.map((special) => (
+                    <div
+                      key={special.id}
+                      className="rounded-2xl overflow-hidden shadow-md bg-white"
+                      style={{ border: '1px solid #e5e7eb' }}
+                    >
+                      <div className="relative" style={{ paddingBottom: '66%' }}>
+                        {special.image ? (
+                          <FirebaseImage
+                            src={normalizeImageUrl(special.image)}
+                            alt={special.name}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">
+                            🍽
+                          </div>
+                        )}
+                        {/* Day badge */}
+                        <div
+                          className="absolute top-3 left-3 text-white text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg"
+                          style={{ background: DAY_COLORS[special.day] || '#1DA0A8' }}
+                        >
+                          {special.day}
+                        </div>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="font-display font-bold text-navy text-lg uppercase tracking-wide">
+                          {special.name}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </>
+          ) : (
+            /* ── Regular Menu View ── */
+            <>
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-2xl sm:text-3xl font-display font-bold text-ink">{activeCategory}</h2>
+                <div className="h-1 w-12 bg-navy mt-2 rounded-full"></div>
+              </div>
+              <motion.div
+                key={activeCategory + language}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-8"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredItems.map((item, index) => (
+                    <MenuItemCardGrid
+                      key={item.id}
+                      item={item}
+                      language={language}
+                      getLocalizedName={getLocalizedName}
+                      getLocalizedDesc={getLocalizedDesc}
+                      renderPrice={renderPrice}
+                      priority={index < 2}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+
+              {filteredItems.length === 0 && (
+                <div className="text-center py-24 bg-white rounded-[32px] border-2 border-dashed border-gray-100">
+                  <p className="text-gray-400 italic">No items found in this category.</p>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>

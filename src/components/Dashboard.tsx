@@ -1896,6 +1896,7 @@ export default function Dashboard() {
         </DndContext>
       </div>
 
+      {/* Food cost calculator panel */}
       {costingItem && (
         <MenuItemCosting
           item={costingItem}
