@@ -227,7 +227,6 @@ const DigitalMenuDisplay = () => {
         <header className="mb-2 lg:mb-4 lg:text-center lg:flex lg:flex-col lg:items-center">
           <div className="hidden lg:block">
             <h1 className="text-3xl lg:text-5xl font-display font-bold text-navy">Hemingways Jomtien</h1>
-            <p className="text-[10px] lg:text-xs uppercase tracking-[0.3em] text-gray-400 font-bold">Digital Menu Display</p>
           </div>
         </header>
         <div className="mb-2 lg:mb-4 flex justify-center">
@@ -292,11 +291,11 @@ const DigitalMenuDisplay = () => {
                   {specials.map((special) => (
                     <div key={special.id} className="bg-white rounded-[40px] overflow-hidden shadow-md">
                       {special.image && (
-                        <div className="h-52 overflow-hidden">
+                        <div className="w-full overflow-hidden" style={{ aspectRatio: '210/297' }}>
                           <FirebaseImage
                             src={normalizeImageUrl(special.image)}
                             alt={special.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                           />
                         </div>
                       )}
@@ -318,24 +317,58 @@ const DigitalMenuDisplay = () => {
                   ))}
                 </div>
               ) : activeCategory === DRINKS_TAB ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {drinks.map((item, index) => (
-                    <MenuItemCard
-                      key={item.id}
-                      item={item}
-                      language={language}
-                      getLocalizedName={getLocalizedName}
-                      getLocalizedDesc={getLocalizedDesc}
-                      renderPrice={renderPrice}
-                      priority={index < 2}
-                    />
-                  ))}
-                  {drinks.length === 0 && (
-                    <div className="col-span-full text-center py-24 bg-white/50 rounded-[40px] border-2 border-dashed border-gray-200">
+                (() => {
+                  // Group drinks by category, preserving Firestore order within each group
+                  const groups: Record<string, MenuItem[]> = {};
+                  for (const item of drinks) {
+                    const cat = item.category || 'Drinks';
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push(item);
+                  }
+                  const groupEntries = Object.entries(groups);
+                  return drinks.length === 0 ? (
+                    <div className="text-center py-24 bg-white/50 rounded-[40px] border-2 border-dashed border-gray-200">
                       <p className="text-gray-400 italic">No drinks available.</p>
                     </div>
-                  )}
-                </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {groupEntries.map(([cat, catItems]) => (
+                        <div key={cat} className="bg-white rounded-[32px] p-6 shadow-sm">
+                          {groupEntries.length > 1 && (
+                            <h3 className="font-bold text-navy text-base uppercase tracking-wider mb-4 pb-3 border-b border-gray-100">{cat}</h3>
+                          )}
+                          <div>
+                            {catItems.map((item) => {
+                              const extraPrices = [
+                                item.price2Label && item.price2 ? `${item.price2Label} ฿${item.price2.replace('฿','').trim()}` : null,
+                                item.price3Label && item.price3 ? `${item.price3Label} ฿${item.price3.replace('฿','').trim()}` : null,
+                                item.price4Label && item.price4 ? `${item.price4Label} ฿${item.price4.replace('฿','').trim()}` : null,
+                              ].filter(Boolean);
+                              return (
+                                <div key={item.id} className="flex justify-between items-start py-3 border-b border-gray-50 last:border-0">
+                                  <div className="flex-1 min-w-0 pr-4">
+                                    <p className="font-semibold text-ink text-sm">{getLocalizedName(item)}</p>
+                                    {getLocalizedDesc(item) && (
+                                      <p className="text-xs text-gray-400 mt-0.5">{getLocalizedDesc(item)}</p>
+                                    )}
+                                    {extraPrices.length > 0 && (
+                                      <p className="text-xs text-gray-400 mt-0.5">{extraPrices.join(' / ')}</p>
+                                    )}
+                                  </div>
+                                  {item.price && (
+                                    <span className="font-black text-navy text-sm whitespace-nowrap">
+                                      ฿{item.price.replace('฿','').trim()}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()
               ) : (
                 <div className={activeCategory === "More Add Ons" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"}>
                   {filteredItems.map((item, index) => (
