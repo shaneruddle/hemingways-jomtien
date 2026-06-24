@@ -1599,8 +1599,8 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
       <Routes>
         <Route path="/" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Redirecting to Staff Portal...</div> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} companyProfile={companyProfile} />} />
-        <Route path="/menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenu />} />
-        <Route path="/digital-menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenu />} />
+        <Route path="/menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenuDisplay />} />
+        <Route path="/digital-menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenuDisplay />} />
         <Route path="/expense" element={isStaff ? <ExpenseEntry /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied. Please login with a staff account.</div>} />
 
         {/* Dashboard Routes with Sidebar Layout */}

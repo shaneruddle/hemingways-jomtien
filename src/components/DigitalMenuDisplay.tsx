@@ -4,14 +4,16 @@ import { motion, AnimatePresence } from "motion/react";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../firebase";
-import { MenuItem, Category } from "../types";
+import { MenuItem, Category, Special } from "../types";
 import { handleFirestoreError } from "../utils/firestore";
 import { normalizeImageUrl } from "../utils/images";
 import { FirebaseImage } from "./ui/FirebaseImage";
-
 // Optimized Sub-component
 import MenuItemCard from "./menu/MenuItemCard";
 import LanguageSwitcher from "./menu/LanguageSwitcher";
+
+const SPECIALS_TAB = '__specials__';
+const DRINKS_TAB = '__drinks__';
 
 const SimpleListMember = ({ item, getLocalizedName }: { item: MenuItem; getLocalizedName: (item: MenuItem) => string }) => (
   <div className="flex justify-between items-center py-4 border-b border-gray-100 group hover:bg-cream/50 px-4 rounded-2xl transition-colors bg-white/50 backdrop-blur-sm">
@@ -44,6 +46,8 @@ const DigitalMenuDisplay = () => {
   const [language, setLanguage] = useState<Language>('en');
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [specials, setSpecials] = useState<Special[]>([]);
+  const [drinks, setDrinks] = useState<MenuItem[]>([]);
   const initialCategorySet = useRef(false);
 
   const isLoading = loading.menu || (isPreview && authLoading);
@@ -74,10 +78,8 @@ const DigitalMenuDisplay = () => {
     if (isPreview && authLoading) return;
 
     console.log("Fetching menu items, preview mode:", isPreview, "User:", user?.email);
-    
-    // If in preview mode, we MUST be an admin. If not logged in, we might get permission denied.
-    // However, we'll try the query anyway as Firestore will handle the state.
-    const q = isPreview 
+
+    const q = isPreview
       ? query(collection(db, "menu"))
       : query(collection(db, "menu"), where("published", "==", true));
 
@@ -87,22 +89,41 @@ const DigitalMenuDisplay = () => {
         id: doc.id,
         ...doc.data()
       })) as MenuItem[];
-      
+
       const sortedItems = menuItems.sort((a, b) => (a.order || 0) - (b.order || 0));
       setItems(sortedItems);
-      
+
       setLoading(prev => ({ ...prev, menu: false }));
     }, (err) => {
       console.error("Menu snapshot error:", err);
       setLoading(prev => ({ ...prev, menu: false }));
     });
+
     return () => unsubscribe();
   }, [isPreview, authLoading, user]);
+
+  // Specials listener
+  useEffect(() => {
+    const q = query(collection(db, "specials"), orderBy("order", "asc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setSpecials(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Special[]);
+    }, (err) => console.error("Specials error:", err));
+    return () => unsub();
+  }, []);
+
+  // Drinks listener
+  useEffect(() => {
+    const q = query(collection(db, "drinks"), where("published", "==", true), orderBy("order", "asc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setDrinks(snap.docs.map(d => ({ id: d.id, ...d.data() })) as MenuItem[]);
+    }, (err) => console.error("Drinks error:", err));
+    return () => unsub();
+  }, []);
 
   // Separate effect to handle initial category selection once both items and categoryList are ready
   useEffect(() => {
     if (!initialCategorySet.current && !isLoading && items.length > 0) {
-      const firstCat = categoryList.length > 0 
+      const firstCat = categoryList.length > 0
         ? categoryList.find(c => items.some(i => i.category === c.name))?.name || items[0].category
         : items[0].category;
       setActiveCategory(firstCat);
@@ -113,16 +134,14 @@ const DigitalMenuDisplay = () => {
   const categories = useMemo(() => {
     const itemCats = Array.from(new Set<string>(items.map(item => item.category)));
     let cats: string[] = [];
-    
+
     if (categoryList.length > 0) {
       const definedCats = categoryList.map(c => c.name);
-      // Include defined categories first, then any other categories found in items
       const otherCats = itemCats.filter(cat => !definedCats.includes(cat)).sort();
       cats = [...definedCats, ...otherCats];
     } else {
       cats = itemCats.sort();
     }
-
     return cats;
   }, [items, categoryList]);
 
@@ -130,9 +149,15 @@ const DigitalMenuDisplay = () => {
     return items.filter(item => item.category === activeCategory);
   }, [items, activeCategory]);
 
-  // Fallback if active category disappears
+  // Fallback if active category disappears — don't reset sentinel tabs
   useEffect(() => {
-    if (activeCategory && categories.length > 0 && !categories.includes(activeCategory)) {
+    if (
+      activeCategory &&
+      activeCategory !== SPECIALS_TAB &&
+      activeCategory !== DRINKS_TAB &&
+      categories.length > 0 &&
+      !categories.includes(activeCategory)
+    ) {
       setActiveCategory(categories[0]);
     }
   }, [categories, activeCategory]);
@@ -185,9 +210,9 @@ const DigitalMenuDisplay = () => {
           transition={{ repeat: Infinity, duration: 2 }}
           className="w-32 h-32"
         >
-          <FirebaseImage 
-            src={normalizeImageUrl("/logo.png")} 
-            alt="Loading..." 
+          <FirebaseImage
+            src={normalizeImageUrl("/logo.png")}
+            alt="Loading..."
             className="w-32 h-32 rounded-full object-cover border-4 border-gold shadow-xl"
           />
         </motion.div>
@@ -198,7 +223,6 @@ const DigitalMenuDisplay = () => {
 
   return (
     <div className="min-h-screen bg-cream p-1 sm:p-2 relative">
-
       <div className="max-w-6xl mx-auto">
         <header className="mb-2 lg:mb-4 lg:text-center lg:flex lg:flex-col lg:items-center">
           <div className="hidden lg:block">
@@ -206,11 +230,9 @@ const DigitalMenuDisplay = () => {
             <p className="text-[10px] lg:text-xs uppercase tracking-[0.3em] text-gray-400 font-bold">Digital Menu Display</p>
           </div>
         </header>
-
         <div className="mb-2 lg:mb-4 flex justify-center">
           <LanguageSwitcher language={language} setLanguage={setLanguage} />
         </div>
-
         {/* Category Tabs - Sticky Bar */}
         <div className="sticky top-0 z-50 py-3 -mx-1 sm:-mx-2 px-1 sm:px-2 mb-4 lg:mb-8 bg-cream/95 backdrop-blur-md transition-all duration-300 border-b border-gray-100/50">
          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 px-2 pb-1">
@@ -222,36 +244,83 @@ const DigitalMenuDisplay = () => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
-                  activeCategory === cat 
-                  ? "bg-navy border-navy text-white shadow-xl shadow-navy/20 scale-105" 
-                  : "bg-white border-gray-200 text-gray-600 hover:border-navy hover:text-navy active:scale-95"
+                  activeCategory === cat
+                    ? "bg-navy border-navy text-white shadow-xl shadow-navy/20 scale-105"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-navy hover:text-navy active:scale-95"
                 }`}
               >
                 {cat}
               </button>
             ))}
+            {specials.length > 0 && (
+              <button
+                onClick={() => { setActiveCategory(SPECIALS_TAB); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
+                  activeCategory === SPECIALS_TAB
+                    ? "bg-teal-600 border-teal-600 text-white shadow-xl shadow-teal-600/20 scale-105"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-teal-600 hover:text-teal-600 active:scale-95"
+                }`}
+              >
+                ★ Specials
+              </button>
+            )}
+            {drinks.length > 0 && (
+              <button
+                onClick={() => { setActiveCategory(DRINKS_TAB); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
+                  activeCategory === DRINKS_TAB
+                    ? "bg-amber-700 border-amber-700 text-white shadow-xl shadow-amber-700/20 scale-105"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-amber-700 hover:text-amber-700 active:scale-95"
+                }`}
+              >
+                🍺 Drinks
+              </button>
+            )}
           </div>
         </div>
-
         <div className="min-h-[60vh] scroll-mt-32">
           <AnimatePresence mode="wait">
-            <motion.div 
+            <motion.div
               key={activeCategory + language}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
-              <div className={activeCategory === "More Add Ons" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"}>
-                {filteredItems.map((item, index) => (
-                  activeCategory === "More Add Ons" ? (
-                    <SimpleListMember 
-                      key={item.id} 
-                      item={item} 
-                      getLocalizedName={getLocalizedName} 
-                    />
-                  ) : (
-                    <MenuItemCard 
+              {activeCategory === SPECIALS_TAB ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {specials.map((special) => (
+                    <div key={special.id} className="bg-white rounded-[40px] overflow-hidden shadow-md">
+                      {special.image && (
+                        <div className="h-52 overflow-hidden">
+                          <FirebaseImage
+                            src={normalizeImageUrl(special.image)}
+                            alt={special.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="p-6">
+                        <div className="flex justify-between items-start gap-4">
+                          <h3 className="font-bold text-navy text-xl">{special.name}</h3>
+                          {special.price && (
+                            <span className="font-black text-navy text-xl whitespace-nowrap">฿{special.price}</span>
+                          )}
+                        </div>
+                        {special.description && (
+                          <p className="text-gray-500 text-sm mt-2 leading-relaxed">{special.description}</p>
+                        )}
+                        {special.endDate && (
+                          <p className="text-xs text-gray-400 mt-3 uppercase tracking-wider">Available until {special.endDate}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : activeCategory === DRINKS_TAB ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {drinks.map((item, index) => (
+                    <MenuItemCard
                       key={item.id}
                       item={item}
                       language={language}
@@ -260,14 +329,41 @@ const DigitalMenuDisplay = () => {
                       renderPrice={renderPrice}
                       priority={index < 2}
                     />
-                  )
-                ))}
-                {filteredItems.length === 0 && (
-                  <div className="col-span-full text-center py-24 bg-white/50 rounded-[40px] border-2 border-dashed border-gray-200">
-                    <p className="text-gray-400 italic">No items found in this category.</p>
-                  </div>
-                )}
-              </div>
+                  ))}
+                  {drinks.length === 0 && (
+                    <div className="col-span-full text-center py-24 bg-white/50 rounded-[40px] border-2 border-dashed border-gray-200">
+                      <p className="text-gray-400 italic">No drinks available.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={activeCategory === "More Add Ons" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "grid grid-cols-1 lg:grid-cols-2 gap-6"}>
+                  {filteredItems.map((item, index) => (
+                    activeCategory === "More Add Ons" ? (
+                      <SimpleListMember
+                        key={item.id}
+                        item={item}
+                        getLocalizedName={getLocalizedName}
+                      />
+                    ) : (
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        language={language}
+                        getLocalizedName={getLocalizedName}
+                        getLocalizedDesc={getLocalizedDesc}
+                        renderPrice={renderPrice}
+                        priority={index < 2}
+                      />
+                    )
+                  ))}
+                  {filteredItems.length === 0 && (
+                    <div className="col-span-full text-center py-24 bg-white/50 rounded-[40px] border-2 border-dashed border-gray-200">
+                      <p className="text-gray-400 italic">No items found in this category.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
