@@ -192,6 +192,21 @@ const DigitalMenu = () => {
     return items.filter(item => item.category === activeCategory);
   }, [items, activeCategory]);
 
+  // Today's day name in Bangkok timezone (e.g. "Friday")
+  const todayDayName = useMemo(() => {
+    return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'Asia/Bangkok' }).format(new Date());
+  }, []);
+
+  // Only show specials matching today, Daily, Every Day, or Weekend (Sat/Sun)
+  const todaysSpecials = useMemo(() => {
+    return specials.filter(s =>
+      s.day === todayDayName ||
+      s.day === 'Daily' ||
+      s.day === 'Every Day' ||
+      (s.day === 'Weekend' && ['Saturday', 'Sunday'].includes(todayDayName))
+    );
+  }, [specials, todayDayName]);
+
   // Fallback if active category disappears
   useEffect(() => {
     if (
@@ -295,7 +310,7 @@ const DigitalMenu = () => {
             ))}
 
             {/* Specials tab — teal, always last */}
-            {specials.length > 0 && (
+            {todaysSpecials.length > 0 && (
               <button
                 onClick={() => setActiveCategory(SPECIALS_TAB)}
                 className="w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all mt-3"
@@ -349,7 +364,7 @@ const DigitalMenu = () => {
             ))}
 
             {/* Specials tab — teal pill, always last */}
-            {specials.length > 0 && (
+            {todaysSpecials.length > 0 && (
               <button
                 onClick={() => setActiveCategory(SPECIALS_TAB)}
                 className="whitespace-nowrap px-3 py-1.5 rounded-full font-medium text-xs sm:text-sm transition-all"
@@ -455,18 +470,18 @@ const DigitalMenu = () => {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {specials.map((special) => (
+                  {todaysSpecials.map((special) => (
                     <div
                       key={special.id}
                       className="rounded-2xl overflow-hidden shadow-md bg-white"
                       style={{ border: '1px solid #e5e7eb' }}
                     >
-                      <div className="relative" style={{ paddingBottom: '66%' }}>
+                      <div className="relative w-full overflow-hidden" style={{ aspectRatio: '210/297' }}>
                         {special.image ? (
                           <FirebaseImage
                             src={normalizeImageUrl(special.image)}
                             alt={special.name}
-                            className="absolute inset-0 w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                           />
                         ) : (
                           <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">
