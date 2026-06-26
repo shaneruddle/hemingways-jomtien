@@ -149,6 +149,23 @@ const DigitalMenuDisplay = () => {
     return items.filter(item => item.category === activeCategory);
   }, [items, activeCategory]);
 
+  // Today's day name in Bangkok timezone UTC+7 (e.g. "Friday")
+  const todayDayName = useMemo(() => {
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const bangkokMs = Date.now() + (7 * 60 * 60 * 1000);
+    return DAYS[new Date(bangkokMs).getUTCDay()];
+  }, []);
+
+  // Only show specials matching today, Daily, Every Day, or Weekend (Sat/Sun)
+  const todaysSpecials = useMemo(() => {
+    return specials.filter(s =>
+      s.day === todayDayName ||
+      s.day === 'Daily' ||
+      s.day === 'Every Day' ||
+      (s.day === 'Weekend' && ['Saturday', 'Sunday'].includes(todayDayName))
+    );
+  }, [specials, todayDayName]);
+
   // Fallback if active category disappears — don't reset sentinel tabs
   useEffect(() => {
     if (
@@ -251,7 +268,7 @@ const DigitalMenuDisplay = () => {
                 {cat}
               </button>
             ))}
-            {specials.length > 0 && (
+            {todaysSpecials.length > 0 && (
               <button
                 onClick={() => { setActiveCategory(SPECIALS_TAB); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
@@ -288,7 +305,7 @@ const DigitalMenuDisplay = () => {
             >
               {activeCategory === SPECIALS_TAB ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {specials.map((special) => (
+                  {todaysSpecials.map((special) => (
                     <div key={special.id} className="bg-white rounded-[40px] overflow-hidden shadow-md">
                       {special.image && (
                         <div className="w-full overflow-hidden" style={{ aspectRatio: '210/297' }}>
