@@ -460,7 +460,7 @@ const About = () => {
             Hemingway's is Jomtien's biggest expat sports bar and restaurant. We pride ourselves on being a cornerstone of the local community, offering a warm and welcoming atmosphere for residents and visitors alike.
           </p>
           <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.75, marginBottom: 32 }}>
-            With our English management and staff, we provide a familiar and friendly service that makes every visit special. Whether you're here to catch the big game on one of our 15 screens, enjoy quality draught beer, or indulge in our famous pub favorites — you'll always find a great spot at Hemingway's.
+            With our British management and staff, we provide a familiar and friendly service that makes every visit special. Whether you're here to catch the big game on one of our 15 screens, enjoy quality draught beer, or indulge in our famous pub favorites — you'll always find a great spot at Hemingway's.
           </p>
           <div className="grid grid-cols-2 gap-6">
             {[
@@ -507,7 +507,7 @@ const Features = () => {
   const features = [
     {
       icon: <Users size={22} />,
-      title: "English Management",
+      title: "British Management",
       desc: "Friendly English staff and management team ensuring top-quality service."
     },
     {
