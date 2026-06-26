@@ -192,9 +192,11 @@ const DigitalMenu = () => {
     return items.filter(item => item.category === activeCategory);
   }, [items, activeCategory]);
 
-  // Today's day name in Bangkok timezone (e.g. "Friday")
+  // Today's day name in Bangkok timezone UTC+7 (e.g. "Friday")
   const todayDayName = useMemo(() => {
-    return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'Asia/Bangkok' }).format(new Date());
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const bangkokMs = Date.now() + (7 * 60 * 60 * 1000);
+    return DAYS[new Date(bangkokMs).getUTCDay()];
   }, []);
 
   // Only show specials matching today, Daily, Every Day, or Weekend (Sat/Sun)
