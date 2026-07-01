@@ -271,7 +271,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
         if (upResp.ok) { const res = await upResp.json(); receiptUrls.push(res.gsUrl || storagePath); }
       }
       await addDoc(collection(db, 'finance_expenses'), {
-        date: extractedData.date,
+        date: new Date().toISOString().split('T')[0], // always log as today; receipt_date preserved in OCR data
         category_id: extractedData.categoryId,
         category_name: extractedData.categoryName,
         total: extractedData.amount,
