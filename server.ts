@@ -486,49 +486,56 @@ async function startServer() {
 
   app.post("/api/extract-receipt", async (req, res) => {
   const { imageBase64, mimeType = "image/jpeg" } = req.body;
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
-  if (!geminiKey) {
-    return res.status(500).json({ success: false, error: "Gemini API not configured" });
+  if (!anthropicKey) {
+    return res.status(500).json({ success: false, error: "OCR service not configured" });
   }
   if (!imageBase64) {
     return res.status(400).json({ success: false, error: "No image provided" });
   }
 
   try {
-    const geminiResp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: `Extract expense information from this receipt image. Return ONLY valid JSON with no markdown fences:
+    const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mimeType, data: imageBase64 }
+            },
+            {
+              type: "text",
+              text: `Extract expense information from this receipt image. Return ONLY valid JSON with no markdown fences:
 {
   "amount": <total as number>,
-  "description": "overall description in English",
-  "categoryName": "category name in English",
+  "description": "brief description of what was purchased",
+  "categoryName": "category name (e.g. Food & Beverage, Cleaning Supplies, Utilities, Maintenance, etc.)",
   "date": "YYYY-MM-DD or empty string if not visible",
   "lineItems": [
-    { "description": "item name", "amount": <number>, "quantity": <number>, "weight": "e.g. 500g" }
+    { "description": "item name", "amount": <number>, "quantity": <number> }
   ]
 }
-Rules: look for total/grand total/ยอดรวม/รวมทั้งสิ้น for amount. Return ALL line items. Return ONLY valid JSON.`
-              },
-              { inlineData: { mimeType, data: imageBase64 } }
-            ]
-          }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      }
-    );
+Rules: look for total/grand total/ยอดรวม/รวมทั้งสิ้น for amount. Return ALL line items. Return ONLY valid JSON, no markdown.`
+            }
+          ]
+        }]
+      })
+    });
 
-    const geminiData = await geminiResp.json();
-    const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    let parsed = {};
+    const claudeData = await claudeResp.json();
+    const claudeText = claudeData?.content?.[0]?.text || "{}";
+    const clean = claudeText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(clean); } catch(e) { console.error("JSON parse error:", e); }
     return res.json({ success: true, data: parsed });
 
@@ -537,7 +544,6 @@ Rules: look for total/grand total/ยอดรวม/รวมทั้งสิ
     return res.status(500).json({ success: false, error: "Failed to extract receipt data" });
   }
 });
-
 app.post("/api/contact", async (req, res) => {
     const { name, email, message } = req.body;
     console.log("New Contact Form Submission:");
