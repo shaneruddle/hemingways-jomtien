@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, onSnapshot, query, where, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
-import { GoogleGenAI, Type } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Camera, 
@@ -96,72 +95,34 @@ const ExpenseEntry: React.FC = () => {
   const extractData = async (base64Image: string) => {
     setIsExtracting(true);
     setExtractedData(null);
-    
+
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
       const base64Data = base64Image.split(',')[1];
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            parts: [
-              { text: `Extract expense information from this receipt. 
-                Available categories: ${categories.map(c => c.name).join(', ')}.
-                IMPORTANT: Return all text in English only.
-                Return the data in JSON format with the following fields:
-                - amount (number, total amount)
-                - description (string, overall description in English)
-                - categoryName (string, must match one of the available categories if possible, otherwise 'General')
-                - date (string, YYYY-MM-DD format, use today if not found)
-                - lineItems (array of objects with 'description' (English), 'amount', optional 'quantity', and optional 'weight' (e.g. '500g', '1kg'))
-              ` },
-              { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              amount: { type: Type.NUMBER },
-              description: { type: Type.STRING },
-              categoryName: { type: Type.STRING },
-              date: { type: Type.STRING },
-              lineItems: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    description: { type: Type.STRING },
-                    amount: { type: Type.NUMBER },
-                    quantity: { type: Type.NUMBER },
-                    weight: { type: Type.STRING }
-                  },
-                  required: ["description", "amount"]
-                }
-              }
-            },
-            required: ["amount", "description", "categoryName", "date", "lineItems"]
-          }
-        }
+      const mimeType = base64Image.split(';')[0].split(':')[1] || 'image/jpeg';
+
+      const response = await fetch('/api/extract-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64Data, mimeType })
       });
 
-      const result = JSON.parse(response.text || '{}');
-      
-      // Match category ID
-      const matchedCategory = categories.find(c => 
-        c.name.toLowerCase() === result.categoryName.toLowerCase()
+      if (!response.ok) throw new Error('Server error');
+      const { success, data } = await response.json();
+      if (!success) throw new Error('Extraction failed');
+
+      const matchedCategory = categories.find(c =>
+        c.name.toLowerCase() === (data.categoryName || '').toLowerCase()
       ) || categories[0];
 
       setExtractedData({
-        ...result,
+        amount: data.amount || 0,
+        description: data.description || '',
+        categoryName: matchedCategory?.name || data.categoryName || 'General',
         categoryId: matchedCategory?.id || '',
-        categoryName: matchedCategory?.name || result.categoryName,
-        lineItems: result.lineItems || []
+        date: data.date || new Date().toISOString().split('T')[0],
+        lineItems: data.lineItems || []
       });
-      
+
       toast.success("Receipt info extracted!");
     } catch (error) {
       console.error("Extraction error:", error);
