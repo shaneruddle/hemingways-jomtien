@@ -539,7 +539,7 @@ Rules: look for total/grand total for amount. Return ALL line items. Return ONLY
     const clean = claudeText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(clean); } catch(e) { console.error("JSON parse error:", e); }
-    return res.json({ success: true, data: parsed, _debug: { rawResponse: JSON.stringify(claudeData).substring(0, 300) } });
+    return res.json({ success: true, data: parsed });
 
   } catch (error) {
     console.error("Receipt extraction error:", error);
