@@ -15,7 +15,7 @@ import { FinanceCategory, UserProfile } from '../types';
 import { logActivity } from '../utils/logger';
 import { format } from 'date-fns';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ââ Types ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 interface Customer {
   id?: string;
@@ -43,17 +43,34 @@ const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm 
 const LBL_CLS = 'block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5';
 
 const DEFAULT_CATEGORIES = [
-  { id: 'cat_food', name: 'Food & Ingredients', type: 'expense' },
-  { id: 'cat_drinks', name: 'Drinks & Beverages', type: 'expense' },
-  { id: 'cat_packaging', name: 'Packaging', type: 'expense' },
-  { id: 'cat_utilities', name: 'Utilities', type: 'expense' },
-  { id: 'cat_staff', name: 'Staff', type: 'expense' },
-  { id: 'cat_equipment', name: 'Equipment', type: 'expense' },
-  { id: 'cat_rent', name: 'Rent', type: 'expense' },
+  { id: 'cat_food_expense', name: 'Food Expense', type: 'expense' },
+  { id: 'cat_drink_expense', name: 'Drink Expense', type: 'expense' },
+  { id: 'cat_staff_food', name: 'Staff Food', type: 'expense' },
+  { id: 'cat_ice', name: 'Ice', type: 'expense' },
+  { id: 'cat_salary', name: 'Salary & Staff Advances', type: 'expense' },
+  { id: 'cat_tip', name: 'Tip Transfer', type: 'expense' },
+  { id: 'cat_social_security', name: 'Social Security', type: 'expense' },
+  { id: 'cat_electricity', name: 'Electricity', type: 'expense' },
+  { id: 'cat_water', name: 'Water Bill from PEA', type: 'expense' },
+  { id: 'cat_gas', name: 'Gas', type: 'expense' },
+  { id: 'cat_internet', name: 'Internet', type: 'expense' },
+  { id: 'cat_mobile', name: 'Mobile Phone', type: 'expense' },
+  { id: 'cat_cleaning', name: 'Cleaning & Supplies', type: 'expense' },
+  { id: 'cat_subscriptions', name: 'Subscriptions', type: 'expense' },
+  { id: 'cat_kitchen_equipment', name: 'Kitchen Equipment', type: 'expense' },
+  { id: 'cat_restaurant_equipment', name: 'Restaurant Equipment', type: 'expense' },
+  { id: 'cat_computer', name: 'Computer - Hardware', type: 'expense' },
+  { id: 'cat_renovation', name: 'Renovation Costs', type: 'expense' },
+  { id: 'cat_repairs', name: 'Repairs & Maintenance', type: 'expense' },
+  { id: 'cat_rent', name: 'Rent Expense', type: 'expense' },
+  { id: 'cat_accounting', name: 'Accounting Services', type: 'expense' },
+  { id: 'cat_advertising', name: 'Advertising & Promotion', type: 'expense' },
+  { id: 'cat_professional', name: 'Professional Fees', type: 'expense' },
+  { id: 'cat_licenses', name: 'Licenses', type: 'expense' },
   { id: 'cat_other', name: 'Other', type: 'expense' },
 ] as unknown as FinanceCategory[];
 
-// ── Main Component ────────────────────────────────────────────────────────
+// ââ Main Component ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const StaffPortal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('expenses');
@@ -129,7 +146,7 @@ const StaffPortal: React.FC = () => {
   );
 };
 
-// ── Expenses Tab ──────────────────────────────────────────────────────────
+// ââ Expenses Tab ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
   const [images, setImages] = useState<string[]>([]);
@@ -198,7 +215,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
       toast.success('Receipt scanned');
     } catch (err) {
       console.error(err);
-      toast.error('Could not read receipt — fill in manually');
+      toast.error('Could not read receipt â fill in manually');
       const cats = categoriesRef.current;
       setExtractedData({
         amount: 0,
@@ -313,13 +330,13 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
         source: 'staff_portal',
       });
       logActivity('Staff Expense Entry',
-        `฿${extractedData.amount.toLocaleString()} · ${extractedData.categoryName} · ${extractedData.description || 'no description'}`,
+        `à¸¿${extractedData.amount.toLocaleString()} Â· ${extractedData.categoryName} Â· ${extractedData.description || 'no description'}`,
         'finance').catch(e => console.warn('logActivity:', e));
       toast.success('Expense saved!');
       reset();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save — try again');
+      toast.error('Failed to save â try again');
     } finally {
       setIsSaving(false);
     }
@@ -334,7 +351,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
           <p className="text-sm text-gray-500 mt-0.5">
             {todayExpenses.length === 0
               ? 'No expenses logged yet'
-              : <><span className="font-bold text-gray-900">{todayExpenses.length}</span> receipt{todayExpenses.length !== 1 ? 's' : ''} · ฿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</>
+              : <><span className="font-bold text-gray-900">{todayExpenses.length}</span> receipt{todayExpenses.length !== 1 ? 's' : ''} Â· à¸¿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</>
             }
           </p>
         </div>
@@ -354,7 +371,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" multiple />
             <button onClick={startManual} className="w-full mt-3 py-2 text-sm text-gray-400 hover:text-[#1DA0A8] transition-colors font-medium text-center">
-              Skip — enter manually
+              Skip â enter manually
             </button>
           </motion.div>
         ) : (
@@ -388,14 +405,14 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-green-50 text-green-600 rounded-lg"><Receipt size={15} /></div>
                   <span className="font-bold text-gray-900 text-sm">
-                    {isExtracting ? 'Reading receipt…' : 'Review & Confirm'}
+                    {isExtracting ? 'Reading receiptâ¦' : 'Review & Confirm'}
                   </span>
                 </div>
 
                 <div>
-                  <label className={LBL_CLS}>Total Amount (฿)</label>
+                  <label className={LBL_CLS}>Total Amount (à¸¿)</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">฿</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">à¸¿</span>
                     <input
                       type="number" step="0.01"
                       value={extractedData.amount || ''}
@@ -514,7 +531,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <span className="font-bold text-gray-900">฿{(exp.total || 0).toLocaleString()}</span>
+                        <span className="font-bold text-gray-900">à¸¿{(exp.total || 0).toLocaleString()}</span>
                         <div className="flex gap-1">
                           <button onClick={() => setEditingExpense({ ...exp })}
                             className="p-1.5 text-gray-400 hover:text-[#1DA0A8] transition-colors rounded-lg hover:bg-[#1DA0A8]/10">
@@ -532,7 +549,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                                 {todayExpenses.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                     <span className="text-sm font-bold text-gray-600">Total Today</span>
-                    <span className="font-bold text-gray-900 text-lg">฿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</span>
+                    <span className="font-bold text-gray-900 text-lg">à¸¿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</span>
                   </div>
                 )}
               </div>
@@ -544,7 +561,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
   );
 };
 
-// ── Customers Tab ─────────────────────────────────────────────────────────
+// ââ Customers Tab âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const CustomersTab: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -666,7 +683,7 @@ const CustomersTab: React.FC = () => {
         <div className="flex-1 relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search name, phone, email…"
+            placeholder="Search name, phone, emailâ¦"
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1DA0A8] text-sm bg-white text-gray-900" />
         </div>
         <button onClick={() => setIsAdding(true)}
@@ -726,7 +743,7 @@ const CustomersTab: React.FC = () => {
               </div>
               <div><label className={LBL_CLS}>Phone</label><input value={newForm.phone} onChange={e => setNewForm({ ...newForm, phone: e.target.value })} className={INPUT_CLS} placeholder="+66 8x xxx xxxx" /></div>
               <div><label className={LBL_CLS}>Email</label><input type="email" value={newForm.email} onChange={e => setNewForm({ ...newForm, email: e.target.value })} className={INPUT_CLS} placeholder="john@example.com" /></div>
-              <div><label className={LBL_CLS}>Notes</label><textarea value={newForm.notes} onChange={e => setNewForm({ ...newForm, notes: e.target.value })} className={`${INPUT_CLS} h-16 resize-none`} placeholder="Regular, preferences…" /></div>
+              <div><label className={LBL_CLS}>Notes</label><textarea value={newForm.notes} onChange={e => setNewForm({ ...newForm, notes: e.target.value })} className={`${INPUT_CLS} h-16 resize-none`} placeholder="Regular, preferencesâ¦" /></div>
               <button onClick={handleAdd} disabled={isSaving}
                 className="w-full py-3 bg-navy text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-navy/90 transition-all">
                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Check size={16} /> Add Customer</>}
