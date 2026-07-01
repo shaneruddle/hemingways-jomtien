@@ -484,7 +484,61 @@ async function startServer() {
     }
   });
 
-  app.post("/api/contact", async (req, res) => {
+  app.post("/api/extract-receipt", async (req, res) => {
+  const { imageBase64, mimeType = "image/jpeg" } = req.body;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  if (!geminiKey) {
+    return res.status(500).json({ success: false, error: "Gemini API not configured" });
+  }
+  if (!imageBase64) {
+    return res.status(400).json({ success: false, error: "No image provided" });
+  }
+
+  try {
+    const geminiResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                text: `Extract expense information from this receipt image. Return ONLY valid JSON with no markdown fences:
+{
+  "amount": <total as number>,
+  "description": "overall description in English",
+  "categoryName": "category name in English",
+  "date": "YYYY-MM-DD or empty string if not visible",
+  "lineItems": [
+    { "description": "item name", "amount": <number>, "quantity": <number>, "weight": "e.g. 500g" }
+  ]
+}
+Rules: look for total/grand total/ยอดรวม/รวมทั้งสิ้น for amount. Return ALL line items. Return ONLY valid JSON.`
+              },
+              { inlineData: { mimeType, data: imageBase64 } }
+            ]
+          }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      }
+    );
+
+    const geminiData = await geminiResp.json();
+    const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    let parsed = {};
+    try { parsed = JSON.parse(clean); } catch(e) { console.error("JSON parse error:", e); }
+    return res.json({ success: true, data: parsed });
+
+  } catch (error) {
+    console.error("Receipt extraction error:", error);
+    return res.status(500).json({ success: false, error: "Failed to extract receipt data" });
+  }
+});
+
+app.post("/api/contact", async (req, res) => {
     const { name, email, message } = req.body;
     console.log("New Contact Form Submission:");
     console.log(`Name: ${name}`);
