@@ -42,6 +42,17 @@ type ActiveTab = 'expenses' | 'customers';
 const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
 const LBL_CLS = 'block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5';
 
+const DEFAULT_CATEGORIES = [
+  { id: 'cat_food', name: 'Food & Ingredients', type: 'expense' },
+  { id: 'cat_drinks', name: 'Drinks & Beverages', type: 'expense' },
+  { id: 'cat_packaging', name: 'Packaging', type: 'expense' },
+  { id: 'cat_utilities', name: 'Utilities', type: 'expense' },
+  { id: 'cat_staff', name: 'Staff', type: 'expense' },
+  { id: 'cat_equipment', name: 'Equipment', type: 'expense' },
+  { id: 'cat_rent', name: 'Rent', type: 'expense' },
+  { id: 'cat_other', name: 'Other', type: 'expense' },
+] as unknown as FinanceCategory[];
+
 // ── Main Component ────────────────────────────────────────────────────────
 
 const StaffPortal: React.FC = () => {
@@ -137,9 +148,14 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
     const q = query(collection(db, 'finance_categories'), where('type', '==', 'expense'));
     const unsub = onSnapshot(q, snap => {
       const cats = snap.docs.map(d => ({ id: d.id, ...d.data() })) as FinanceCategory[];
-      setCategories(cats);
-      categoriesRef.current = cats;
-    }, err => console.warn('Categories:', err.message));
+      const effective = cats.length > 0 ? cats : DEFAULT_CATEGORIES;
+      setCategories(effective);
+      categoriesRef.current = effective;
+    }, err => {
+      console.warn('Categories:', err.message);
+      setCategories(DEFAULT_CATEGORIES);
+      categoriesRef.current = DEFAULT_CATEGORIES;
+    });
 
     const today = new Date().toISOString().split('T')[0];
     const eq = query(collection(db, 'finance_entries'), where('type', '==', 'expense'), where('date', '==', today));
@@ -262,9 +278,9 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
         createdAt: new Date().toISOString(),
         receiptUrls,
       });
-      await logActivity('Staff Expense Entry',
+      logActivity('Staff Expense Entry',
         `฿${extractedData.amount.toLocaleString()} · ${extractedData.categoryName} · ${extractedData.description || 'no description'}`,
-        'finance');
+        'finance').catch(e => console.warn('logActivity:', e));
       toast.success('Expense saved!');
       reset();
     } catch (err) {
@@ -277,15 +293,19 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
-      {todayExpenses.length > 0 && (
-        <button onClick={() => setShowSummary(true)}
-          className="w-full flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 text-left">
-          <span className="text-sm text-gray-500">
-            <span className="font-bold text-gray-900">{todayExpenses.length}</span> expense{todayExpenses.length !== 1 ? 's' : ''} logged today
-          </span>
-          <ChevronRight size={16} className="text-gray-400" />
-        </button>
-      )}
+      <button onClick={() => setShowSummary(true)}
+        className="w-full flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 text-left">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Today's Expenses</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {todayExpenses.length === 0
+              ? 'No expenses logged yet'
+              : <><span className="font-bold text-gray-900">{todayExpenses.length}</span> receipt{todayExpenses.length !== 1 ? 's' : ''} · ฿{todayExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</>
+            }
+          </p>
+        </div>
+        <ChevronRight size={16} className="text-gray-400" />
+      </button>
 
       <AnimatePresence mode="wait">
         {images.length === 0 && !extractedData ? (
@@ -409,19 +429,32 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                 <button onClick={() => setShowSummary(false)} className="p-1.5 text-gray-400 hover:text-gray-600"><X size={20} /></button>
               </div>
               <div className="space-y-2">
-                {[...todayExpenses].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).map(exp => (
-                  <div key={exp.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <div className="min-w-0 flex-1 mr-3">
-                      <p className="font-medium text-gray-900 text-sm truncate">{exp.categoryName}</p>
-                      {exp.description && <p className="text-xs text-gray-400 truncate">{exp.description}</p>}
-                    </div>
-                    <span className="font-bold text-gray-900 text-sm flex-shrink-0">฿{(exp.amount || 0).toLocaleString()}</span>
+                {todayExpenses.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 text-sm">No expenses logged today.</p>
                   </div>
-                ))}
+                ) : (
+                  [...todayExpenses].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).map(exp => (
+                    <div key={exp.id} className="bg-gray-50 rounded-2xl px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-[#1DA0A8] bg-[#1DA0A8]/10 px-2 py-0.5 rounded-full">
+                            {exp.categoryName || 'Other'}
+                          </span>
+                          <p className="font-semibold text-gray-900 mt-1 truncate">{exp.description || 'No description'}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            by {(exp.createdBy || '').split('@')[0]} · {exp.createdAt ? new Date(exp.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </p>
+                        </div>
+                        <p className="font-bold text-gray-900 text-lg flex-shrink-0">฿{(exp.amount || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
                 {todayExpenses.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-600">Total</span>
-                    <span className="font-bold text-gray-900">฿{todayExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</span>
+                    <span className="text-sm font-bold text-gray-600">Total Today</span>
+                    <span className="font-bold text-gray-900 text-lg">฿{todayExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</span>
                   </div>
                 )}
               </div>
