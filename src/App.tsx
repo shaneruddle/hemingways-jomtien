@@ -59,6 +59,7 @@ import DigitalMenuDisplay from "./components/DigitalMenuDisplay";
 import FinanceDashboard from "./components/finance/FinanceDashboard";
 import BulkFinanceImport from "./components/finance/BulkFinanceImport";
 import ExpenseEntry from "./components/finance/ExpenseEntry";
+import StaffPortal from "./components/StaffPortal";
 import DashboardLayout from "./components/DashboardLayout";
 import UserManagement from "./components/UserManagement";
 import ImageManagement from "./components/ImageManagement";
@@ -1598,10 +1599,11 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
       )}
 
       <Routes>
-        <Route path="/" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Redirecting to Staff Portal...</div> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} companyProfile={companyProfile} />} />
+        <Route path="/" element={isCashierOnly ? <Navigate to="/staff" replace /> : <MainSite isAdmin={isAdmin} businessInfo={businessInfo} companyProfile={companyProfile} />} />
         <Route path="/menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenuDisplay />} />
         <Route path="/digital-menu" element={isCashierOnly ? <div style={{ height: '100vh', background: 'var(--ink-850)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied</div> : <DigitalMenuDisplay />} />
-        <Route path="/expense" element={isStaff ? <ExpenseEntry /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>Access Denied. Please login with a staff account.</div>} />
+        <Route path="/expense" element={<Navigate to="/staff" replace />} />
+        <Route path="/staff" element={isStaff ? <StaffPortal /> : <Navigate to="/" replace />} />
 
         {/* Dashboard Routes with Sidebar Layout */}
         <Route path="/dashboard" element={isMarketing ? <DashboardLayout user={user} /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. <Auth onUserChange={setUser} /></div>}>
