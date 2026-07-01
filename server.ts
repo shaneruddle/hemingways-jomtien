@@ -14,7 +14,7 @@ async function startServer() {
   const PORT = parseInt(process.env.PORT || '3000', 10);
 
   // Increase payload limit for base64 images
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '20mb' }));
 
   // Serve public assets with logging for debugging
   const publicDir = path.join(process.cwd(), 'public');
@@ -485,6 +485,8 @@ async function startServer() {
   });
 
   app.post("/api/extract-receipt", async (req, res) => {
+  const bodySize = JSON.stringify(req.body).length;
+  console.log(`[extract-receipt] hit, bodySize=${bodySize}, hasImage=${!!req.body?.imageBase64}`);
   const { imageBase64, mimeType = "image/jpeg" } = req.body;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
