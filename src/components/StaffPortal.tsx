@@ -528,7 +528,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                       </div>
                     </div>
                   )
-                ))}
+                )))}
                                 {todayExpenses.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                     <span className="text-sm font-bold text-gray-600">Total Today</span>
