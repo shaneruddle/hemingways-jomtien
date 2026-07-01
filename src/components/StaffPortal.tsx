@@ -314,8 +314,9 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
       });
       toast.success('Updated');
       setEditingExpense(null);
-    } catch (err) {
-      toast.error('Failed to update');
+    } catch (err: any) {
+      toast.error(`Update failed: ${err?.code || err?.message || 'unknown error'}`);
+      console.error('handleEditSave error:', err);
     } finally {
       setIsSavingEdit(false);
     }
@@ -429,7 +430,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                 </button>
               </div>
             )}
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" multiple />
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" multiple />
 
             {extractedData && (
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 space-y-4">
