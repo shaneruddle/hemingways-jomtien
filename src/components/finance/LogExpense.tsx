@@ -1,10 +1,30 @@
-import { useState } from 'react';
-import { collection, addDoc, getDocs, query, updateDoc, doc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, addDoc, getDocs, query, updateDoc, doc, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { logActivity } from '../../utils/logger';
 import { db } from '../../firebase';
 import { ExpenseItem } from './types';
-import { Check, Loader2, Trash2, Plus } from 'lucide-react';
+import { Check, Loader2, Trash2, Plus, ExternalLink, ImageOff } from 'lucide-react';
 import { toast } from 'sonner';
+
+function gsToUrl(gs: string): string {
+  if (!gs || !gs.startsWith('gs://')) return gs;
+  const without = gs.replace('gs://', '');
+  const slash = without.indexOf('/');
+  const bucket = without.slice(0, slash);
+  const path = without.slice(slash + 1);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+}
+
+interface FinanceExpense {
+  id: string;
+  date: string;
+  created_at: string;
+  supplier: string;
+  category_name: string;
+  notes: string;
+  total: number;
+  receipt_url: string;
+}
 
 const EXPENSE_CATEGORIES = [
   // Food & Drink
@@ -47,11 +67,19 @@ const EXPENSE_CATEGORIES = [
   { id: 'uncategorized',         name: 'Uncategorized Expense' },
 ];
 
-const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
+const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
 const LBL_CLS  = 'block text-sm font-medium text-gray-700 mb-1';
 
 export default function LogExpense({ user, financeRole = 'owner' }: { user: any; financeRole?: string }) {
   const [saving, setSaving] = useState(false);
+  const [expenses, setExpenses] = useState<FinanceExpense[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'finance_expenses'), orderBy('created_at', 'desc'), limit(50));
+    return onSnapshot(q, snap => {
+      setExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() } as FinanceExpense)));
+    });
+  }, []);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 10),
     supplier: '',
@@ -252,6 +280,57 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
         >
           {saving ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : <><Check size={18} /> Save Expense</>}
         </button>
+      </div>
+      {/* Recent Expenses */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-ink mb-3">Recent Expenses</h2>
+        {expenses.length === 0 ? (
+          <p className="text-gray-400 text-sm italic text-center py-6">No expenses logged yet</p>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Time</th>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Supplier</th>
+                  <th className="px-4 py-3">Description</th>
+                  <th className="px-4 py-3 text-right">Total (฿)</th>
+                  <th className="px-4 py-3 text-center">Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((exp, i) => {
+                  const dt = exp.created_at ? new Date(exp.created_at) : null;
+                  const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+                  const receiptUrl = exp.receipt_url ? gsToUrl(exp.receipt_url) : null;
+                  return (
+                    <tr key={exp.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${i % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">{exp.date || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-500">{timeStr}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{exp.category_name || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">{exp.supplier || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{exp.notes || '—'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right font-medium text-gray-900">
+                        {exp.total != null ? exp.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {receiptUrl ? (
+                          <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#1DA0A8] hover:underline">
+                            <ExternalLink size={13} /> View
+                          </a>
+                        ) : (
+                          <span className="text-gray-300"><ImageOff size={14} /></span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
