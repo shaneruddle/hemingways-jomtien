@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   collection, addDoc, onSnapshot, query, where, orderBy,
-  doc, getDoc, updateDoc,
+  doc, getDoc, updateDoc, deleteDoc,
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Camera, Loader2, Check, X, Receipt, Plus, Search,
-  Phone, Mail, FileText, ArrowLeft, Edit2, Users, ChevronRight,
+  Phone, Mail, FileText, ArrowLeft, Edit2, Trash2, Users, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -139,7 +139,9 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [extractedData, setExtractedData] = useState<ExtractedExpense | null>(null);
   const [todayExpenses, setTodayExpenses] = useState<any[]>([]);
-  const [showSummary, setShowSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState<boolean>(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Always-current ref so extractData never has stale categories
   const categoriesRef = useRef<FinanceCategory[]>([]);
@@ -251,6 +253,24 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
   };
 
   const reset = () => { setImages([]); setFiles([]); setExtractedData(null); };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this expense?')) return;
+    try { await deleteDoc(doc(db, 'finance_expenses', id)); toast.success('Expense deleted'); }
+    catch { toast.error('Failed to delete'); }
+  };
+
+  const handleEditSave = async () => {
+    if (!editingExpense?.id) return;
+    setIsSavingEdit(true);
+    try {
+      const { id, ...fields } = editingExpense;
+      await updateDoc(doc(db, 'finance_expenses', id), { ...fields });
+      toast.success('Updated');
+      setEditingExpense(null);
+    } catch { toast.error('Failed to update'); }
+    finally { setIsSavingEdit(false); }
+  };
 
   const handleSave = async () => {
     if (!extractedData || !user) return;
@@ -426,14 +446,14 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
         {showSummary && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end"
-            onClick={() => setShowSummary(false)}>
+            onClick={() => { setShowSummary(false); setEditingExpense(null); }}>
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30 }}
               className="w-full bg-white rounded-t-3xl p-6 max-h-[75vh] overflow-auto"
               onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-display font-bold text-gray-900 text-lg">Today's Expenses</h3>
-                <button onClick={() => setShowSummary(false)} className="p-1.5 text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                <button onClick={() => { setShowSummary(false); setEditingExpense(null); }} className="p-1.5 text-gray-400 hover:text-gray-600"><X size={20} /></button>
               </div>
               <div className="space-y-2">
                 {todayExpenses.length === 0 ? (
@@ -442,23 +462,67 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                   </div>
                 ) : (
                   [...todayExpenses].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).map(exp => (
-                    <div key={exp.id} className="bg-gray-50 rounded-2xl px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-[#1DA0A8] bg-[#1DA0A8]/10 px-2 py-0.5 rounded-full">
-                            {exp.category_name || 'Other'}
-                          </span>
-                          <p className="font-semibold text-gray-900 mt-1 truncate">{exp.notes || 'No description'}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            by {(exp.logged_by || '').split('@')[0]} · {exp.created_at ? new Date(exp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
-                          </p>
+                  editingExpense?.id === exp.id ? (
+                    <div key={exp.id} className="p-3 bg-teal-50 rounded-2xl border border-teal-100 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Amount</p>
+                          <input type="number" value={editingExpense.total}
+                            onChange={e => setEditingExpense({ ...editingExpense, total: parseFloat(e.target.value) || 0 })}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white text-gray-900 focus:outline-none" />
                         </div>
-                        <p className="font-bold text-gray-900 text-lg flex-shrink-0">฿{(exp.total || 0).toLocaleString()}</p>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Category</p>
+                          <select value={editingExpense.category_id}
+                            onChange={e => {
+                              const cat = categories.find(cc => cc.id === e.target.value);
+                              setEditingExpense({ ...editingExpense, category_id: e.target.value, category_name: cat?.name || '' });
+                            }}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white text-gray-900 focus:outline-none">
+                            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <input value={editingExpense.notes || ''} placeholder="Notes"
+                        onChange={e => setEditingExpense({ ...editingExpense, notes: e.target.value })}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white text-gray-900 focus:outline-none" />
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditingExpense(null)}
+                          className="flex-1 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-500 font-medium">Cancel</button>
+                        <button onClick={handleEditSave} disabled={isSavingEdit}
+                          className="flex-1 py-1.5 text-sm bg-[#1DA0A8] text-white rounded-lg font-medium flex items-center justify-center gap-1 disabled:opacity-50">
+                          {isSavingEdit ? <Loader2 size={13} className="animate-spin" /> : <><Check size={13} /> Save</>}
+                        </button>
                       </div>
                     </div>
-                  ))
-                )}
-                {todayExpenses.length > 0 && (
+                  ) : (
+                    <div key={exp.id} className="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-[#1DA0A8] bg-[#1DA0A8]/10 px-2 py-0.5 rounded-full">
+                          {exp.category_name || 'Other'}
+                        </span>
+                        <p className="font-semibold text-gray-900 mt-1 truncate">{exp.notes || 'No description'}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {exp.created_at ? new Date(exp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <span className="font-bold text-gray-900">฿{(exp.total || 0).toLocaleString()}</span>
+                        <div className="flex gap-1">
+                          <button onClick={() => setEditingExpense({ ...exp })}
+                            className="p-1.5 text-gray-400 hover:text-[#1DA0A8] transition-colors rounded-lg hover:bg-[#1DA0A8]/10">
+                            <Edit2 size={14} />
+                          </button>
+                          <button onClick={() => handleDelete(exp.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ))}
+                                {todayExpenses.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                     <span className="text-sm font-bold text-gray-600">Total Today</span>
                     <span className="font-bold text-gray-900 text-lg">฿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</span>
