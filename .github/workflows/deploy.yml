@@ -54,6 +54,7 @@ jobs:
           image: ${{ env.IMAGE }}:${{ github.sha }}
           env_vars: |
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
             FIREBASE_PROJECT_ID=hemingways-jomtien-website
 
       - name: Show deployment URL
