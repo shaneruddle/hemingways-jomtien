@@ -158,7 +158,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
     });
 
     const today = new Date().toISOString().split('T')[0];
-    const eq = query(collection(db, 'finance_entries'), where('type', '==', 'expense'), where('date', '==', today));
+    const eq = query(collection(db, 'finance_expenses'), where('date', '==', today));
     const unsub2 = onSnapshot(eq, snap => {
       setTodayExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, err => console.warn('Today expenses:', err.message));
@@ -270,13 +270,20 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
         });
         if (upResp.ok) { const res = await upResp.json(); receiptUrls.push(res.gsUrl || storagePath); }
       }
-      await addDoc(collection(db, 'finance_entries'), {
-        ...extractedData,
-        type: 'expense',
-        createdBy: user.email,
-        uid: user.uid,
-        createdAt: new Date().toISOString(),
+      await addDoc(collection(db, 'finance_expenses'), {
+        date: extractedData.date,
+        category_id: extractedData.categoryId,
+        category_name: extractedData.categoryName,
+        total: extractedData.amount,
+        notes: extractedData.description,
+        currency: 'THB',
+        items: extractedData.lineItems || [],
+        receipt_url: receiptUrls[0] || '',
         receiptUrls,
+        logged_by: user.email,
+        uid: user.uid,
+        created_at: new Date().toISOString(),
+        source: 'staff_portal',
       });
       logActivity('Staff Expense Entry',
         `฿${extractedData.amount.toLocaleString()} · ${extractedData.categoryName} · ${extractedData.description || 'no description'}`,
@@ -300,7 +307,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
           <p className="text-sm text-gray-500 mt-0.5">
             {todayExpenses.length === 0
               ? 'No expenses logged yet'
-              : <><span className="font-bold text-gray-900">{todayExpenses.length}</span> receipt{todayExpenses.length !== 1 ? 's' : ''} · ฿{todayExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</>
+              : <><span className="font-bold text-gray-900">{todayExpenses.length}</span> receipt{todayExpenses.length !== 1 ? 's' : ''} · ฿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</>
             }
           </p>
         </div>
@@ -439,11 +446,11 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <span className="text-xs font-semibold uppercase tracking-wide text-[#1DA0A8] bg-[#1DA0A8]/10 px-2 py-0.5 rounded-full">
-                            {exp.categoryName || 'Other'}
+                            {exp.category_name || 'Other'}
                           </span>
-                          <p className="font-semibold text-gray-900 mt-1 truncate">{exp.description || 'No description'}</p>
+                          <p className="font-semibold text-gray-900 mt-1 truncate">{exp.notes || 'No description'}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            by {(exp.createdBy || '').split('@')[0]} · {exp.createdAt ? new Date(exp.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            by {(exp.logged_by || '').split('@')[0]} · {exp.created_at ? new Date(exp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
                           </p>
                         </div>
                         <p className="font-bold text-gray-900 text-lg flex-shrink-0">฿{(exp.amount || 0).toLocaleString()}</p>
@@ -454,7 +461,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                 {todayExpenses.length > 0 && (
                   <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                     <span className="text-sm font-bold text-gray-600">Total Today</span>
-                    <span className="font-bold text-gray-900 text-lg">฿{todayExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</span>
+                    <span className="font-bold text-gray-900 text-lg">฿{todayExpenses.reduce((s, e) => s + (e.total || 0), 0).toLocaleString()}</span>
                   </div>
                 )}
               </div>
