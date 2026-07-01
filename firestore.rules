@@ -111,6 +111,7 @@ service cloud.firestore {
     match /finance_entries/{id} {
       allow read: if isStaff();
       allow create: if isStaff() && isValidId(id) && isValidFinanceEntry(incoming());
+      allow update: if isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'categoryId', 'categoryName', 'description', 'date']);
       allow delete: if isAdmin();
     }
 
