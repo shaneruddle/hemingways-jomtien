@@ -441,7 +441,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                     <p className="text-gray-400 text-sm">No expenses logged today.</p>
                   </div>
                 ) : (
-                  [...todayExpenses].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).map(exp => (
+                  [...todayExpenses].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).map(exp => (
                     <div key={exp.id} className="bg-gray-50 rounded-2xl px-4 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
