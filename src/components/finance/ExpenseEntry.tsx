@@ -10,7 +10,7 @@ import {
   Check, 
   X, 
   Receipt, 
-  AlertCircle
+  AlertCircle,
   ArrowRight,
   RefreshCw,
   Tag,
