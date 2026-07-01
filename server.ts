@@ -525,7 +525,7 @@ async function startServer() {
     { "description": "item name", "amount": <number>, "quantity": <number> }
   ]
 }
-Rules: look for total/grand total/ยอดรวม/รวมทั้งสิ้น for amount. Return ALL line items. Return ONLY valid JSON, no markdown.`
+Rules: look for total/grand total for amount. Return ALL line items. Return ONLY valid JSON, no markdown.`
             }
           ]
         }]
@@ -533,15 +533,17 @@ Rules: look for total/grand total/ยอดรวม/รวมทั้งสิ
     });
 
     const claudeData = await claudeResp.json();
+    console.log("Claude raw response:", JSON.stringify(claudeData).substring(0, 500));
     const claudeText = claudeData?.content?.[0]?.text || "{}";
+    console.log("Claude text:", claudeText.substring(0, 200));
     const clean = claudeText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(clean); } catch(e) { console.error("JSON parse error:", e); }
-    return res.json({ success: true, data: parsed });
+    return res.json({ success: true, data: parsed, _debug: { rawResponse: JSON.stringify(claudeData).substring(0, 300) } });
 
   } catch (error) {
     console.error("Receipt extraction error:", error);
-    return res.status(500).json({ success: false, error: "Failed to extract receipt data" });
+    return res.status(500).json({ success: false, error: "Failed to extract receipt data", _debug: String(error) });
   }
 });
 app.post("/api/contact", async (req, res) => {
