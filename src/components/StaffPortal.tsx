@@ -159,6 +159,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [scanningExtra, setScanningExtra] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Always-current ref so extractData never has stale categories
   const categoriesRef = useRef<FinanceCategory[]>([]);
@@ -269,7 +270,31 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
     });
   };
 
-  const reset = () => { setImages([]); setFiles([]); setExtractedData(null); };
+  const scanAndAddToTotal = async (imageBase64: string, idx: number) => {
+    setScanningExtra(idx);
+    try {
+      const base64Data = imageBase64.split(',')[1];
+      const mimeType = imageBase64.split(';')[0].split(':')[1] || 'image/jpeg';
+      const resp = await fetch('/api/extract-receipt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64Data, mimeType }),
+      });
+      if (!resp.ok) throw new Error();
+      const { success, data } = await resp.json();
+      if (success && data.amount) {
+        setExtractedData(prev => prev ? { ...prev, amount: (prev.amount || 0) + data.amount } : prev);
+        toast.success(`Added ฿${data.amount.toLocaleString()} from receipt ${idx + 1}`);
+      } else {
+        toast.error('Could not read this receipt — adjust total manually');
+      }
+    } catch {
+      toast.error('Scan failed');
+    } finally {
+      setScanningExtra(null);
+    }
+  };
+
+  const reset = () => { setImages([]); setFiles([]); setExtractedData(null); setScanningExtra(null); };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this expense?')) return;
@@ -381,10 +406,16 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                 {images.map((img, idx) => (
                   <div key={idx} className="relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden shadow-sm border border-gray-100">
                     <img src={img} alt="" className="w-full h-full object-cover" />
-                    {isExtracting && idx === 0 && (
+                    {((isExtracting && idx === 0) || scanningExtra === idx) && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <Loader2 size={18} className="animate-spin text-white" />
                       </div>
+                    )}
+                    {idx > 0 && scanningExtra !== idx && !isExtracting && (
+                      <button onClick={() => scanAndAddToTotal(img, idx)}
+                        className="absolute bottom-0 left-0 right-0 bg-[#1DA0A8]/90 text-white text-[10px] font-bold py-1 text-center">
+                        + Scan
+                      </button>
                     )}
                     <button onClick={() => removeImage(idx)}
                       className="absolute top-1 right-1 bg-white rounded-full p-0.5 text-red-500 shadow-sm">
