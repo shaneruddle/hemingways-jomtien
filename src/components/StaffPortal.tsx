@@ -257,19 +257,26 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this expense?')) return;
     try { await deleteDoc(doc(db, 'finance_expenses', id)); toast.success('Expense deleted'); }
-    catch { toast.error('Failed to delete'); }
+    catch (err) { toast.error('Failed to delete'); }
   };
 
   const handleEditSave = async () => {
     if (!editingExpense?.id) return;
     setIsSavingEdit(true);
     try {
-      const { id, ...fields } = editingExpense;
-      await updateDoc(doc(db, 'finance_expenses', id), { ...fields });
+      await updateDoc(doc(db, 'finance_expenses', editingExpense.id), {
+        total: editingExpense.total,
+        category_id: editingExpense.category_id,
+        category_name: editingExpense.category_name,
+        notes: editingExpense.notes || '',
+      });
       toast.success('Updated');
       setEditingExpense(null);
-    } catch { toast.error('Failed to update'); }
-    finally { setIsSavingEdit(false); }
+    } catch (err) {
+      toast.error('Failed to update');
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const handleSave = async () => {
