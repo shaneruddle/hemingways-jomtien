@@ -453,7 +453,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                             by {(exp.logged_by || '').split('@')[0]} · {exp.created_at ? new Date(exp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
                           </p>
                         </div>
-                        <p className="font-bold text-gray-900 text-lg flex-shrink-0">฿{(exp.amount || 0).toLocaleString()}</p>
+                        <p className="font-bold text-gray-900 text-lg flex-shrink-0">฿{(exp.total || 0).toLocaleString()}</p>
                       </div>
                     </div>
                   ))
