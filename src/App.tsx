@@ -1491,7 +1491,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
   const isDigitalMenu = location.pathname === "/menu" || location.pathname === "/digital-menu";
   const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname === "/import";
-  const isStaffApp = location.pathname === "/expense";
+  const isStaffApp = location.pathname === "/expense" || location.pathname === "/staff";
 
   const isSuperAdmin = useMemo(() => {
     if (!user) return false;
@@ -1531,7 +1531,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
   useEffect(() => {
     if (user && isCashierOnly && !isStaffApp) {
-      navigate("/expense");
+      navigate("/staff");
     }
   }, [user, isCashierOnly, isStaffApp, navigate]);
 
