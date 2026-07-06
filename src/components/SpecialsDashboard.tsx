@@ -149,14 +149,20 @@ function ImageUploader({
       let fileToUpload: File = file;
       let path = storagePath;
 
-      // Convert to WebP
+      // Convert to WebP, downscaling large images so files stay a reasonable size
       try {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+
+        const MAX_DIMENSION = 1600;
+        const scale = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
+        const targetWidth = Math.round(img.width * scale);
+        const targetHeight = Math.round(img.height * scale);
+
         const canvas = document.createElement('canvas');
-        canvas.width = img.width; canvas.height = img.height;
-        canvas.getContext('2d')?.drawImage(img, 0, 0);
+        canvas.width = targetWidth; canvas.height = targetHeight;
+        canvas.getContext('2d')?.drawImage(img, 0, 0, targetWidth, targetHeight);
         const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/webp', 0.85));
         if (blob) {
           const cleanName = file.name.replace(/\.[^/.]+$/, '');
@@ -166,6 +172,12 @@ function ImageUploader({
         URL.revokeObjectURL(img.src);
       } catch {
         // fall through with original file
+      }
+
+      const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+      if (fileToUpload.size > MAX_UPLOAD_BYTES) {
+        toast.error('Image is too large even after compression. Please use a smaller photo.');
+        return;
       }
 
       const storageRef = ref(storage, path);

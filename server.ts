@@ -202,20 +202,28 @@ async function startServer() {
         const metaResponse = await fetch(metaUrl);
         if (metaResponse.ok) {
           const meta = await metaResponse.json() as any;
-          const downloadToken = meta.downloadTokens;
-          const downloadUrl = downloadToken 
-            ? `${metaUrl}?alt=media&token=${downloadToken}` 
-            : `${metaUrl}?alt=media`;
-          
-          const imgResponse = await fetch(downloadUrl);
-          if (imgResponse.ok) {
-            const contentType = meta.contentType || 'image/webp';
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            const arrayBuffer = await imgResponse.arrayBuffer();
-            res.send(Buffer.from(arrayBuffer));
-            gotImage = true;
-            return;
+
+          // Guard against oversized files (e.g. un-resized uploads) — buffering
+          // a huge file into memory here can crash the request with an opaque 500.
+          const MAX_PROXY_BYTES = 15 * 1024 * 1024; // 15MB
+          if (meta.size && Number(meta.size) > MAX_PROXY_BYTES) {
+            console.warn(`image-proxy: ${cleanPath} is ${meta.size} bytes, exceeds ${MAX_PROXY_BYTES} limit — skipping`);
+          } else {
+            const downloadToken = meta.downloadTokens;
+            const downloadUrl = downloadToken 
+              ? `${metaUrl}?alt=media&token=${downloadToken}` 
+              : `${metaUrl}?alt=media`;
+            
+            const imgResponse = await fetch(downloadUrl);
+            if (imgResponse.ok) {
+              const contentType = meta.contentType || 'image/webp';
+              res.setHeader('Content-Type', contentType);
+              res.setHeader('Cache-Control', 'public, max-age=3600');
+              const arrayBuffer = await imgResponse.arrayBuffer();
+              res.send(Buffer.from(arrayBuffer));
+              gotImage = true;
+              return;
+            }
           }
         }
       } catch (fetchError: any) {
