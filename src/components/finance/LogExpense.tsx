@@ -67,7 +67,7 @@ const EXPENSE_CATEGORIES = [
   { id: 'uncategorized',         name: 'Uncategorized Expense' },
 ];
 
-const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
+const INPUT_CLS = 'w-full border border-gray-200 rounded-xl px-4 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]';
 const LBL_CLS  = 'block text-sm font-medium text-gray-700 mb-1';
 
 export default function LogExpense({ user, financeRole = 'owner' }: { user: any; financeRole?: string }) {

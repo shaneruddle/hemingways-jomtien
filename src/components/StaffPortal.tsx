@@ -67,6 +67,14 @@ const DEFAULT_CATEGORIES = [
   { id: 'cat_advertising', name: 'Advertising & Promotion', type: 'expense' },
   { id: 'cat_professional', name: 'Professional Fees', type: 'expense' },
   { id: 'cat_licenses', name: 'Licenses', type: 'expense' },
+  { id: 'cat_office_supplies', name: 'Office Supplies', type: 'expense' },
+  { id: 'cat_newspapers', name: 'Newspapers', type: 'expense' },
+  { id: 'cat_vouchers', name: 'Vouchers', type: 'expense' },
+  { id: 'cat_taxi', name: 'Taxi', type: 'expense' },
+  { id: 'cat_fuel_petrol', name: 'Fuel & Petrol', type: 'expense' },
+  { id: 'cat_dividends', name: 'Dividends', type: 'expense' },
+  { id: 'cat_miscellaneous', name: 'Miscellaneous', type: 'expense' },
+  { id: 'cat_uncategorized', name: 'Uncategorized Expense', type: 'expense' },
   { id: 'cat_other', name: 'Other', type: 'expense' },
 ] as unknown as FinanceCategory[];
 
