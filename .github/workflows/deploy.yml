@@ -56,6 +56,10 @@ jobs:
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
             FIREBASE_PROJECT_ID=hemingways-jomtien-website
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
 
       - name: Show deployment URL
         run: echo "Deployed to ${{ steps.deploy.outputs.url }}"

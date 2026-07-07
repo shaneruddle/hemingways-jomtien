@@ -945,17 +945,26 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'contact_submissions'), {
+      // Best-effort record in Firestore; the actual notification is the email below.
+      addDoc(collection(db, 'contact_submissions'), {
         ...formState,
         createdAt: new Date().toISOString(),
         source: 'website_footer',
+      }).catch(err => console.error("Error saving contact form to Firestore:", err));
+
+      const resp = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formState),
       });
+      if (!resp.ok) throw new Error(`Server responded ${resp.status}`);
+
       setSubmitted(true);
       toast.success("Thank you! We'll be in touch soon. — Hemingways Jomtien");
       setFormState({ name: '', email: '', message: '' });
       setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
-      console.error("Error saving contact form:", error instanceof Error ? error.message : 'Unknown error');
+      console.error("Error sending contact form:", error instanceof Error ? error.message : 'Unknown error');
       toast.error("Failed to send message. Please try again later.");
     } finally {
       setIsSubmitting(false);
