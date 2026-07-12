@@ -93,11 +93,17 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
     { name: "Sports Schedule", href: "sports" },
     { name: "Daily Specials", href: "specials" },
     { name: "Location", href: "location" },
-    { name: "Contact", href: "contact" },
+    { name: "Contact", href: "/contact-us" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     setIsOpen(false);
+    if (href.startsWith('/') && href !== '/') {
+      e.preventDefault();
+      navigate(href);
+      window.scrollTo(0, 0);
+      return;
+    }
     if (href === '/') {
       if (location.pathname === '/') {
         e.preventDefault();
@@ -1080,6 +1086,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               >
                 Digital Menu
               </Link>
+              <Link
+                to="/contact-us"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Contact Us
+              </Link>
             </div>
           </div>
         </div>
@@ -1454,6 +1469,241 @@ const Reviews = () => {
   );
 };
 
+const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const [formState, setFormState] = useState({ name: '', email: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const phone = companyProfile?.phone || "+66 38 232 422";
+  const email = companyProfile?.email || "info@hemingwaysjomtien.com";
+  const address = companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150";
+  const hours = companyProfile?.openingHours;
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Contact Us | Hemingways Jomtien";
+  }, []);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      addDoc(collection(db, 'contact_submissions'), {
+        ...formState,
+        createdAt: new Date().toISOString(),
+        source: 'contact_us_page',
+      }).catch(err => console.error("Error saving contact form to Firestore:", err));
+
+      const resp = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formState),
+      });
+      if (!resp.ok) throw new Error(`Server responded ${resp.status}`);
+
+      toast.success("Thank you! We'll be in touch soon. — Hemingways Jomtien");
+      setFormState({ name: '', email: '', message: '' });
+    } catch (error) {
+      console.error("Error sending contact form:", error instanceof Error ? error.message : 'Unknown error');
+      toast.error("Failed to send message. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontFamily: 'var(--font-condensed)',
+    fontWeight: 600,
+    fontSize: 12,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+    marginBottom: 6,
+  };
+
+  const cardTitle: React.CSSProperties = {
+    fontFamily: 'var(--font-condensed)',
+    fontWeight: 700,
+    fontSize: 13,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--gold-500)',
+    marginBottom: 20,
+  };
+
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+
+  const socials = [
+    { icon: <Facebook size={20} />, href: companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien", label: 'Facebook' },
+    { icon: <Instagram size={20} />, href: companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien", label: 'Instagram' },
+    ...(companyProfile?.socialLinks?.tripAdvisor ? [{ icon: <Globe size={20} />, href: companyProfile.socialLinks.tripAdvisor, label: 'TripAdvisor' }] : []),
+  ];
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--ink-850)' }}>
+      {/* Header */}
+      <section style={{ background: 'var(--ink-900)', padding: '140px 24px 64px' }}>
+        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ marginBottom: 12 }}>
+            <span className="hw-badge hw-badge-teal">Get in Touch</span>
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(34px, 5vw, 58px)', color: 'var(--cream-50)', textTransform: 'uppercase', margin: '0 0 14px' }}>
+            Contact Us
+          </h1>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-muted)', maxWidth: 620, margin: '0 auto', lineHeight: 1.7 }}>
+            Reservations, group bookings, private events or just a quick question — call us, message us, or drop in. We're on Jomtien Sai 2, and we're open every day.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28 }}>
+            <a href={`tel:${phone.replace(/\s/g, '')}`} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}>
+              <Phone size={16} /> Call {phone}
+            </a>
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <MapPin size={16} /> Get Directions
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Details + form */}
+      <section style={{ padding: '64px 24px' }}>
+        <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }} className="grid md:grid-cols-2 gap-10">
+          {/* Left: details */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="hw-card" style={{ padding: '28px 24px' }}>
+              <div style={cardTitle}>Contact Details</div>
+              {[
+                { icon: <Phone size={18} />, label: 'Phone', value: phone, href: `tel:${phone.replace(/\s/g, '')}` },
+                { icon: <MessageCircle size={18} />, label: 'Email', value: email, href: `mailto:${email}` },
+                { icon: <MapPin size={18} />, label: 'Address', value: address, href: directionsUrl },
+              ].map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target={item.label === 'Address' ? '_blank' : undefined}
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '12px 0', textDecoration: 'none', borderBottom: `1px solid var(--border)` }}
+                >
+                  <span style={{ color: 'var(--gold-500)', marginTop: 2 }}>{item.icon}</span>
+                  <span>
+                    <span style={{ display: 'block', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>{item.label}</span>
+                    <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-50)', marginTop: 2, lineHeight: 1.5 }}>{item.value}</span>
+                  </span>
+                </a>
+              ))}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                {socials.map((sc) => (
+                  <a
+                    key={sc.label}
+                    href={sc.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={sc.label}
+                    style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+                  >
+                    {sc.icon}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Opening hours */}
+            <div className="hw-card" style={{ padding: '28px 24px' }}>
+              <div style={{ ...cardTitle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Clock size={15} /> Opening Hours
+              </div>
+              {hours ? (
+                Object.entries(hours).map(([day, time]) => (
+                  <div key={day} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid var(--border)`, fontFamily: 'var(--font-sans)', fontSize: 14 }}>
+                    <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{day}</span>
+                    <span style={{ color: 'var(--cream-50)' }}>{time as string}</span>
+                  </div>
+                ))
+              ) : (
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open daily — call us for today's hours.</p>
+              )}
+            </div>
+
+            {/* Getting here */}
+            <div className="hw-card" style={{ padding: '28px 24px' }}>
+              <div style={cardTitle}>Getting Here</div>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 16 }}>
+                We're on Jomtien Sai 2 Road, a few minutes from Jomtien Beach and around 15 minutes from central Pattaya. Parking is available, and any taxi or Bolt driver will know the road — just say "Hemingways, Jomtien Sai Song".
+              </p>
+              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <MapPin size={16} /> Open in Google Maps
+              </a>
+            </div>
+          </div>
+
+          {/* Right: form + map */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="hw-card" style={{ padding: '28px 24px' }}>
+              <div style={cardTitle}>Send Us a Message</div>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={labelStyle}>Name</label>
+                  <input
+                    className="hw-input"
+                    type="text"
+                    placeholder="Your name"
+                    value={formState.name}
+                    onChange={(e) => setFormState({ ...formState, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <input
+                    className="hw-input"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={formState.email}
+                    onChange={(e) => setFormState({ ...formState, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Message</label>
+                  <textarea
+                    className="hw-input"
+                    placeholder="Table for 4 on Sunday, a group booking, an event enquiry..."
+                    rows={5}
+                    value={formState.message}
+                    onChange={(e) => setFormState({ ...formState, message: e.target.value })}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="hw-btn-warm"
+                  disabled={isSubmitting}
+                  style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+                >
+                  {isSubmitting ? 'Sending...' : 'Send Message'}
+                </button>
+              </form>
+            </div>
+
+            <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', height: 380, border: `1px solid var(--border)`, boxShadow: 'var(--shadow-card)' }}>
+              {companyProfile?.mapEmbedUrl ? (
+                <iframe title="Hemingways Jomtien map" width="100%" height="100%" style={{ border: 0 }} loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" src={companyProfile.mapEmbedUrl} />
+              ) : apiKey && apiKey !== 'undefined' ? (
+                <iframe title="Hemingways Jomtien map" width="100%" height="100%" style={{ border: 0 }} loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=place_id:${companyProfile?.googlePlaceId || "ChIJ5_lFroqWAjER6HN3niniP9o"}`} />
+              ) : (
+                <iframe title="Hemingways Jomtien map" width="100%" height="100%" style={{ border: 0 }} loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" src={`https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`} />
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer companyProfile={companyProfile} />
+    </div>
+  );
+};
+
 const MainSite = ({ isAdmin, businessInfo, companyProfile }: { isAdmin: boolean, businessInfo: BusinessInfo | null, companyProfile: CompanyProfile | null }) => (
   <div style={{ minHeight: '100vh' }}>
     <Hero companyProfile={companyProfile} />
@@ -1634,6 +1884,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
         </Route>
 
         <Route path="/import" element={isMarketing ? <BulkImport /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
+        <Route path="/contact-us" element={<ContactUs companyProfile={companyProfile} />} />
         <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
 
