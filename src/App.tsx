@@ -348,7 +348,7 @@ const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => 
               className="hw-badge hw-badge-dark"
               style={{ fontFamily: 'var(--font-condensed)', fontSize: 12, letterSpacing: '0.14em' }}
             >
-              ★ JOMTIEN · PATTAYA · SINCE 2004 ★
+              ★ JOMTIEN · PATTAYA · SINCE 2018 ★
             </span>
           </div>
 
@@ -458,10 +458,10 @@ const About = () => {
             Welcome to Hemingways
           </h2>
           <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--cream-100)', lineHeight: 1.75, marginBottom: 16 }}>
-            Hemingway's is Jomtien's biggest expat sports bar and restaurant. We pride ourselves on being a cornerstone of the local community, offering a warm and welcoming atmosphere for residents and visitors alike.
+            Hemingways is Jomtien's biggest expat sports bar and restaurant. We pride ourselves on being a cornerstone of the local community, offering a warm and welcoming atmosphere for residents and visitors alike.
           </p>
           <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-muted)', lineHeight: 1.75, marginBottom: 32 }}>
-            With our British management and staff, we provide a familiar and friendly service that makes every visit special. Whether you're here to catch the big game on one of our 15 screens, enjoy quality draught beer, or indulge in our famous pub favorites — you'll always find a great spot at Hemingway's.
+            With our British management and professional English speaking staff, we provide a familiar and friendly service that makes every visit special. Whether you're here to catch the big game on one of our 15 screens, enjoy quality draught beer, or indulge in our famous pub favorites — you'll always find a great spot at Hemingway's.
           </p>
           <div className="grid grid-cols-2 gap-6">
             {[
@@ -509,7 +509,7 @@ const Features = () => {
     {
       icon: <Users size={22} />,
       title: "British Management",
-      desc: "Friendly English staff and management team ensuring top-quality service."
+      desc: "Friendly English speaking staff and management team ensuring top-quality service."
     },
     {
       icon: <UtensilsIcon size={22} />,
