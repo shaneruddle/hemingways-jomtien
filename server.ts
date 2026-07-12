@@ -13,6 +13,16 @@ async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
 
+  // Canonical host: 301 the bare domain to www (SEO - avoids duplicate content).
+  // new.hemingwaysjomtien.com is left alone so it stays usable as a staging alias.
+  app.use((req, res, next) => {
+    const host = (req.headers.host || '').toLowerCase().split(':')[0];
+    if (host === 'hemingwaysjomtien.com' && (req.method === 'GET' || req.method === 'HEAD')) {
+      return res.redirect(301, `https://www.hemingwaysjomtien.com${req.originalUrl}`);
+    }
+    return next();
+  });
+
   // Increase payload limit for base64 images
   app.use(express.json({ limit: '20mb' }));
 
