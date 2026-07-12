@@ -33,7 +33,7 @@ export const slugify = (s: string) =>
     .replace(/-+/g, '-')
     .slice(0, 80);
 
-const INPUT_CLS = 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500';
+const INPUT_CLS = 'w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500';
 const LBL_CLS = 'block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1';
 
 export default function BlogDashboard() {
