@@ -266,42 +266,6 @@ export default function Auth({ onUserChange }: { onUserChange: (user: any) => vo
     );
   }
 
-  // ── Logged out state ──
-  return (
-    <Link
-      to="/admin/login"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '7px 14px',
-        background: T.ink700,
-        border: `1px solid ${T.borderStrong}`,
-        borderRadius: 2,
-        color: T.gold400,
-        fontFamily: "'Oswald', sans-serif",
-        fontWeight: 600,
-        fontSize: 12,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        textDecoration: 'none',
-        transition: 'border-color 0.15s, color 0.15s, background 0.15s',
-      }}
-      onMouseEnter={e => {
-        const el = e.currentTarget as HTMLAnchorElement;
-        el.style.borderColor = T.gold500;
-        el.style.background = T.ink600;
-        el.style.color = T.cream50;
-      }}
-      onMouseLeave={e => {
-        const el = e.currentTarget as HTMLAnchorElement;
-        el.style.borderColor = T.borderStrong;
-        el.style.background = T.ink700;
-        el.style.color = T.gold400;
-      }}
-    >
-      <LogIn size={14} />
-      Admin Login
-    </Link>
-  );
+  // ── Logged out state: no visible admin login button (admins navigate to /admin/login directly) ──
+  return null;
 }

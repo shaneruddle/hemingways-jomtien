@@ -43,7 +43,7 @@ export async function fetchPlaceDetails(placeId: string): Promise<BusinessInfo |
     return {
       name: "Hemingway's Jomtien",
       address: "Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150",
-      phone: "+66 38 232 422",
+      phone: "+6664 620 9225",
       hours: ["Open Daily: 9:00 AM - 12:00 AM"],
       rating: 4.8,
       user_ratings_total: 250,

@@ -200,11 +200,11 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
               ))}
               {/* Phone */}
               <a
-                href={`tel:${companyProfile?.phone || '+6638232422'}`}
+                href={`tel:${companyProfile?.phone || '+66646209225'}`}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold-400)', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textDecoration: 'none' }}
               >
                 <Phone size={14} />
-                {companyProfile?.phone || '+66 38 232 422'}
+                {companyProfile?.phone || '+6664 620 9225'}
               </a>
               <a
                 href="#contact"
@@ -437,8 +437,8 @@ const TriadStrip = () => (
 
 const About = () => {
   const images = {
-    pub: "gs://gen-lang-client-0190564722.firebasestorage.app/assets/about_pub.webp",
-    staff: "gs://gen-lang-client-0190564722.firebasestorage.app/assets/about_staff.webp"
+    pub: "/assets/roast-food.jpg",
+    staff: "/assets/weekend-roasts.jpg"
   };
 
   return (
@@ -881,7 +881,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             {[
               { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150" },
-              { icon: <Phone size={20} />, label: 'Phone', value: companyProfile?.phone || "+66 38 232 422" },
+              { icon: <Phone size={20} />, label: 'Phone', value: companyProfile?.phone || "+6664 620 9225" },
             ].map((item, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                 <div style={{ background: 'var(--ink-700)', borderRadius: 'var(--radius-md)', padding: 10, color: 'var(--gold-500)', flexShrink: 0, border: `1px solid var(--border)` }}>
@@ -902,19 +902,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               <div>
                 <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Hours</div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-100)' }}>
-                  {companyProfile?.openingHours ? (
-                    Object.entries(companyProfile.openingHours).map(([day, hours]) => (
-                      <p key={day} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, margin: '2px 0' }}>
-                        <span style={{ textTransform: 'capitalize', minWidth: 96, color: 'var(--text-muted)' }}>{day}</span>
-                        <span>{hours}</span>
-                      </p>
-                    ))
-                  ) : (
-                    <>
-                      <p>Open Daily: 10:00 AM – 12:00 AM</p>
-                      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Food served until 11:00 PM</p>
-                    </>
-                  )}
+                  <p>Open Daily · 9:30 AM – 12:00 AM</p>
                 </div>
               </div>
             </div>
@@ -1042,12 +1030,12 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Phone size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
-                {companyProfile?.phone || "+66 38 232 422"}
+                {companyProfile?.phone || "+6664 620 9225"}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Clock size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open Daily · 10:00 AM – 12:00 AM</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open Daily · 9:30 AM – 12:00 AM</span>
             </div>
           </div>
 
@@ -1474,10 +1462,9 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const phone = companyProfile?.phone || "+66 38 232 422";
+  const phone = companyProfile?.phone || "+6664 620 9225";
   const email = companyProfile?.email || "info@hemingwaysjomtien.com";
   const address = companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150";
-  const hours = companyProfile?.openingHours;
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -1613,16 +1600,7 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
               <div style={{ ...cardTitle, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Clock size={15} /> Opening Hours
               </div>
-              {hours ? (
-                Object.entries(hours).map(([day, time]) => (
-                  <div key={day} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid var(--border)`, fontFamily: 'var(--font-sans)', fontSize: 14 }}>
-                    <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{day}</span>
-                    <span style={{ color: 'var(--cream-50)' }}>{time as string}</span>
-                  </div>
-                ))
-              ) : (
-                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open daily — call us for today's hours.</p>
-              )}
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-50)', margin: 0 }}>Open Daily · 9:30 AM – 12:00 AM</p>
             </div>
 
             {/* Getting here */}
