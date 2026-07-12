@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo, FormEvent } from "react";
 import {
-  HashRouter as Router,
+  BrowserRouter as Router,
   Routes,
   Route,
   Link,
@@ -192,7 +192,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
               {navLinks.map((item) => (
                 <a
                   key={item.name}
-                  href={item.href === '/' ? '#top' : `#${item.href}`}
+                  href={item.href === '/' ? '#top' : item.href.startsWith('/') ? item.href : `#${item.href}`}
                   onClick={(e) => handleNavClick(e, item.href)}
                   style={linkStyle}
                   onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
@@ -265,7 +265,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
                   {navLinks.map((item) => (
                     <a
                       key={item.name}
-                      href={item.href === '/' ? '#top' : `#${item.href}`}
+                      href={item.href === '/' ? '#top' : item.href.startsWith('/') ? item.href : `#${item.href}`}
                       onClick={(e) => handleNavClick(e, item.href)}
                       style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 16, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--cream-50)', textDecoration: 'none' }}
                     >
@@ -1736,10 +1736,17 @@ export default function App() {
 function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfile, setCompanyProfile, error, setError }: any) {
   const location = useLocation();
 
-  // If landing on /digitalmenu with no hash route, redirect to #/menu
+  // Legacy support: old HashRouter URLs (/#/menu, /#/staff, ...) -> real paths.
+  // Also keeps the old /digitalmenu entry point working.
   useEffect(() => {
-    if (window.location.pathname === '/digitalmenu' && !window.location.hash) {
-      window.location.replace(window.location.href + '#/menu');
+    const hash = window.location.hash;
+    if (hash.startsWith('#/')) {
+      const target = hash.slice(1); // '#/menu' -> '/menu'
+      window.location.replace(target);
+      return;
+    }
+    if (window.location.pathname === '/digitalmenu') {
+      window.location.replace('/menu');
     }
   }, []);
 
