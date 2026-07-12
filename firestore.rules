@@ -77,6 +77,11 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    match /blog_posts/{postId} {
+      allow get, list: if true;
+      allow write: if isStaff();
+    }
+
     match /companyProfile/{id} {
       allow get, list: if true;
       allow write: if isStaff();

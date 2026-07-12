@@ -66,7 +66,8 @@ export class ImageService {
     const cleanPath = trimmedSrc.replace(/^\/+/, '').replace(/-20/g, ' ').replace(/%20/g, ' ');
     
     // Check if it's a known local asset or api route first
-    if (trimmedSrc.startsWith('/logo.png') || trimmedSrc.startsWith('/favicon') || trimmedSrc.startsWith('/api/')) {
+    if (trimmedSrc.startsWith('/logo.png') || trimmedSrc.startsWith('/favicon') || trimmedSrc.startsWith('/api/') || trimmedSrc.startsWith('/assets/')) {
+      this.cache.set(src, trimmedSrc);
       return trimmedSrc;
     }
 

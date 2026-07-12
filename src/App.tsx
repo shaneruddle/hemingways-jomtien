@@ -53,6 +53,8 @@ import Dashboard from "./components/Dashboard";
 import CategoriesDashboard from "./components/CategoriesDashboard";
 import Auth from "./components/Auth";
 import AdminLogin from "./components/auth/AdminLogin";
+import BlogDashboard from "./components/BlogDashboard";
+import { BlogList, BlogPostPage, LatestPosts } from "./components/Blog";
 import BulkImport from "./components/BulkImport";
 import DigitalMenu from "./components/DigitalMenu";
 import DigitalMenuDisplay from "./components/DigitalMenuDisplay";
@@ -93,6 +95,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
     { name: "Sports Schedule", href: "sports" },
     { name: "Daily Specials", href: "specials" },
     { name: "Location", href: "location" },
+    { name: "Blog", href: "/blog" },
     { name: "Contact", href: "/contact-us" },
   ];
 
@@ -1075,6 +1078,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
                 Digital Menu
               </Link>
               <Link
+                to="/blog"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Blog
+              </Link>
+              <Link
                 to="/contact-us"
                 onClick={() => window.scrollTo(0, 0)}
                 style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
@@ -1692,6 +1704,7 @@ const MainSite = ({ isAdmin, businessInfo, companyProfile }: { isAdmin: boolean,
     <Specials />
     <SportsSchedule />
     <Reviews />
+    <LatestPosts />
     <Location companyProfile={companyProfile} />
     <Footer companyProfile={companyProfile} />
   </div>
@@ -1857,12 +1870,15 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
           <Route path="specials" element={isMarketing ? <SpecialsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="drinks" element={isMarketing ? <DrinksDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="images" element={isMarketing ? <ImageManagement /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="blog" element={isMarketing ? <BlogDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="profile" element={isMarketing ? <CompanyProfileDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="logs" element={isManager ? <SystemLogs /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
         </Route>
 
         <Route path="/import" element={isMarketing ? <BulkImport /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
         <Route path="/contact-us" element={<ContactUs companyProfile={companyProfile} />} />
+        <Route path="/blog" element={<BlogList />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
 

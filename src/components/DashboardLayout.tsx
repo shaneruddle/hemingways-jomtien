@@ -17,6 +17,7 @@ import {
   Receipt,
   Database,
   Image as ImageIcon,
+  FileText,
   Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -376,6 +377,17 @@ export default function DashboardLayout({ user }: { user: any }) {
               to="/dashboard/users"
               isCollapsed={isCollapsed}
               isActive={isActive('/dashboard/users')}
+            />
+          )}
+
+          {/* Blog */}
+          {canSeeMenu(role) && (
+            <SidebarItem
+              icon={<FileText size={18} />}
+              label="Blog"
+              to="/dashboard/blog"
+              isCollapsed={isCollapsed}
+              isActive={isActive('/dashboard/blog')}
             />
           )}
 
