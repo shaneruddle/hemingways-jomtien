@@ -610,6 +610,144 @@ app.post("/api/contact", async (req, res) => {
     }
   });
 
+  // ─── SEO: robots.txt, sitemap.xml and per-route meta tags ────────────────────
+  const SITE_ORIGIN = 'https://www.hemingwaysjomtien.com';
+  const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/assets/roast-food.jpg`;
+  const DEFAULT_DESCRIPTION = "Hemingways Jomtien is Jomtien's biggest expat sports bar and restaurant - famous pub food, Sunday roasts, live sport on 15 screens and cold draught beer. Open daily 9:30 AM - 12:00 AM.";
+
+  const getAdminDb = () => {
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        storageBucket: "hemingways-jomtien-website.firebasestorage.app",
+      });
+    }
+    return admin.firestore();
+  };
+
+  const fetchPublishedPosts = async (): Promise<any[]> => {
+    try {
+      const snap = await getAdminDb()
+        .collection('blog_posts')
+        .where('published', '==', true)
+        .get();
+      return snap.docs.map(d => d.data());
+    } catch (err) {
+      console.error('Sitemap/meta: failed to load blog posts:', err);
+      return [];
+    }
+  };
+
+  const escapeHtml = (str: string) =>
+    String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const STATIC_META: Record<string, { title: string; description: string; image?: string }> = {
+    '/': {
+      title: "Hemingways Jomtien - Jomtien's Biggest Expat Sports Bar & Restaurant",
+      description: DEFAULT_DESCRIPTION,
+    },
+    '/contact-us': {
+      title: 'Contact Us | Hemingways Jomtien',
+      description: 'Call, message or find Hemingways Jomtien. Reservations, group bookings and private events. Jomtien Sai 2 Road, Pattaya. Open daily 9:30 AM - 12:00 AM.',
+    },
+    '/blog': {
+      title: 'Blog - News & Events | Hemingways Jomtien',
+      description: "What's on at Hemingways Jomtien - events, live sport, new dishes and everything in between.",
+    },
+    '/menu': {
+      title: 'Food & Drinks Menu | Hemingways Jomtien',
+      description: 'Browse the full Hemingways Jomtien menu - famous pub food, Western and Thai dishes, Sunday roasts, burgers and a full bar.',
+    },
+    '/digital-menu': {
+      title: 'Food & Drinks Menu | Hemingways Jomtien',
+      description: 'Browse the full Hemingways Jomtien menu - famous pub food, Western and Thai dishes, Sunday roasts, burgers and a full bar.',
+    },
+  };
+
+  const absoluteImage = (img?: string) => {
+    if (!img) return DEFAULT_OG_IMAGE;
+    if (img.startsWith('http')) return img;
+    return `${SITE_ORIGIN}${img.startsWith('/') ? '' : '/'}${img}`;
+  };
+
+  const buildSeoTags = (opts: { title: string; description: string; url: string; image?: string; type?: string }) => {
+    const title = escapeHtml(opts.title);
+    const description = escapeHtml(opts.description);
+    const image = escapeHtml(absoluteImage(opts.image));
+    const url = escapeHtml(opts.url);
+    const type = opts.type || 'website';
+    return [
+      `<title>${title}</title>`,
+      `<meta name="description" content="${description}" />`,
+      `<link rel="canonical" href="${url}" />`,
+      `<meta property="og:site_name" content="Hemingways Jomtien" />`,
+      `<meta property="og:type" content="${type}" />`,
+      `<meta property="og:title" content="${title}" />`,
+      `<meta property="og:description" content="${description}" />`,
+      `<meta property="og:url" content="${url}" />`,
+      `<meta property="og:image" content="${image}" />`,
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      `<meta name="twitter:title" content="${title}" />`,
+      `<meta name="twitter:description" content="${description}" />`,
+      `<meta name="twitter:image" content="${image}" />`,
+    ].join('\n    ');
+  };
+
+  app.get('/robots.txt', (_req, res) => {
+    res.type('text/plain').send(
+      [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /dashboard',
+        'Disallow: /staff',
+        'Disallow: /admin',
+        'Disallow: /import',
+        '',
+        `Sitemap: ${SITE_ORIGIN}/sitemap.xml`,
+        '',
+      ].join('\n')
+    );
+  });
+
+  app.get('/sitemap.xml', async (_req, res) => {
+    const posts = await fetchPublishedPosts();
+    const today = new Date().toISOString().slice(0, 10);
+
+    const urls: { loc: string; lastmod: string; priority: string; changefreq: string }[] = [
+      { loc: `${SITE_ORIGIN}/`, lastmod: today, priority: '1.0', changefreq: 'weekly' },
+      { loc: `${SITE_ORIGIN}/menu`, lastmod: today, priority: '0.9', changefreq: 'weekly' },
+      { loc: `${SITE_ORIGIN}/contact-us`, lastmod: today, priority: '0.8', changefreq: 'monthly' },
+      { loc: `${SITE_ORIGIN}/blog`, lastmod: today, priority: '0.8', changefreq: 'weekly' },
+    ];
+
+    for (const post of posts) {
+      if (!post?.slug) continue;
+      urls.push({
+        loc: `${SITE_ORIGIN}/blog/${post.slug}`,
+        lastmod: (post.updatedAt || post.date || today).slice(0, 10),
+        priority: '0.7',
+        changefreq: 'monthly',
+      });
+    }
+
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      ...urls.map(u =>
+        `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+      ),
+      '</urlset>',
+      '',
+    ].join('\n');
+
+    res.header('Cache-Control', 'public, max-age=600');
+    res.type('application/xml').send(xml);
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -620,10 +758,47 @@ app.post("/api/contact", async (req, res) => {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { index: false }));
     
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    const indexHtmlPath = path.join(distPath, 'index.html');
+
+    app.get('*', async (req, res) => {
+      try {
+        const html = fs.readFileSync(indexHtmlPath, 'utf-8');
+        const routePath = req.path.replace(/\/+$/, '') || '/';
+        const url = `${SITE_ORIGIN}${routePath === '/' ? '/' : routePath}`;
+
+        let meta = STATIC_META[routePath];
+        let type = 'website';
+        let image: string | undefined;
+
+        const blogMatch = routePath.match(/^\/blog\/([a-z0-9-]+)$/i);
+        if (blogMatch) {
+          const posts = await fetchPublishedPosts();
+          const post = posts.find(p => p?.slug === blogMatch[1]);
+          if (post) {
+            meta = {
+              title: `${post.title} | Hemingways Jomtien`,
+              description: post.excerpt || DEFAULT_DESCRIPTION,
+            };
+            image = post.heroImage;
+            type = 'article';
+          }
+        }
+
+        if (!meta) {
+          meta = {
+            title: "Hemingways Jomtien - Jomtien's Biggest Expat Sports Bar & Restaurant",
+            description: DEFAULT_DESCRIPTION,
+          };
+        }
+
+        const tags = buildSeoTags({ title: meta.title, description: meta.description, url, image, type });
+        return res.send(html.replace('<!--SEO-->', tags));
+      } catch (err) {
+        console.error('Meta injection failed, serving raw index.html:', err);
+        return res.sendFile(indexHtmlPath);
+      }
     });
   }
 
