@@ -839,13 +839,16 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=place_id:${companyProfile?.googlePlaceId || "ChIJ5_lFroqWAjER6HN3niniP9o"}`}
             />
           ) : (
-            <div style={{ position: 'absolute', inset: 0, background: 'var(--ink-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ background: 'var(--ink-800)', padding: 28, borderRadius: 'var(--radius-md)', textAlign: 'center', border: `1px solid var(--border)`, maxWidth: 280 }}>
-                <MapPin style={{ color: 'var(--gold-500)', margin: '0 auto 12px' }} size={32} />
-                <h3 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 16, color: 'var(--cream-50)', textTransform: 'uppercase', marginBottom: 8 }}>Find Us Here</h3>
-                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)' }}>{companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}</p>
-              </div>
-            </div>
+            <iframe
+              title="Hemingway's Jomtien location"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+              src={`https://www.google.com/maps?q=${encodeURIComponent(companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150")}&output=embed`}
+            />
           )}
         </motion.div>
 
@@ -922,7 +925,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               <Facebook size={20} />
             </a>
             <a
-              href={companyProfile?.socialLinks?.instagram || "https://hemingwaysjomtien.com"}
+              href={companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien"}
               target="_blank"
               rel="noopener noreferrer"
               style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
@@ -1008,7 +1011,7 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               <Facebook size={18} />
             </a>
             <a
-              href={companyProfile?.socialLinks?.instagram || "https://hemingwaysjomtien.com"}
+              href={companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien"}
               target="_blank"
               rel="noopener noreferrer"
               style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
@@ -1353,25 +1356,32 @@ const Specials = () => {
   );
 };
 
-const Reviews = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
+const Reviews = () => {
   const customReviews = [
     {
-      author_name: "Yummy Mummy",
+      author_name: "Noohin",
       rating: 5,
-      text: "Great atmosphere, and the Sunday lunch is the best in Jomtien. 10/10",
-      relative_time_description: "1 month ago",
+      text: "Me & my husband love to come have drinks and get dinner here so much! Delicious food, friendly staff and a cosy place. Nice restaurant with a quiz game every Monday night. And they make so, so good mojitos here. Love it!",
+      relative_time_description: "Google review",
       profile_photo_url: ""
     },
     {
-      author_name: "John S",
+      author_name: "Darren Whitehead",
       rating: 5,
-      text: "Fantastic place! Best expat bar in Jomtien. Food is delicious and staff are amazing.",
-      relative_time_description: "2 weeks ago",
+      text: "Very beautiful, inviting interior and decor with comfortable seating. Super friendly staff from entry to ordering. Had the Wagyu cheese and bacon burger \u2014 outstanding. I'd go as far as saying the best burger I have had in Pattaya. A comfortable, warm and welcoming atmosphere, and I look forward to my next visit.",
+      relative_time_description: "Google review",
+      profile_photo_url: ""
+    },
+    {
+      author_name: "Sean Maccarthy",
+      rating: 5,
+      text: "Perfect venue. One of the best Sunday roasts I have had. Wagyu beef is delicious. Rob is a wonderful manager who also helps the local charity Father Ray Foundation.",
+      relative_time_description: "Google review",
       profile_photo_url: ""
     }
   ];
 
-  const reviewsToDisplay = businessInfo?.reviews?.length ? businessInfo.reviews : customReviews;
+  const reviewsToDisplay = customReviews;
 
   return (
     <section style={{ background: 'var(--ink-800)', padding: '80px 24px', overflow: 'hidden' }}>
@@ -1392,15 +1402,9 @@ const Reviews = ({ businessInfo }: { businessInfo: BusinessInfo | null }) => {
           >
             WHAT OUR GUESTS SAY
           </h2>
-          {/* Stars + rating */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--gold-400)' }}>
-            <div style={{ display: 'flex' }}>
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} size={18} fill={i < Math.ceil(businessInfo?.rating || 4.8) ? "currentColor" : "none"} />
-              ))}
-            </div>
-            <span style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 18, color: 'var(--gold-400)' }}>{businessInfo?.rating || 4.8}</span>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>({businessInfo?.user_ratings_total || 250}+ reviews)</span>
+          {/* Review volume */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>1000+ Google reviews</span>
           </div>
         </div>
 
@@ -1459,7 +1463,7 @@ const MainSite = ({ isAdmin, businessInfo, companyProfile }: { isAdmin: boolean,
     <Menu />
     <Specials />
     <SportsSchedule />
-    <Reviews businessInfo={businessInfo} />
+    <Reviews />
     <Location companyProfile={companyProfile} />
     <Footer companyProfile={companyProfile} />
   </div>
