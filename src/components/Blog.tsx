@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { ArrowLeft, Calendar } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { db } from '../firebase';
 import { normalizeImageUrl } from '../utils/images';
 import { FirebaseImage } from './ui/FirebaseImage';
@@ -36,7 +37,9 @@ const formatDate = (d: string) => {
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
-// Minimal markdown: ## headings, - bullets, **bold**, blank-line paragraphs
+const isHtml = (text: string) => /<(p|h2|h3|ul|ol|li|strong|em|blockquote|a|br)\b/i.test(text || '');
+
+// Legacy fallback: posts written before the rich text editor used simple markdown
 const renderInline = (text: string) => {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((p, i) =>
@@ -46,7 +49,7 @@ const renderInline = (text: string) => {
   );
 };
 
-export const Markdown = ({ text }: { text: string }) => {
+const LegacyMarkdown = ({ text }: { text: string }) => {
   const blocks = (text || '').split(/\n{2,}/);
   return (
     <>
@@ -59,17 +62,10 @@ export const Markdown = ({ text }: { text: string }) => {
             </ul>
           );
         }
-        if (block.startsWith('## ')) {
+        if (block.startsWith('## ') || block.startsWith('# ')) {
           return (
             <h2 key={i} style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: 'var(--cream-50)', textTransform: 'uppercase', margin: '32px 0 14px' }}>
-              {block.slice(3)}
-            </h2>
-          );
-        }
-        if (block.startsWith('# ')) {
-          return (
-            <h2 key={i} style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--cream-50)', textTransform: 'uppercase', margin: '32px 0 14px' }}>
-              {block.slice(2)}
+              {block.replace(/^#+\s*/, '')}
             </h2>
           );
         }
@@ -81,6 +77,15 @@ export const Markdown = ({ text }: { text: string }) => {
       })}
     </>
   );
+};
+
+export const PostBody = ({ text }: { text: string }) => {
+  if (!isHtml(text)) return <LegacyMarkdown text={text} />;
+  const clean = DOMPurify.sanitize(text || '', {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 's', 'u', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'a', 'code', 'pre', 'hr'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  });
+  return <div className="hw-post-body" dangerouslySetInnerHTML={{ __html: clean }} />;
 };
 
 export const BlogList = () => {
@@ -212,7 +217,7 @@ export const BlogPostPage = () => {
           />
         )}
 
-        <Markdown text={post.body} />
+        <PostBody text={post.body} />
       </article>
     </div>
   );

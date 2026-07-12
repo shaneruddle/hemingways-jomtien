@@ -308,3 +308,72 @@
   }
   .hw-pulse { animation: hw-pulse 1.6s var(--ease-out) infinite; }
 }
+
+/* ─── Blog post body (rich text HTML) ───────────────────────────────── */
+.hw-post-body p {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin: 0 0 20px;
+}
+.hw-post-body h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--cream-50);
+  text-transform: uppercase;
+  margin: 32px 0 14px;
+}
+.hw-post-body h3 {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--cream-50);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 26px 0 12px;
+}
+.hw-post-body strong { color: var(--cream-50); font-weight: 700; }
+.hw-post-body em { font-style: italic; }
+.hw-post-body ul,
+.hw-post-body ol {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin: 0 0 20px;
+  padding-left: 22px;
+}
+.hw-post-body ul { list-style: disc; }
+.hw-post-body ol { list-style: decimal; }
+.hw-post-body li { margin-bottom: 6px; }
+.hw-post-body a { color: var(--gold-400); text-decoration: underline; }
+.hw-post-body a:hover { color: var(--gold-500); }
+.hw-post-body blockquote {
+  border-left: 3px solid var(--gold-500);
+  padding-left: 16px;
+  margin: 0 0 20px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--cream-100);
+}
+.hw-post-body hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
+
+/* ─── Rich text editor (dashboard) ──────────────────────────────────── */
+.prose-editor p { margin: 0 0 12px; font-size: 14px; line-height: 1.7; }
+.prose-editor h2 { font-size: 20px; font-weight: 700; margin: 18px 0 10px; color: #111827; }
+.prose-editor h3 { font-size: 17px; font-weight: 700; margin: 16px 0 8px; color: #111827; }
+.prose-editor strong { font-weight: 700; }
+.prose-editor em { font-style: italic; }
+.prose-editor ul { list-style: disc; padding-left: 22px; margin: 0 0 12px; }
+.prose-editor ol { list-style: decimal; padding-left: 22px; margin: 0 0 12px; }
+.prose-editor li { margin-bottom: 4px; font-size: 14px; }
+.prose-editor blockquote { border-left: 3px solid #d1d5db; padding-left: 12px; color: #4b5563; font-style: italic; margin: 0 0 12px; }
+.prose-editor a { color: #b45309; text-decoration: underline; }
+.prose-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

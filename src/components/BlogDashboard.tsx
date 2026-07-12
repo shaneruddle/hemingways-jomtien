@@ -7,6 +7,7 @@ import { db } from '../firebase';
 import { logActivity } from '../utils/logger';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Save, X, Eye, EyeOff, FileText } from 'lucide-react';
+import RichTextEditor from './ui/RichTextEditor';
 
 export interface BlogPost {
   id?: string;
@@ -202,13 +203,10 @@ export default function BlogDashboard() {
           </div>
 
           <div className="mb-4">
-            <label className={LBL_CLS}>Body (markdown: ## heading, **bold**, - bullet)</label>
-            <textarea
-              className={INPUT_CLS + ' font-mono'}
-              rows={14}
+            <label className={LBL_CLS}>Body</label>
+            <RichTextEditor
               value={editing.body}
-              onChange={e => setEditing({ ...editing, body: e.target.value })}
-              placeholder={"## What's on\n\nEvery Monday from 8pm...\n\n- Free entry\n- Prizes for the top three teams"}
+              onChange={html => setEditing({ ...editing, body: html })}
             />
           </div>
 
