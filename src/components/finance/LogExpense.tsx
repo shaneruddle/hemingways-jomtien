@@ -98,8 +98,13 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
 
   const filteredExpenses = useMemo(() => {
     if (!canManage) return expenses;
+    const selectedCategory = EXPENSE_CATEGORIES.find(c => c.id === filterCategory);
     return expenses.filter(exp => {
-      if (filterCategory !== 'all' && exp.category_id !== filterCategory && exp.category_name !== filterCategory) return false;
+      if (filterCategory !== 'all') {
+        const matchesId = exp.category_id === filterCategory;
+        const matchesName = !!selectedCategory && exp.category_name === selectedCategory.name;
+        if (!matchesId && !matchesName) return false;
+      }
       if (filterFrom && exp.date < filterFrom) return false;
       if (filterTo && exp.date > filterTo) return false;
       if (searchTerm.trim()) {
