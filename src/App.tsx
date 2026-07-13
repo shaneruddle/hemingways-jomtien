@@ -55,6 +55,7 @@ import Auth from "./components/Auth";
 import AdminLogin from "./components/auth/AdminLogin";
 import BlogDashboard from "./components/BlogDashboard";
 import CareersDashboard from "./components/careers/CareersDashboard";
+import { CareersList, CareersJobPage } from "./components/Careers";
 import { BlogList, BlogPostPage, LatestPosts } from "./components/Blog";
 import BulkImport from "./components/BulkImport";
 import DigitalMenu from "./components/DigitalMenu";
@@ -1096,6 +1097,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               >
                 Contact Us
               </Link>
+              <Link
+                to="/careers"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Careers
+              </Link>
             </div>
           </div>
         </div>
@@ -1888,6 +1898,8 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
         <Route path="/contact-us" element={<ContactUs companyProfile={companyProfile} />} />
         <Route path="/blog" element={<BlogList />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
+        <Route path="/careers" element={<CareersList />} />
+        <Route path="/careers/:jobId" element={<CareersJobPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
 
