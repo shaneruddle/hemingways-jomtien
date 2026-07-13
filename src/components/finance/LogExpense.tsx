@@ -86,6 +86,8 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
   const [editForm, setEditForm] = useState({ category_id: '', category_name: '', total: '', notes: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     const q = query(collection(db, 'finance_expenses'), orderBy('created_at', 'desc'), limit(canManage ? 300 : 50));
@@ -108,6 +110,14 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
       return true;
     });
   }, [expenses, canManage, filterCategory, filterFrom, filterTo, searchTerm]);
+
+  useEffect(() => { setPage(1); }, [filterCategory, filterFrom, filterTo, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / PAGE_SIZE));
+  const pagedExpenses = useMemo(
+    () => filteredExpenses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredExpenses, page]
+  );
 
   const hasActiveFilters = !!(searchTerm || filterCategory !== 'all' || filterFrom || filterTo);
   const clearFilters = () => { setSearchTerm(''); setFilterCategory('all'); setFilterFrom(''); setFilterTo(''); };
@@ -394,20 +404,20 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 placeholder="Search supplier, category, notes..."
-                className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]"
+                className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]"
               />
             </div>
             <select
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]"
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]"
             >
               <option value="all">All categories</option>
               {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
+            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
             <span className="text-gray-400 text-sm">to</span>
-            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
+            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
             {hasActiveFilters && (
               <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 px-2 py-2">
                 <X size={12} /> Clear
@@ -436,7 +446,7 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
                 </tr>
               </thead>
               <tbody>
-                {filteredExpenses.map((exp, i) => {
+                {pagedExpenses.map((exp, i) => {
                   const dt = exp.created_at ? new Date(exp.created_at) : null;
                   const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
                   const receiptUrl = exp.receipt_url ? gsToUrl(exp.receipt_url) : null;
@@ -481,6 +491,31 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {filteredExpenses.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-4 text-sm">
+            <p className="text-gray-500">
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredExpenses.length)} of {filteredExpenses.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-gray-500 px-1">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
