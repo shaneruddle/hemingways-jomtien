@@ -1,3 +1,10 @@
+export interface Supplier {
+  id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+}
+
 export interface FinanceCategory {
   id: string;
   name: string;

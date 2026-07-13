@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs, query, updateDoc, deleteDoc, doc, onSnapsh
 import { logActivity } from '../../utils/logger';
 import { db } from '../../firebase';
 import { ExpenseItem } from './types';
+import SupplierPicker from './SupplierPicker';
 import { Check, Loader2, Trash2, Plus, ExternalLink, ImageOff, Search, X, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -291,8 +292,14 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
 
           {/* Supplier */}
           <div>
-            <label className={LBL_CLS}>Supplier</label>
-            <input type="text" value={formData.supplier} onChange={e => set('supplier', e.target.value)} placeholder="e.g. Makro, local market" className={INPUT_CLS} />
+            <SupplierPicker
+              value={formData.supplier}
+              onChange={v => set('supplier', v)}
+              userEmail={user?.email}
+              label="Supplier"
+              labelClassName={LBL_CLS}
+              inputClassName={INPUT_CLS.replace('px-4', 'pl-4 pr-9')}
+            />
           </div>
 
           {/* Category */}

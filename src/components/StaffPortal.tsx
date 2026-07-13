@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { FinanceCategory, UserProfile } from '../types';
+import SupplierPicker from './finance/SupplierPicker';
 import { logActivity } from '../utils/logger';
 import { format } from 'date-fns';
 
@@ -31,6 +32,7 @@ interface Customer {
 interface ExtractedExpense {
   amount: number;
   description: string;
+  supplier: string;
   categoryName: string;
   categoryId: string;
   date: string;
@@ -216,6 +218,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
       setExtractedData({
         amount: data.amount || 0,
         description: data.description || '',
+        supplier: data.supplier || '',
         categoryName: matched?.name || data.categoryName || 'General',
         categoryId: matched?.id || '',
         date: data.date || new Date().toISOString().split('T')[0],
@@ -229,6 +232,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
       setExtractedData({
         amount: 0,
         description: '',
+        supplier: '',
         categoryName: cats[0]?.name || 'General',
         categoryId: cats[0]?.id || '',
         date: new Date().toISOString().split('T')[0],
@@ -271,6 +275,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
     setExtractedData({
       amount: 0,
       description: '',
+      supplier: '',
       categoryName: cats[0]?.name || 'General',
       categoryId: cats[0]?.id || '',
       date: new Date().toISOString().split('T')[0],
@@ -350,6 +355,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
       }
       await addDoc(collection(db, 'finance_expenses'), {
         date: new Date().toISOString().split('T')[0], // always log as today; receipt_date preserved in OCR data
+        supplier: extractedData.supplier || '',
         category_id: extractedData.categoryId,
         category_name: extractedData.categoryName,
         total: extractedData.amount,
@@ -471,6 +477,17 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                 </div>
 
                 <div>
+                  <SupplierPicker
+                    value={extractedData.supplier}
+                    onChange={v => setExtractedData({ ...extractedData, supplier: v })}
+                    userEmail={user?.email}
+                    label="Supplier"
+                    labelClassName={LBL_CLS}
+                    inputClassName={INPUT_CLS.replace('px-4', 'pl-4 pr-9')}
+                  />
+                </div>
+
+                <div>
                   <label className={LBL_CLS}>Category</label>
                   <select value={extractedData.categoryId}
                     onChange={e => {
@@ -568,6 +585,7 @@ const ExpensesTab: React.FC<{ user: any }> = ({ user }) => {
                         <p className="font-semibold text-gray-900 mt-1 truncate">{exp.notes || 'No description'}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {exp.created_at ? new Date(exp.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
+                          {exp.supplier ? ` · ${exp.supplier}` : ''}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
