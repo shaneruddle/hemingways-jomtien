@@ -216,7 +216,7 @@ export const CareersList = () => {
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'url(/assets/sport-action.jpg)',
+            backgroundImage: 'url(/assets/careers-team-welcome.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             zIndex: 0,
