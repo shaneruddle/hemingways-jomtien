@@ -133,7 +133,7 @@ export interface SystemLog {
   userEmail: string;
   userId: string;
   timestamp: string;
-  category: 'menu' | 'category' | 'finance' | 'user' | 'system' | 'image';
+  category: 'menu' | 'category' | 'finance' | 'user' | 'system' | 'image' | 'careers';
 }
 
 export interface Employee {

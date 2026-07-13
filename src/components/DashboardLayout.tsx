@@ -18,7 +18,8 @@ import {
   Database,
   Image as ImageIcon,
   FileText,
-  Building2
+  Building2,
+  Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../firebase';
@@ -57,6 +58,9 @@ function canSeeLoyalty(role: string) {
   return ['super_admin','admin','manager'].includes(role);
 }
 function canSeeUsers(role: string) {
+  return ['super_admin','admin','manager'].includes(role);
+}
+function canSeeCareers(role: string) {
   return ['super_admin','admin','manager'].includes(role);
 }
 function canSeeImages(role: string) {
@@ -388,6 +392,17 @@ export default function DashboardLayout({ user }: { user: any }) {
               to="/dashboard/blog"
               isCollapsed={isCollapsed}
               isActive={isActive('/dashboard/blog')}
+            />
+          )}
+
+          {/* Careers */}
+          {canSeeCareers(role) && (
+            <SidebarItem
+              icon={<Briefcase size={18} />}
+              label="Careers"
+              to="/dashboard/careers"
+              isCollapsed={isCollapsed}
+              isActive={isActive('/dashboard/careers')}
             />
           )}
 

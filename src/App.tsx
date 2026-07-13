@@ -54,6 +54,7 @@ import CategoriesDashboard from "./components/CategoriesDashboard";
 import Auth from "./components/Auth";
 import AdminLogin from "./components/auth/AdminLogin";
 import BlogDashboard from "./components/BlogDashboard";
+import CareersDashboard from "./components/careers/CareersDashboard";
 import { BlogList, BlogPostPage, LatestPosts } from "./components/Blog";
 import BulkImport from "./components/BulkImport";
 import DigitalMenu from "./components/DigitalMenu";
@@ -1878,6 +1879,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
           <Route path="drinks" element={isMarketing ? <DrinksDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="images" element={isMarketing ? <ImageManagement /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="blog" element={isMarketing ? <BlogDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="careers" element={isManager ? <CareersDashboard user={user} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="profile" element={isMarketing ? <CompanyProfileDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="logs" element={isManager ? <SystemLogs /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
         </Route>
