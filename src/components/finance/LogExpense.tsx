@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, addDoc, getDocs, query, updateDoc, deleteDoc, doc, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, updateDoc, deleteDoc, doc, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
 import { logActivity } from '../../utils/logger';
 import { db } from '../../firebase';
 import { ExpenseItem } from './types';
@@ -97,10 +97,71 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
     });
   }, [canManage]);
 
+  // Recent Expenses only loads the most recent N records above for fast default browsing.
+  // finance_expenses has tens of thousands of historical docs, so once a category and/or
+  // date filter is active, that capped cache is not a complete dataset. Run a dedicated
+  // Firestore query scoped to the active filters to get the true, complete result set/total.
+  const [scopedExpenses, setScopedExpenses] = useState<FinanceExpense[] | null>(null);
+  const [scopedLoading, setScopedLoading] = useState(false);
+  const [scopedError, setScopedError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canManage) { setScopedExpenses(null); return; }
+    const hasCategory = filterCategory !== 'all';
+    const hasDateRange = !!filterFrom || !!filterTo;
+    if (!hasCategory && !hasDateRange) {
+      setScopedExpenses(null);
+      setScopedError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setScopedLoading(true);
+    setScopedError(null);
+
+    (async () => {
+      try {
+        const selectedCategory = EXPENSE_CATEGORIES.find(c => c.id === filterCategory);
+        const base = collection(db, 'finance_expenses');
+        const constraints: any[] = [];
+        if (filterFrom) constraints.push(where('date', '>=', filterFrom));
+        if (filterTo) constraints.push(where('date', '<=', filterTo));
+
+        let results: FinanceExpense[] = [];
+        if (hasCategory) {
+          const queries = [getDocs(query(base, where('category_id', '==', filterCategory), ...constraints))];
+          if (selectedCategory) {
+            queries.push(getDocs(query(base, where('category_name', '==', selectedCategory.name), ...constraints)));
+          }
+          const snaps = await Promise.all(queries);
+          const map = new Map<string, FinanceExpense>();
+          snaps.forEach(snap => snap.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() } as FinanceExpense)));
+          results = Array.from(map.values());
+        } else {
+          const snap = await getDocs(query(base, ...constraints));
+          results = snap.docs.map(d => ({ id: d.id, ...d.data() } as FinanceExpense));
+        }
+        results.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        if (!cancelled) setScopedExpenses(results);
+      } catch (err: any) {
+        console.error('Scoped expense filter query failed', err);
+        if (!cancelled) {
+          setScopedError(err?.message || 'Failed to load complete filtered results.');
+          setScopedExpenses(null);
+        }
+      } finally {
+        if (!cancelled) setScopedLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [canManage, filterCategory, filterFrom, filterTo]);
+
   const filteredExpenses = useMemo(() => {
     if (!canManage) return expenses;
+    const source = scopedExpenses ?? expenses;
     const selectedCategory = EXPENSE_CATEGORIES.find(c => c.id === filterCategory);
-    return expenses.filter(exp => {
+    return source.filter(exp => {
       if (filterCategory !== 'all') {
         const matchesId = exp.category_id === filterCategory;
         const matchesName = !!selectedCategory && exp.category_name === selectedCategory.name;
@@ -115,7 +176,7 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
       }
       return true;
     });
-  }, [expenses, canManage, filterCategory, filterFrom, filterTo, searchTerm]);
+  }, [expenses, scopedExpenses, canManage, filterCategory, filterFrom, filterTo, searchTerm]);
 
   useEffect(() => { setPage(1); }, [filterCategory, filterFrom, filterTo, searchTerm]);
 
@@ -447,7 +508,14 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
           </p>
         )}
 
-        {expenses.length === 0 ? (
+        {scopedLoading && (
+        <p className="text-xs text-gray-400 italic mb-3">Loading complete filtered results...</p>
+      )}
+      {scopedError && (
+        <p className="text-xs text-red-500 mb-3">Couldn't load complete filtered results: {scopedError}</p>
+      )}
+
+      {expenses.length === 0 ? (
           <p className="text-gray-400 text-sm italic text-center py-6">No expenses logged yet</p>
         ) : filteredExpenses.length === 0 ? (
           <p className="text-gray-400 text-sm italic text-center py-6">No expenses match your filters</p>
