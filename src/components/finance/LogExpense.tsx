@@ -4,6 +4,7 @@ import { logActivity } from '../../utils/logger';
 import { db } from '../../firebase';
 import { ExpenseItem } from './types';
 import SupplierPicker from './SupplierPicker';
+import DateRangePicker from '../ui/DateRangePicker';
 import { Check, Loader2, Trash2, Plus, ExternalLink, ImageOff, Search, X, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -122,6 +123,11 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
   const pagedExpenses = useMemo(
     () => filteredExpenses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [filteredExpenses, page]
+  );
+
+  const filteredTotal = useMemo(
+    () => filteredExpenses.reduce((sum, exp) => sum + (exp.total || 0), 0),
+    [filteredExpenses]
   );
 
   const hasActiveFilters = !!(searchTerm || filterCategory !== 'all' || filterFrom || filterTo);
@@ -420,15 +426,25 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
               <option value="all">All categories</option>
               {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
-            <span className="text-gray-400 text-sm">to</span>
-            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
+            <DateRangePicker
+              from={filterFrom}
+              to={filterTo}
+              onChange={(from, to) => { setFilterFrom(from); setFilterTo(to); }}
+            />
             {hasActiveFilters && (
               <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 px-2 py-2">
                 <X size={12} /> Clear
               </button>
             )}
           </div>
+        )}
+
+        {filteredExpenses.length > 0 && (
+          <p className="text-sm text-gray-600 mb-3">
+            Total: <span className="font-bold text-gray-900">
+              ฿{filteredTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </p>
         )}
 
         {expenses.length === 0 ? (
