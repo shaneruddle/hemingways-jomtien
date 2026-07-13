@@ -12,6 +12,7 @@ const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFract
 interface Row {
   id: string;
   date: string;
+  time?: string;
   categoryLabel: string;
   who: string;
   amount: number;
@@ -41,9 +42,12 @@ export default function TransactionLedger({ kind }: { kind: 'expense' | 'income'
         const mapped: Row[] = snap.docs.map(d => {
           const data: any = d.data();
           if (kind === 'expense') {
+            const dt = data.created_at ? new Date(data.created_at) : null;
+            const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : undefined;
             return {
               id: d.id,
               date: data.date,
+              time: timeStr,
               categoryLabel: data.category_name || 'Uncategorized',
               who: data.supplier || 'Unknown supplier',
               amount: data.total || 0,
@@ -172,8 +176,10 @@ export default function TransactionLedger({ kind }: { kind: 'expense' | 'income'
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
                   <th className="px-4 py-3">Date</th>
+                  {kind === 'expense' && <th className="px-4 py-3">Time</th>}
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">{kind === 'expense' ? 'Supplier' : 'Notes'}</th>
+                  {kind === 'expense' && <th className="px-4 py-3">Description</th>}
                   <th className="px-4 py-3 text-right">Amount</th>
                 </tr>
               </thead>
@@ -181,8 +187,10 @@ export default function TransactionLedger({ kind }: { kind: 'expense' | 'income'
                 {pageRows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{r.date}</td>
+                    {kind === 'expense' && <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{r.time || ''}</td>}
                     <td className="px-4 py-3 text-gray-600">{r.categoryLabel}</td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{r.who || ''}</td>
+                    {kind === 'expense' && <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{r.notes || ''}</td>}
                     <td className={`px-4 py-3 text-right font-bold ${amountColor}`}>{fmt(r.amount)}</td>
                   </tr>
                 ))}
