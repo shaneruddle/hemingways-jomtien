@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, updateDoc, doc, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
+import { collection, addDoc, getDocs, query, updateDoc, deleteDoc, doc, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { logActivity } from '../../utils/logger';
 import { db } from '../../firebase';
 import { ExpenseItem } from './types';
-import { Check, Loader2, Trash2, Plus, ExternalLink, ImageOff } from 'lucide-react';
+import { Check, Loader2, Trash2, Plus, ExternalLink, ImageOff, Search, X, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 function gsToUrl(gs: string): string {
@@ -20,6 +20,7 @@ interface FinanceExpense {
   date: string;
   created_at: string;
   supplier: string;
+  category_id?: string;
   category_name: string;
   notes: string;
   total: number;
@@ -73,13 +74,105 @@ const LBL_CLS  = 'block text-sm font-medium text-gray-700 mb-1';
 export default function LogExpense({ user, financeRole = 'owner' }: { user: any; financeRole?: string }) {
   const [saving, setSaving] = useState(false);
   const [expenses, setExpenses] = useState<FinanceExpense[]>([]);
+  const canManage = financeRole !== 'cashier';
+
+  // Edit / delete / search / filter state (admin & manager only)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
+  const [editingExpense, setEditingExpense] = useState<FinanceExpense | null>(null);
+  const [editForm, setEditForm] = useState({ category_id: '', category_name: '', total: '', notes: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'finance_expenses'), orderBy('created_at', 'desc'), limit(50));
+    const q = query(collection(db, 'finance_expenses'), orderBy('created_at', 'desc'), limit(canManage ? 300 : 50));
     return onSnapshot(q, snap => {
       setExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() } as FinanceExpense)));
     });
-  }, []);
+  }, [canManage]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!canManage) return expenses;
+    return expenses.filter(exp => {
+      if (filterCategory !== 'all' && exp.category_id !== filterCategory && exp.category_name !== filterCategory) return false;
+      if (filterFrom && exp.date < filterFrom) return false;
+      if (filterTo && exp.date > filterTo) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.trim().toLowerCase();
+        const haystack = `${exp.supplier || ''} ${exp.category_name || ''} ${exp.notes || ''}`.toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [expenses, canManage, filterCategory, filterFrom, filterTo, searchTerm]);
+
+  const hasActiveFilters = !!(searchTerm || filterCategory !== 'all' || filterFrom || filterTo);
+  const clearFilters = () => { setSearchTerm(''); setFilterCategory('all'); setFilterFrom(''); setFilterTo(''); };
+
+  const openEdit = (exp: FinanceExpense) => {
+    setEditingExpense(exp);
+    setEditForm({
+      category_id: exp.category_id || '',
+      category_name: exp.category_name || '',
+      total: exp.total != null ? String(exp.total) : '',
+      notes: exp.notes || '',
+    });
+  };
+  const closeEdit = () => setEditingExpense(null);
+  const handleEditCategoryChange = (id: string) => {
+    const cat = EXPENSE_CATEGORIES.find(c => c.id === id);
+    setEditForm(f => ({ ...f, category_id: id, category_name: cat?.name || id }));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingExpense) return;
+    if (!editForm.total) {
+      toast.error('Total is required');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateDoc(doc(db, 'finance_expenses', editingExpense.id), {
+        category_id: editForm.category_id,
+        category_name: editForm.category_name,
+        total: parseFloat(editForm.total),
+        notes: editForm.notes,
+      });
+      await logActivity(
+        'Expense Edited',
+        `฿${parseFloat(editForm.total).toLocaleString()} · ${editForm.category_name} · ${editingExpense.supplier || 'no supplier'} · ${editingExpense.date}`,
+        'finance'
+      );
+      toast.success('Expense updated');
+      setEditingExpense(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update expense');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteExpense = async (exp: FinanceExpense) => {
+    if (!window.confirm(`Delete this ${exp.category_name || 'expense'} entry for ฿${(exp.total || 0).toLocaleString()}? This cannot be undone.`)) return;
+    setDeletingId(exp.id);
+    try {
+      await deleteDoc(doc(db, 'finance_expenses', exp.id));
+      await logActivity(
+        'Expense Deleted',
+        `฿${(exp.total || 0).toLocaleString()} · ${exp.category_name || 'Uncategorized'} · ${exp.supplier || 'no supplier'} · ${exp.date}`,
+        'finance'
+      );
+      toast.success('Expense deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete expense');
+    } finally {
+      setDeletingId(null);
+    }
+  };
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 10),
     supplier: '',
@@ -284,8 +377,42 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
       {/* Recent Expenses */}
       <div className="mt-8">
         <h2 className="text-lg font-bold text-ink mb-3">Recent Expenses</h2>
+
+        {canManage && expenses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search supplier, category, notes..."
+                className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]"
+              />
+            </div>
+            <select
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]"
+            >
+              <option value="all">All categories</option>
+              {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
+            <span className="text-gray-400 text-sm">to</span>
+            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1DA0A8]" />
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 px-2 py-2">
+                <X size={12} /> Clear
+              </button>
+            )}
+          </div>
+        )}
+
         {expenses.length === 0 ? (
           <p className="text-gray-400 text-sm italic text-center py-6">No expenses logged yet</p>
+        ) : filteredExpenses.length === 0 ? (
+          <p className="text-gray-400 text-sm italic text-center py-6">No expenses match your filters</p>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
             <table className="w-full text-sm">
@@ -298,10 +425,11 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3 text-right">Total (฿)</th>
                   <th className="px-4 py-3 text-center">Receipt</th>
+                  {canManage && <th className="px-4 py-3 text-center">Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((exp, i) => {
+                {filteredExpenses.map((exp, i) => {
                   const dt = exp.created_at ? new Date(exp.created_at) : null;
                   const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
                   const receiptUrl = exp.receipt_url ? gsToUrl(exp.receipt_url) : null;
@@ -324,6 +452,23 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
                           <span className="text-gray-300"><ImageOff size={14} /></span>
                         )}
                       </td>
+                      {canManage && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-3">
+                            <button onClick={() => openEdit(exp)} className="text-gray-400 hover:text-[#1DA0A8] transition-colors" title="Edit expense">
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExpense(exp)}
+                              disabled={deletingId === exp.id}
+                              className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                              title="Delete expense"
+                            >
+                              {deletingId === exp.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -332,6 +477,51 @@ export default function LogExpense({ user, financeRole = 'owner' }: { user: any;
           </div>
         )}
       </div>
+
+      {/* Edit Expense Modal */}
+      {editingExpense && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeEdit}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-bold text-ink">Edit Expense</h3>
+              <button onClick={closeEdit} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">
+              {editingExpense.date} · {editingExpense.supplier || 'no supplier'} — date and supplier can't be changed here.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className={LBL_CLS}>Category</label>
+                <select value={editForm.category_id} onChange={e => handleEditCategoryChange(e.target.value)} className={INPUT_CLS}>
+                  {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={LBL_CLS}>Total (฿)</label>
+                <input type="number" value={editForm.total} onChange={e => setEditForm(f => ({ ...f, total: e.target.value }))} className={INPUT_CLS} />
+              </div>
+              <div>
+                <label className={LBL_CLS}>Notes</label>
+                <input type="text" value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} className={INPUT_CLS} />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={closeEdit} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="flex-1 py-2.5 bg-[#1DA0A8] text-white rounded-xl font-bold hover:bg-[#18919a] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingEdit ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
