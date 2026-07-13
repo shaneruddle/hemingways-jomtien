@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Expense, Income } from './types';
+import TransactionLedger from './TransactionLedger';
 import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -137,41 +138,10 @@ export default function FinanceOverview({ financeRole = 'owner' }: { financeRole
         )}
       </div>
 
-      {/* Recent transactions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-ink mb-4">Recent Expenses</h3>
-          {expenses.length === 0 ? <p className="text-gray-400 text-sm italic">No expenses this month</p> : (
-            <div className="space-y-3">
-              {expenses.slice(0, 6).map(e => (
-                <div key={e.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="font-medium text-sm text-ink">{e.supplier || 'Unknown supplier'}</p>
-                    <p className="text-xs text-gray-400">{e.category_name} · {e.date}</p>
-                  </div>
-                  <span className="font-bold text-red-500">{fmt(e.total)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-ink mb-4">Recent Income</h3>
-          {income.length === 0 ? <p className="text-gray-400 text-sm italic">No income logged this month</p> : (
-            <div className="space-y-3">
-              {income.slice(0, 6).map(i => (
-                <div key={i.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="font-medium text-sm text-ink">{i.category}</p>
-                    <p className="text-xs text-gray-400">{i.date}{i.notes ? ` · ${i.notes}` : ''}</p>
-                  </div>
-                  <span className="font-bold text-green-600">{fmt(i.amount)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* All-time ledgers */}
+      <div className="space-y-6">
+        <TransactionLedger kind="expense" />
+        <TransactionLedger kind="income" />
       </div>
     </div>
   );

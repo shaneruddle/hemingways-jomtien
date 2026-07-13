@@ -29,7 +29,7 @@ interface FinanceExpense {
   receipt_url: string;
 }
 
-const EXPENSE_CATEGORIES = [
+export const EXPENSE_CATEGORIES = [
   // Food & Drink
   { id: 'food_expense',          name: 'Food Expense' },
   { id: 'drink_expense',         name: 'Drink Expense' },
