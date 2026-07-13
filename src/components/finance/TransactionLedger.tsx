@@ -7,7 +7,7 @@ import { EXPENSE_CATEGORIES } from './LogExpense';
 const INCOME_CATEGORIES = ['Food', 'Drinks', 'Meal Preps', 'Catering', 'Other'];
 const PAGE_SIZE = 50;
 
-const fmt = (n: number) => `${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface Row {
   id: string;
