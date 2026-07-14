@@ -140,8 +140,8 @@ export default function FinanceOverview({ financeRole = 'owner' }: { financeRole
 
       {/* All-time ledgers */}
       <div className="space-y-6">
-        <TransactionLedger kind="expense" />
-        <TransactionLedger kind="income" />
+        <TransactionLedger kind="expense" financeRole={financeRole} />
+        <TransactionLedger kind="income" financeRole={financeRole} />
       </div>
     </div>
   );
