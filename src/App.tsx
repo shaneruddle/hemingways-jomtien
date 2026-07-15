@@ -112,9 +112,12 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
       return;
     }
     if (href === '/') {
+      e.preventDefault();
       if (location.pathname === '/') {
-        e.preventDefault();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        navigate('/');
+        window.scrollTo(0, 0);
       }
       return;
     }
@@ -317,6 +320,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
 const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   return (
     <section
+      id="top"
       style={{
         position: 'relative',
         height: '100vh',
@@ -944,6 +948,21 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Same cross-page anchor logic as the header nav: if we're already on the
+  // homepage, scroll straight to the section; otherwise navigate to "/#id" and
+  // let the Navbar's hash-scroll effect (which is always mounted) handle it
+  // once the homepage has rendered.
+  const handleFooterLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    if (location.pathname !== '/') {
+      navigate('/#' + id);
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -1052,19 +1071,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { label: 'Home', id: null },
+                { label: 'Home', id: 'top' },
                 { label: 'Food Menu', id: 'menu' },
                 { label: 'Daily Specials', id: 'specials' },
                 { label: 'Location', id: 'location' },
               ].map((link) => (
                 <a
                   key={link.label}
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (link.id) document.getElementById(link.id)?.scrollIntoView({ behavior: 'smooth' });
-                    else window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
+                  href={`/#${link.id}`}
+                  onClick={(e) => handleFooterLinkClick(e, link.id)}
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
                   onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
