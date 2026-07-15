@@ -146,7 +146,7 @@ export default function CompanyProfileDashboard() {
                 type="text"
                 value={profile.name}
                 onChange={e => setProfile({...profile, name: e.target.value})}
-                className="w-full px-4 py-3 bg-cream border-none rounded-2xl focus:ring-2 focus:ring-gold outline-none"
+                className="w-full px-4 py-3 bg-cream border-none rounded-2xl focus:ring-2 focus:ring-gold outline-none text-ink"
               />
             </div>
             <div>
@@ -155,7 +155,7 @@ export default function CompanyProfileDashboard() {
                 value={profile.address}
                 onChange={e => setProfile({...profile, address: e.target.value})}
                 rows={3}
-                className="w-full px-4 py-3 bg-cream border-none rounded-2xl focus:ring-2 focus:ring-gold outline-none resize-none"
+                className="w-full px-4 py-3 bg-cream border-none rounded-2xl focus:ring-2 focus:ring-gold outline-none resize-none text-ink"
               />
             </div>
             <div>
@@ -164,7 +164,7 @@ export default function CompanyProfileDashboard() {
                 value={profile.description}
                 onChange={e => setProfile({...profile, description: e.target.value})}
                 rows={4}
-                className="w-full px-4 py-3 bg-cream border-none rounded-2xl focus:ring-2 focus:ring-gold outline-none resize-none"
+                className="w-full px-4 py-3 bg-cream border-none rounded-2xl focus:ring-2 focus:ring-gold outline-none resize-none text-ink"
               />
             </div>
           </div>
@@ -324,7 +324,7 @@ export default function CompanyProfileDashboard() {
                   type="text"
                   value={profile.openingHours[day as keyof CompanyProfile['openingHours']]}
                   onChange={e => updateHours(day as keyof CompanyProfile['openingHours'], e.target.value)}
-                  className="flex-1 px-4 py-2 bg-cream border-none rounded-xl focus:ring-2 focus:ring-gold outline-none text-sm"
+                  className="flex-1 px-4 py-2 bg-cream border-none rounded-xl focus:ring-2 focus:ring-gold outline-none text-sm text-ink"
                 />
               </div>
             ))}

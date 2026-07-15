@@ -105,7 +105,6 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
   }, [isOpen]);
 
   const navLinks = [
-    { name: "Home", href: "/" },
     { name: "Food Menu", href: "menu" },
     { name: "Sports Schedule", href: "/sports" },
     { name: "Daily Specials", href: "specials" },
