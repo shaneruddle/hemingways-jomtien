@@ -1,3 +1,5 @@
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay } from '../utils/companyDefaults';
+
 export interface BusinessInfo {
   name: string;
   address: string;
@@ -39,16 +41,18 @@ export async function fetchPlaceDetails(placeId: string): Promise<BusinessInfo |
       reviews: result.reviews
     };
   } catch (error) {
-    // Silently return fallback if API is blocked or key is invalid
+    // Silently return fallback if API is blocked or key is invalid. Reuses the
+    // same address/phone as the rest of the site (see utils/companyDefaults)
+    // instead of a separately-maintained copy.
     return {
-      name: "Hemingway's Jomtien",
-      address: "Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150",
-      phone: "+6664 620 9225",
-      hours: ["Open Daily: 9:00 AM - 12:00 AM"],
+      name: DEFAULT_COMPANY_PROFILE.name,
+      address: DEFAULT_COMPANY_PROFILE.address,
+      phone: formatPhoneDisplay(DEFAULT_COMPANY_PROFILE.phone),
+      hours: [`Open Daily: ${DEFAULT_COMPANY_PROFILE.openingHours.monday}`],
       rating: 4.8,
       user_ratings_total: 250,
       website: "https://hemingwaysjomtien.com",
-      url: "https://maps.google.com/?q=Hemingways+Jomtien+Sai+2+Road+Pattaya"
+      url: `https://maps.google.com/?q=${encodeURIComponent(DEFAULT_COMPANY_PROFILE.address)}`
     };
   }
 }

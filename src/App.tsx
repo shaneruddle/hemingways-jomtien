@@ -44,6 +44,7 @@ import { db, auth } from "./firebase";
 import { MenuItem, Category, Special, SportsEvent } from "./types";
 import { handleFirestoreError } from "./utils/firestore";
 import { normalizeImageUrl } from "./utils/images";
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatOpeningHoursSummary } from "./utils/companyDefaults";
 // Optimized Sub-components
 import MenuItemCard from "./components/menu/MenuItemCard";
 import { FirebaseImage } from "./components/ui/FirebaseImage";
@@ -71,6 +72,8 @@ import SystemLogs from "./components/SystemLogs";
 import LoyaltyDashboard from "./components/LoyaltyDashboard";
 import CompanyProfileDashboard from "./components/CompanyProfileDashboard";
 import SpecialsDashboard from "./components/SpecialsDashboard";
+import SportsDashboard from "./components/SportsDashboard";
+import { ReservationPage } from "./components/Reservation";
 import DrinksDashboard from "./components/DrinksDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
@@ -91,10 +94,20 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Keyboard access: Escape closes the mobile menu drawer.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Food Menu", href: "menu" },
-    { name: "Sports Schedule", href: "sports" },
+    { name: "Sports Schedule", href: "/sports" },
     { name: "Daily Specials", href: "specials" },
     { name: "Location", href: "location" },
     { name: "Blog", href: "/blog" },
@@ -110,9 +123,12 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
       return;
     }
     if (href === '/') {
+      e.preventDefault();
       if (location.pathname === '/') {
-        e.preventDefault();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        navigate('/');
+        window.scrollTo(0, 0);
       }
       return;
     }
@@ -205,20 +221,20 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
               ))}
               {/* Phone */}
               <a
-                href={`tel:${companyProfile?.phone || '+66646209225'}`}
+                href={`tel:+${phoneDigits(companyProfile?.phone || DEFAULT_COMPANY_PROFILE.phone)}`}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold-400)', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textDecoration: 'none' }}
               >
                 <Phone size={14} />
-                {companyProfile?.phone || '+6664 620 9225'}
+                {formatPhoneDisplay(companyProfile?.phone)}
               </a>
-              <a
-                href="#contact"
-                onClick={(e) => handleNavClick(e, 'contact')}
+              <Link
+                to="/reserve"
+                onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}
                 className="hw-btn-warm"
                 style={{ padding: '10px 20px', fontSize: 13 }}
               >
                 Reserve
-              </a>
+              </Link>
               {canAccessDashboard && (
                 <Link
                   to="/dashboard"
@@ -245,6 +261,8 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
         <button
           className="lg:hidden"
           onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isOpen}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cream-50)', padding: 4 }}
         >
           {isOpen ? <X size={24} /> : <MenuIcon size={24} />}
@@ -275,14 +293,14 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
                     </a>
                   ))}
                   <div style={{ borderTop: `1px solid var(--border)`, paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <a
-                      href="#contact"
-                      onClick={(e) => handleNavClick(e, 'contact')}
+                    <Link
+                      to="/reserve"
+                      onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}
                       className="hw-btn-warm"
                       style={{ textAlign: 'center' }}
                     >
                       Reserve a Table
-                    </a>
+                    </Link>
                     {canAccessDashboard && (
                       <Link
                         to="/dashboard"
@@ -315,6 +333,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
 const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
   return (
     <section
+      id="top"
       style={{
         position: 'relative',
         height: '100vh',
@@ -396,13 +415,13 @@ const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => 
 
           {/* CTAs */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-            <a
-              href="#contact"
-              onClick={(e) => { e.preventDefault(); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }}
+            <Link
+              to="/reserve"
+              onClick={() => window.scrollTo(0, 0)}
               className="hw-btn-warm"
             >
               Reserve a Table
-            </a>
+            </Link>
             <a
               href="#menu"
               onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }}
@@ -575,7 +594,10 @@ type Language = 'en' | 'zh' | 'ru' | 'th';
 const Menu = () => {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   const [activeCategory, setActiveCategory] = useState("");
+  const [userSelectedCategory, setUserSelectedCategory] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
@@ -586,8 +608,10 @@ const Menu = () => {
         ...doc.data()
       })) as Category[];
       setCategoryList(cats);
+      setCategoriesLoaded(true);
     }, (err) => {
       console.warn("Categories listener error:", err.message);
+      setCategoriesLoaded(true);
     });
     return () => unsubscribe();
   }, []);
@@ -606,22 +630,34 @@ const Menu = () => {
       const sortedItems = menuItems.sort((a, b) => (a.order || 0) - (b.order || 0));
 
       setItems(sortedItems);
-      if (sortedItems.length > 0 && !activeCategory) {
-        const availableCats = categoryList.length > 0
-          ? categoryList.filter(c => c.name !== "More Add Ons")
-          : [];
-
-        const firstCat = availableCats.length > 0
-          ? availableCats.find(c => sortedItems.some(i => i.category === c.name))?.name || sortedItems.find(i => i.category !== "More Add Ons")?.category || sortedItems[0].category
-          : sortedItems.find(i => i.category !== "More Add Ons")?.category || sortedItems[0].category;
-
-        setActiveCategory(firstCat);
-      }
+      setItemsLoaded(true);
     }, (err) => {
       console.warn("Menu listener error:", err.message);
+      setItemsLoaded(true);
     });
     return () => unsubscribe();
-  }, [categoryList]);
+  }, []);
+
+  // Pick the default category once BOTH categories and items have loaded, using
+  // the dashboard's display order (categoryList, sorted by its own "order"
+  // field) rather than menu-item order. Previously this ran inside the menu
+  // items listener keyed off whichever of the two Firestore listeners happened
+  // to resolve first; when items arrived before categories, it fell back to
+  // picking whatever category the first item (by item order) belonged to -
+  // which is how the homepage ended up defaulting to Soups instead of
+  // Breakfast even though Breakfast is #1 in the dashboard's category order.
+  useEffect(() => {
+    if (userSelectedCategory || activeCategory) return;
+    if (!categoriesLoaded || !itemsLoaded || items.length === 0) return;
+
+    const availableCats = categoryList.filter(c => c.name !== "More Add Ons");
+    const firstByDashboardOrder = availableCats.find(c => items.some(i => i.category === c.name))?.name;
+    const firstByFallbackOrder = Array.from(new Set(items.map(i => i.category)))
+      .filter(c => c !== "More Add Ons")
+      .sort()[0];
+
+    setActiveCategory(firstByDashboardOrder || firstByFallbackOrder || items[0].category);
+  }, [categoriesLoaded, itemsLoaded, categoryList, items, userSelectedCategory, activeCategory]);
 
   const categories = useMemo(() => {
     let cats: string[] = [];
@@ -756,7 +792,8 @@ const Menu = () => {
               return (
                 <button
                   key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => { setUserSelectedCategory(true); setActiveCategory(cat); }}
+                  aria-pressed={isActive}
                   style={{
                     padding: '14px 20px',
                     background: 'transparent',
@@ -858,7 +895,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
-              src={`https://www.google.com/maps?q=${encodeURIComponent(companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150")}&output=embed`}
+              src={`https://www.google.com/maps?q=${encodeURIComponent(companyProfile?.address || DEFAULT_COMPANY_PROFILE.address)}&output=embed`}
             />
           )}
         </motion.div>
@@ -885,8 +922,8 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             {[
-              { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150" },
-              { icon: <Phone size={20} />, label: 'Phone', value: companyProfile?.phone || "+6664 620 9225" },
+              { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || DEFAULT_COMPANY_PROFILE.address },
+              { icon: <Phone size={20} />, label: 'Phone', value: formatPhoneDisplay(companyProfile?.phone) },
             ].map((item, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                 <div style={{ background: 'var(--ink-700)', borderRadius: 'var(--radius-md)', padding: 10, color: 'var(--gold-500)', flexShrink: 0, border: `1px solid var(--border)` }}>
@@ -907,30 +944,58 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               <div>
                 <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Hours</div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-100)' }}>
-                  <p>Open Daily · 9:30 AM – 12:00 AM</p>
+                  <p>{formatOpeningHoursSummary(companyProfile?.openingHours)}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Social */}
+          {/* Social — only shown when the field is actually set in Company Profile */}
           <div style={{ display: 'flex', gap: 12, marginTop: 36 }}>
-            <a
-              href={companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
-            >
-              <Facebook size={20} />
-            </a>
-            <a
-              href={companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
-            >
-              <Instagram size={20} />
-            </a>
+            {companyProfile?.socialLinks?.facebook !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.facebook || DEFAULT_COMPANY_PROFILE.socialLinks.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <Facebook size={20} />
+              </a>
+            )}
+            {companyProfile?.socialLinks?.instagram !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.instagram || DEFAULT_COMPANY_PROFILE.socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <Instagram size={20} />
+              </a>
+            )}
+            {companyProfile?.socialLinks?.tripAdvisor && (
+              <a
+                href={companyProfile.socialLinks.tripAdvisor}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="TripAdvisor"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <Globe size={20} />
+              </a>
+            )}
+            {companyProfile?.lineId && (
+              <a
+                href={`https://line.me/ti/p/~${companyProfile.lineId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LINE"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <MessageCircle size={20} />
+              </a>
+            )}
           </div>
         </motion.div>
       </div>
@@ -942,6 +1007,21 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Same cross-page anchor logic as the header nav: if we're already on the
+  // homepage, scroll straight to the section; otherwise navigate to "/#id" and
+  // let the Navbar's hash-scroll effect (which is always mounted) handle it
+  // once the homepage has rendered.
+  const handleFooterLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    if (location.pathname !== '/') {
+      navigate('/#' + id);
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -998,25 +1078,42 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
         <div>
           <img src="/assets/logo/hemingways-logo-white.png" height={40} alt="Hemingways Jomtien" style={{ height: 40, width: 'auto', marginBottom: 16 }} />
           <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24, maxWidth: 260 }}>
-            {companyProfile?.description || "Jomtien's biggest expat sports bar and restaurant. Quality food, cold beer, and all your favourite sports on 15 screens."}
+            {companyProfile?.description || DEFAULT_COMPANY_PROFILE.description}
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
-            <a
-              href={companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
-            >
-              <Facebook size={18} />
-            </a>
-            <a
-              href={companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
-            >
-              <Instagram size={18} />
-            </a>
+            {companyProfile?.socialLinks?.facebook !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.facebook || DEFAULT_COMPANY_PROFILE.socialLinks.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+              >
+                <Facebook size={18} />
+              </a>
+            )}
+            {companyProfile?.socialLinks?.instagram !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.instagram || DEFAULT_COMPANY_PROFILE.socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+              >
+                <Instagram size={18} />
+              </a>
+            )}
+            {companyProfile?.lineId && (
+              <a
+                href={`https://line.me/ti/p/~${companyProfile.lineId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LINE"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+              >
+                <MessageCircle size={18} />
+              </a>
+            )}
           </div>
         </div>
 
@@ -1029,18 +1126,18 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <MapPin size={15} style={{ color: 'var(--gold-500)', flexShrink: 0, marginTop: 2 }} />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                {companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}
+                {companyProfile?.address || DEFAULT_COMPANY_PROFILE.address}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Phone size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
-                {companyProfile?.phone || "+6664 620 9225"}
+                {formatPhoneDisplay(companyProfile?.phone)}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Clock size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open Daily · 9:30 AM – 12:00 AM</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>{formatOpeningHoursSummary(companyProfile?.openingHours)}</span>
             </div>
           </div>
 
@@ -1050,20 +1147,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { label: 'Home', id: null },
+                { label: 'Home', id: 'top' },
                 { label: 'Food Menu', id: 'menu' },
-                { label: 'Sports Schedule', id: 'sports' },
                 { label: 'Daily Specials', id: 'specials' },
                 { label: 'Location', id: 'location' },
               ].map((link) => (
                 <a
                   key={link.label}
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (link.id) document.getElementById(link.id)?.scrollIntoView({ behavior: 'smooth' });
-                    else window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
+                  href={`/#${link.id}`}
+                  onClick={(e) => handleFooterLinkClick(e, link.id)}
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
                   onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -1071,6 +1163,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
                   {link.label}
                 </a>
               ))}
+              <Link
+                to="/sports"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Sports Schedule
+              </Link>
               <Link
                 to="/menu"
                 style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
@@ -1116,12 +1217,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             Get in Touch
           </div>
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
-            Reservations, group bookings, or just a quick question — drop us a message.
+            Looking to book a table? Use our{' '}
+            <Link to="/reserve" onClick={() => window.scrollTo(0, 0)} style={{ color: 'var(--gold-400)' }}>reservation form</Link>.
+            {' '}For anything else — group bookings, events or a quick question — drop us a message.
           </p>
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Name</label>
+              <label htmlFor="footer-contact-name" style={labelStyle}>Name</label>
               <input
+                id="footer-contact-name"
                 className="hw-input"
                 type="text"
                 placeholder="Your name"
@@ -1131,8 +1235,9 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               />
             </div>
             <div>
-              <label style={labelStyle}>Email</label>
+              <label htmlFor="footer-contact-email" style={labelStyle}>Email</label>
               <input
+                id="footer-contact-email"
                 className="hw-input"
                 type="email"
                 placeholder="your@email.com"
@@ -1142,8 +1247,9 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               />
             </div>
             <div>
-              <label style={labelStyle}>Message</label>
+              <label htmlFor="footer-contact-message" style={labelStyle}>Message</label>
               <textarea
+                id="footer-contact-message"
                 className="hw-input"
                 placeholder="Your message..."
                 rows={3}
@@ -1174,18 +1280,68 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
   );
 };
 
+// Thailand-local "today" as YYYY-MM-DD, so fixture grouping matches the venue's clock
+// rather than the visitor's browser timezone.
+const bangkokToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+
+const formatFixtureDate = (iso: string) => {
+  const dt = new Date(`${iso}T00:00:00`);
+  if (isNaN(dt.getTime())) return iso;
+  return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+};
+
+const FixtureRow = ({ event, idx }: { event: SportsEvent; idx: number }) => (
+  <motion.div
+    initial={{ opacity: 0, x: -20 }}
+    whileInView={{ opacity: 1, x: 0 }}
+    transition={{ delay: idx * 0.05 }}
+    viewport={{ once: true }}
+    className="hw-card"
+    style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}
+  >
+    {/* Date / Time */}
+    <div style={{ minWidth: 96, textAlign: 'center', flexShrink: 0 }}>
+      <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, color: 'var(--gold-400)' }}>{event.time}</div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
+        {formatFixtureDate(event.date)} · Thailand time
+      </div>
+    </div>
+
+    <div style={{ width: 1, height: 36, background: 'var(--border)', flexShrink: 0 }} className="hidden md:block" />
+
+    {/* Fixture info */}
+    <div style={{ flex: 1, minWidth: 180 }}>
+      <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {event.participants}
+      </div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+        {event.sport}{event.competition ? ` · ${event.competition}` : ''}
+      </div>
+    </div>
+
+    {/* Live badge only for today's fixtures */}
+    {event.date === bangkokToday() && (
+      <span className="hw-badge hw-badge-live" style={{ flexShrink: 0 }}>
+        <span
+          className="hw-pulse"
+          style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cream-50)', display: 'inline-block', flexShrink: 0 }}
+        />
+        TODAY
+      </span>
+    )}
+  </motion.div>
+);
+
+// Homepage teaser: today's fixtures if there are any, otherwise the next few upcoming.
+// Always links through to the full /sports schedule.
 const SportsSchedule = () => {
   const [events, setEvents] = useState<SportsEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "sports_schedule"), orderBy("order", "asc"));
+    const q = query(collection(db, "sports_schedule"), orderBy("date", "asc"), orderBy("order", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const sportsEvents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SportsEvent[];
-      setEvents(sportsEvents);
+      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[]);
       setLoading(false);
     }, (err) => {
       console.warn("Sports schedule listener error:", err.message);
@@ -1196,6 +1352,12 @@ const SportsSchedule = () => {
 
   if (loading) return null;
   if (events.length === 0) return null;
+
+  const today = bangkokToday();
+  const todayEvents = events.filter(e => e.date === today);
+  const upcoming = events.filter(e => e.date > today).slice(0, 4);
+  const shown = todayEvents.length > 0 ? todayEvents : upcoming;
+  if (shown.length === 0) return null;
 
   return (
     <section id="sports" style={{ background: 'var(--ink-900)', padding: '80px 24px', overflow: 'hidden' }}>
@@ -1212,7 +1374,7 @@ const SportsSchedule = () => {
             }}
           >
             LIVE SPORT{' '}
-            <span style={{ color: 'var(--gold-500)' }}>TODAY</span>
+            <span style={{ color: 'var(--gold-500)' }}>{todayEvents.length > 0 ? 'TODAY' : 'THIS WEEK'}</span>
           </h2>
           <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: 'var(--text-muted)', marginTop: 12 }}>
             Catch all the action on our 15 big screens.
@@ -1220,46 +1382,155 @@ const SportsSchedule = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860, margin: '0 auto' }}>
-          {events.map((event, idx) => (
-            <motion.div
-              key={event.id || idx}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              viewport={{ once: true }}
-              className="hw-card"
-              style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}
-            >
-              {/* Time */}
-              <div style={{ minWidth: 80, textAlign: 'center', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, color: 'var(--gold-400)' }}>{event.time}</div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{event.date}</div>
-              </div>
+          {shown.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
+        </div>
 
-              <div style={{ width: 1, height: 36, background: 'var(--border)', flexShrink: 0 }} className="hidden md:block" />
-
-              {/* Event info */}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{event.event}</div>
-                {event.comp && (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{event.comp}</div>
-                )}
-              </div>
-
-              {/* Live badge */}
-              <span className="hw-badge hw-badge-live" style={{ flexShrink: 0 }}>
-                <span
-                  className="hw-pulse"
-                  style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cream-50)', display: 'inline-block', flexShrink: 0 }}
-                />
-                LIVE
-              </span>
-            </motion.div>
-          ))}
+        <div style={{ textAlign: 'center', marginTop: 36 }}>
+          <Link to="/sports" onClick={() => window.scrollTo(0, 0)} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px' }}>
+            View Full Schedule
+          </Link>
         </div>
       </div>
     </section>
   );
+};
+
+// Standalone /sports page: today's fixtures first, then upcoming, in readable text
+// (not image-only), plus a way to reach us if a match isn't listed.
+const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
+  const [events, setEvents] = useState<SportsEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = 'Sports Schedule | Hemingways Jomtien';
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "sports_schedule"), orderBy("date", "asc"), orderBy("order", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[]);
+      setLoading(false);
+    }, (err) => {
+      console.warn("Sports schedule listener error:", err.message);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const today = bangkokToday();
+  const todayEvents = events.filter(e => e.date === today);
+  const upcoming = events.filter(e => e.date > today);
+
+  const phone = formatPhoneDisplay(companyProfile?.phone);
+  const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--ink-850)' }}>
+      {/* Header, with the promotional poster image retained as a secondary visual */}
+      <section style={{ position: 'relative', background: 'var(--ink-900)', padding: '140px 24px 0', overflow: 'hidden' }}>
+        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
+          <div style={{ marginBottom: 12 }}>
+            <span className="hw-badge hw-badge-gold">15 Big Screens</span>
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(34px, 5vw, 58px)', color: 'var(--cream-50)', textTransform: 'uppercase', margin: '0 0 14px' }}>
+            Sports Schedule
+          </h1>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-muted)', maxWidth: 620, margin: '0 auto 40px', lineHeight: 1.7 }}>
+            Every fixture below, with kickoff times in Thailand time. Can't make it in? Ask us to put your match on.
+          </p>
+        </div>
+        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', position: 'relative', borderRadius: 'var(--radius-md) var(--radius-md) 0 0', overflow: 'hidden', height: 220, background: 'var(--ink-800)' }}>
+          <FirebaseImage
+            src="/assets/sport-action.jpg"
+            alt="Live sport on the big screens at Hemingways Jomtien"
+            className="w-full h-full"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            priority
+          />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(12,12,12,0) 0%, var(--ink-850) 100%)' }} />
+        </div>
+      </section>
+
+      <section style={{ padding: '56px 24px 80px' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          {loading ? (
+            <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>Loading schedule...</p>
+          ) : events.length === 0 ? (
+            <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>No fixtures posted yet — check back soon, or ask us about your match below.</p>
+          ) : (
+            <>
+              {todayEvents.length > 0 && (
+                <div style={{ marginBottom: 44 }}>
+                  <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
+                    Today
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {todayEvents.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
+                  </div>
+                </div>
+              )}
+
+              {upcoming.length > 0 && (
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
+                    Upcoming Fixtures
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {upcoming.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
+                  </div>
+                </div>
+              )}
+
+              {todayEvents.length === 0 && upcoming.length === 0 && (
+                <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>No fixtures posted yet — check back soon, or ask us about your match below.</p>
+              )}
+            </>
+          )}
+
+          {/* Contact CTA */}
+          <div className="hw-card" style={{ marginTop: 56, padding: '28px 24px', textAlign: 'center' }}>
+            <h3 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 18, textTransform: 'uppercase', color: 'var(--cream-50)', margin: '0 0 8px' }}>
+              Can't see your match? Contact us.
+            </h3>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', margin: '0 0 20px' }}>
+              Tell us the fixture and we'll do our best to show it on one of our 15 screens.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={`tel:${phone.replace(/\s/g, '')}`} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}>
+                <Phone size={16} /> Call {phone}
+              </a>
+              {whatsappDigits && (
+                <a
+                  href={`https://wa.me/${whatsappDigits}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+                >
+                  <MessageCircle size={16} /> WhatsApp
+                </a>
+              )}
+              <Link
+                to="/reserve"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                Reserve a Table
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+// Today's day name in Bangkok timezone (UTC+7), matching the same calculation
+// DigitalMenuDisplay.tsx already uses for its day-based specials filtering.
+const bangkokDayName = () => {
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const bangkokMs = Date.now() + (7 * 60 * 60 * 1000);
+  return DAYS[new Date(bangkokMs).getUTCDay()];
 };
 
 const Specials = () => {
@@ -1283,7 +1554,20 @@ const Specials = () => {
   }, []);
 
   if (loading) return null;
-  if (specials.length === 0) return null;
+
+  // Same day-based scheduling logic as the digital menu (DigitalMenuDisplay.tsx):
+  // a special shows if it's scheduled for today, or set to Daily/Every Day, or
+  // Weekend and today is Sat/Sun. The homepage previously showed every special
+  // regardless of its configured day, ignoring this scheduling entirely.
+  const todayDayName = bangkokDayName();
+  const todaysSpecials = specials.filter(s =>
+    s.day === todayDayName ||
+    s.day === 'Daily' ||
+    s.day === 'Every Day' ||
+    (s.day === 'Weekend' && ['Saturday', 'Sunday'].includes(todayDayName))
+  );
+
+  if (todaysSpecials.length === 0) return null;
 
   return (
     <section id="specials" style={{ background: 'var(--ink-850)', padding: '80px 24px', overflow: 'hidden' }}>
@@ -1310,7 +1594,7 @@ const Specials = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {specials.map((special, idx) => (
+          {todaysSpecials.map((special, idx) => (
             <motion.div
               key={special.id || idx}
               initial={{ opacity: 0, y: 20 }}
@@ -1321,12 +1605,12 @@ const Specials = () => {
               style={{ display: 'flex', flexDirection: 'column' }}
             >
               {/* Image */}
-              <div style={{ position: 'relative', height: 220, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', height: 220, overflow: 'hidden', background: 'var(--ink-800)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <FirebaseImage
                   src={normalizeImageUrl(special.image || "/logo.png")}
                   alt={special.name}
-                  className="w-full h-full object-cover"
-                  style={{ transition: 'transform 0.5s ease' }}
+                  className="w-full h-full"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', transition: 'transform 0.5s ease' }}
                 />
                 {/* Price stamp */}
                 {special.price && (
@@ -1485,9 +1769,10 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const phone = companyProfile?.phone || "+6664 620 9225";
-  const email = companyProfile?.email || "info@hemingwaysjomtien.com";
-  const address = companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150";
+  const phone = formatPhoneDisplay(companyProfile?.phone);
+  const email = companyProfile?.email || DEFAULT_COMPANY_PROFILE.email;
+  const address = companyProfile?.address || DEFAULT_COMPANY_PROFILE.address;
+  const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -1545,9 +1830,10 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
   const socials = [
-    { icon: <Facebook size={20} />, href: companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien", label: 'Facebook' },
-    { icon: <Instagram size={20} />, href: companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien", label: 'Instagram' },
+    ...(companyProfile?.socialLinks?.facebook !== '' ? [{ icon: <Facebook size={20} />, href: companyProfile?.socialLinks?.facebook || DEFAULT_COMPANY_PROFILE.socialLinks.facebook, label: 'Facebook' }] : []),
+    ...(companyProfile?.socialLinks?.instagram !== '' ? [{ icon: <Instagram size={20} />, href: companyProfile?.socialLinks?.instagram || DEFAULT_COMPANY_PROFILE.socialLinks.instagram, label: 'Instagram' }] : []),
     ...(companyProfile?.socialLinks?.tripAdvisor ? [{ icon: <Globe size={20} />, href: companyProfile.socialLinks.tripAdvisor, label: 'TripAdvisor' }] : []),
+    ...(companyProfile?.lineId ? [{ icon: <MessageCircle size={20} />, href: `https://line.me/ti/p/~${companyProfile.lineId}`, label: 'LINE' }] : []),
   ];
 
   return (
@@ -1562,15 +1848,33 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
             Contact Us
           </h1>
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-muted)', maxWidth: 620, margin: '0 auto', lineHeight: 1.7 }}>
-            Reservations, group bookings, private events or just a quick question — call us, message us, or drop in. We're on Jomtien Sai 2, and we're open every day.
+            Group bookings, private events or just a quick question — call us, message us, or drop in. Looking to book a table? Head to our reservation form instead. We're on Jomtien Sai 2, and we're open every day.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28 }}>
             <a href={`tel:${phone.replace(/\s/g, '')}`} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}>
               <Phone size={16} /> Call {phone}
             </a>
+            {whatsappDigits && (
+              <a
+                href={`https://wa.me/${whatsappDigits}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                <MessageCircle size={16} /> WhatsApp
+              </a>
+            )}
             <a href={directionsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               <MapPin size={16} /> Get Directions
             </a>
+            <Link
+              to="/reserve"
+              onClick={() => window.scrollTo(0, 0)}
+              className="hw-btn-outline"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}
+            >
+              Reserve a Table
+            </Link>
           </div>
         </div>
       </section>
@@ -1623,14 +1927,35 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
               <div style={{ ...cardTitle, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Clock size={15} /> Opening Hours
               </div>
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-50)', margin: 0 }}>Open Daily · 9:30 AM – 12:00 AM</p>
+              {(() => {
+                const hours = companyProfile?.openingHours || DEFAULT_COMPANY_PROFILE.openingHours;
+                const days: { key: keyof CompanyProfile['openingHours']; label: string }[] = [
+                  { key: 'monday', label: 'Monday' }, { key: 'tuesday', label: 'Tuesday' }, { key: 'wednesday', label: 'Wednesday' },
+                  { key: 'thursday', label: 'Thursday' }, { key: 'friday', label: 'Friday' }, { key: 'saturday', label: 'Saturday' }, { key: 'sunday', label: 'Sunday' },
+                ];
+                const values = days.map(d => (hours[d.key] || '').trim());
+                const allSame = values[0] && values.every(v => v === values[0]);
+                if (allSame) {
+                  return <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-50)', margin: 0 }}>Open Daily · {values[0]}</p>;
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {days.map(d => (
+                      <div key={d.key} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--cream-100)' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>{d.label}</span>
+                        <span>{hours[d.key] || 'Closed'}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Getting here */}
             <div className="hw-card" style={{ padding: '28px 24px' }}>
               <div style={cardTitle}>Getting Here</div>
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 16 }}>
-                We're on Jomtien Sai 2 Road, a few minutes from Jomtien Beach and around 15 minutes from central Pattaya. Parking is available, and any taxi or Bolt driver will know the road — just say "Hemingways, Jomtien Sai Song".
+                We're a few minutes from Jomtien Beach and around 15 minutes from central Pattaya — see the address above. Parking is available, and any taxi or Bolt driver will know Hemingways.
               </p>
               <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <MapPin size={16} /> Open in Google Maps
@@ -1644,8 +1969,9 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
               <div style={cardTitle}>Send Us a Message</div>
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label style={labelStyle}>Name</label>
+                  <label htmlFor="contact-us-name" style={labelStyle}>Name</label>
                   <input
+                    id="contact-us-name"
                     className="hw-input"
                     type="text"
                     placeholder="Your name"
@@ -1655,8 +1981,9 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Email</label>
+                  <label htmlFor="contact-us-email" style={labelStyle}>Email</label>
                   <input
+                    id="contact-us-email"
                     className="hw-input"
                     type="email"
                     placeholder="your@email.com"
@@ -1666,10 +1993,11 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Message</label>
+                  <label htmlFor="contact-us-message" style={labelStyle}>Message</label>
                   <textarea
+                    id="contact-us-message"
                     className="hw-input"
-                    placeholder="Table for 4 on Sunday, a group booking, an event enquiry..."
+                    placeholder="A group booking, private event enquiry, or any other question..."
                     rows={5}
                     value={formState.message}
                     onChange={(e) => setFormState({ ...formState, message: e.target.value })}
@@ -1879,13 +2207,14 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
         {/* Dashboard Routes with Sidebar Layout */}
         <Route path="/dashboard" element={isMarketing ? <DashboardLayout user={user} /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. <Auth onUserChange={setUser} /></div>}>
-          <Route index element={isMarketing ? <Dashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route index element={isMarketing ? <Dashboard isSuperAdmin={isSuperAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="categories" element={isMarketing ? <CategoriesDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="finance" element={isManager ? <FinanceDashboard user={user} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="finance/import" element={isManager ? <BulkFinanceImport /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="users" element={isManager ? <UserManagement isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="loyalty" element={isManager ? <LoyaltyDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="specials" element={isMarketing ? <SpecialsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="sports" element={isMarketing ? <SportsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="drinks" element={isMarketing ? <DrinksDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="images" element={isMarketing ? <ImageManagement /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="blog" element={isMarketing ? <BlogDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
@@ -1896,6 +2225,8 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
         <Route path="/import" element={isMarketing ? <BulkImport /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
         <Route path="/contact-us" element={<ContactUs companyProfile={companyProfile} />} />
+        <Route path="/sports" element={<SportsSchedulePage companyProfile={companyProfile} />} />
+        <Route path="/reserve" element={<ReservationPage companyProfile={companyProfile} />} />
         <Route path="/blog" element={<BlogList />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/careers" element={<CareersList />} />

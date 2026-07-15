@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
@@ -12,6 +12,16 @@ interface ImageModalProps {
 }
 
 export const ImageModal: React.FC<ImageModalProps> = ({ isOpen, onClose, src, alt }) => {
+  // Keyboard access: Escape closes the modal, matching the click-outside behavior.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (typeof document === 'undefined') return null;
 
   return createPortal(
@@ -31,6 +41,9 @@ export const ImageModal: React.FC<ImageModalProps> = ({ isOpen, onClose, src, al
             exit={{ scale: 0.85, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative max-w-5xl w-full max-h-[90vh] bg-black/20 rounded-[32px] overflow-hidden shadow-2xl z-[10000] flex items-center justify-center"
+            role="dialog"
+            aria-modal="true"
+            aria-label={alt || 'Enlarged image'}
           >
             <button
               onClick={onClose}

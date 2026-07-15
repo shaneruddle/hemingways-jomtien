@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { CompanyProfile } from '../types';
+import { DEFAULT_COMPANY_PROFILE } from '../utils/companyDefaults';
 import { toast } from 'sonner';
-import { 
-  Building2, 
-  MapPin, 
-  Phone, 
-  MessageSquare, 
-  Mail, 
-  Clock, 
-  Globe, 
-  Save, 
+import {
+  Building2,
+  MapPin,
+  Phone,
+  MessageSquare,
+  Mail,
+  Clock,
+  Globe,
+  Save,
   ExternalLink,
   Facebook,
   Instagram,
@@ -19,30 +20,12 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
+// Uses the same fallback data shown on the public site before a profile
+// exists in Firestore, so the very first record ever saved already matches
+// what visitors are seeing (see src/utils/companyDefaults.ts).
 const INITIAL_PROFILE: CompanyProfile = {
-  name: "Hemingways Jomtien",
-  address: "414, 21 Thappraya Rd, Pattaya City, Bang Lamung District, Chon Buri 20150",
-  description: "Jomtien's Biggest Expat Sports Bar & Restaurant. Live Sports On Demand in a comfortable air conditioned venue with quality food and first class service.",
-  phone: "+6664 620 9225",
-  whatsapp: "+6664 620 9225",
-  lineId: "",
-  email: "info@hemingwaysjomtien.com",
-  googlePlaceId: "ChIJ5_lFroqWAjER6HN3niniP9o",
-  mapEmbedUrl: "",
-  openingHours: {
-    monday: "9:30 AM - 12:00 AM",
-    tuesday: "9:30 AM - 12:00 AM",
-    wednesday: "9:30 AM - 12:00 AM",
-    thursday: "9:30 AM - 12:00 AM",
-    friday: "9:30 AM - 12:00 AM",
-    saturday: "9:30 AM - 12:00 AM",
-    sunday: "9:30 AM - 12:00 AM",
-  },
-  socialLinks: {
-    facebook: "https://www.facebook.com/HemingwaysJomtien",
-    instagram: "",
-    tripAdvisor: "",
-  },
+  ...DEFAULT_COMPANY_PROFILE,
+  whatsapp: DEFAULT_COMPANY_PROFILE.phone,
   updatedAt: new Date().toISOString(),
 };
 

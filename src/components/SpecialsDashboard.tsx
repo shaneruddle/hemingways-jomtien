@@ -198,11 +198,11 @@ function ImageUploader({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {value && (
-        <div style={{ position: 'relative', width: '100%', height: 160, borderRadius: '2px', overflow: 'hidden', background: '#ffffff', border: '1px solid #e5e7eb' }}>
+        <div style={{ position: 'relative', width: '100%', height: 160, borderRadius: '2px', overflow: 'hidden', background: '#ffffff', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <FirebaseImage
             src={normalizeImageUrl(value)}
             alt="Special"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
           <button
             onClick={() => onChange('')}
@@ -464,12 +464,12 @@ export default function SpecialsDashboard() {
                 onMouseLeave={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
               >
                 {/* Image */}
-                <div style={{ position: 'relative', height: 180, background: '#f3f4f6', overflow: 'hidden' }}>
+                <div style={{ position: 'relative', height: 180, background: '#f3f4f6', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {special.image ? (
                     <FirebaseImage
                       src={normalizeImageUrl(special.image)}
                       alt={special.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
