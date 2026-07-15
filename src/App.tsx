@@ -72,6 +72,7 @@ import LoyaltyDashboard from "./components/LoyaltyDashboard";
 import CompanyProfileDashboard from "./components/CompanyProfileDashboard";
 import SpecialsDashboard from "./components/SpecialsDashboard";
 import SportsDashboard from "./components/SportsDashboard";
+import { ReservationPage } from "./components/Reservation";
 import DrinksDashboard from "./components/DrinksDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
@@ -212,14 +213,14 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
                 <Phone size={14} />
                 {companyProfile?.phone || '+6664 620 9225'}
               </a>
-              <a
-                href="#contact"
-                onClick={(e) => handleNavClick(e, 'contact')}
+              <Link
+                to="/reserve"
+                onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}
                 className="hw-btn-warm"
                 style={{ padding: '10px 20px', fontSize: 13 }}
               >
                 Reserve
-              </a>
+              </Link>
               {canAccessDashboard && (
                 <Link
                   to="/dashboard"
@@ -276,14 +277,14 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
                     </a>
                   ))}
                   <div style={{ borderTop: `1px solid var(--border)`, paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <a
-                      href="#contact"
-                      onClick={(e) => handleNavClick(e, 'contact')}
+                    <Link
+                      to="/reserve"
+                      onClick={() => { setIsOpen(false); window.scrollTo(0, 0); }}
                       className="hw-btn-warm"
                       style={{ textAlign: 'center' }}
                     >
                       Reserve a Table
-                    </a>
+                    </Link>
                     {canAccessDashboard && (
                       <Link
                         to="/dashboard"
@@ -397,13 +398,13 @@ const Hero = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => 
 
           {/* CTAs */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-            <a
-              href="#contact"
-              onClick={(e) => { e.preventDefault(); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }}
+            <Link
+              to="/reserve"
+              onClick={() => window.scrollTo(0, 0)}
               className="hw-btn-warm"
             >
               Reserve a Table
-            </a>
+            </Link>
             <a
               href="#menu"
               onClick={(e) => { e.preventDefault(); document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }); }}
@@ -1125,7 +1126,9 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             Get in Touch
           </div>
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
-            Reservations, group bookings, or just a quick question — drop us a message.
+            Looking to book a table? Use our{' '}
+            <Link to="/reserve" onClick={() => window.scrollTo(0, 0)} style={{ color: 'var(--gold-400)' }}>reservation form</Link>.
+            {' '}For anything else — group bookings, events or a quick question — drop us a message.
           </p>
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
@@ -1415,7 +1418,7 @@ const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile
                 </a>
               )}
               <Link
-                to="/contact-us"
+                to="/reserve"
                 onClick={() => window.scrollTo(0, 0)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
               >
@@ -1655,6 +1658,7 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
   const phone = companyProfile?.phone || "+6664 620 9225";
   const email = companyProfile?.email || "info@hemingwaysjomtien.com";
   const address = companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150";
+  const whatsappDigits = (companyProfile?.whatsapp || '').replace(/[^\d]/g, '');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -1729,15 +1733,33 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
             Contact Us
           </h1>
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-muted)', maxWidth: 620, margin: '0 auto', lineHeight: 1.7 }}>
-            Reservations, group bookings, private events or just a quick question — call us, message us, or drop in. We're on Jomtien Sai 2, and we're open every day.
+            Group bookings, private events or just a quick question — call us, message us, or drop in. Looking to book a table? Head to our reservation form instead. We're on Jomtien Sai 2, and we're open every day.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28 }}>
             <a href={`tel:${phone.replace(/\s/g, '')}`} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}>
               <Phone size={16} /> Call {phone}
             </a>
+            {whatsappDigits && (
+              <a
+                href={`https://wa.me/${whatsappDigits}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                <MessageCircle size={16} /> WhatsApp
+              </a>
+            )}
             <a href={directionsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               <MapPin size={16} /> Get Directions
             </a>
+            <Link
+              to="/reserve"
+              onClick={() => window.scrollTo(0, 0)}
+              className="hw-btn-outline"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}
+            >
+              Reserve a Table
+            </Link>
           </div>
         </div>
       </section>
@@ -1836,7 +1858,7 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
                   <label style={labelStyle}>Message</label>
                   <textarea
                     className="hw-input"
-                    placeholder="Table for 4 on Sunday, a group booking, an event enquiry..."
+                    placeholder="A group booking, private event enquiry, or any other question..."
                     rows={5}
                     value={formState.message}
                     onChange={(e) => setFormState({ ...formState, message: e.target.value })}
@@ -2065,6 +2087,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
         <Route path="/import" element={isMarketing ? <BulkImport /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
         <Route path="/contact-us" element={<ContactUs companyProfile={companyProfile} />} />
         <Route path="/sports" element={<SportsSchedulePage companyProfile={companyProfile} />} />
+        <Route path="/reserve" element={<ReservationPage companyProfile={companyProfile} />} />
         <Route path="/blog" element={<BlogList />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/careers" element={<CareersList />} />

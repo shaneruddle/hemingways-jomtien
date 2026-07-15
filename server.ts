@@ -567,12 +567,19 @@ Rules: look for total/grand total for amount. Return ALL line items. Return ONLY
   }
 });
 app.post("/api/contact", async (req, res) => {
-    const { name, email, message } = req.body;
-    console.log("New Contact Form Submission:");
+    const { name, email, message, type, phone, date, time, guests } = req.body;
+    const isReservation = type === 'reservation';
+
+    console.log(isReservation ? "New Reservation Request:" : "New Contact Form Submission:");
     console.log(`Name: ${name}`);
-    console.log(`Email: ${email}`);
-    console.log(`Message: ${message}`);
-    
+    if (isReservation) {
+      console.log(`Phone/WhatsApp: ${phone}`);
+      console.log(`Date: ${date}  Time: ${time}  Guests: ${guests}`);
+    } else {
+      console.log(`Email: ${email}`);
+    }
+    console.log(`Message: ${message || ''}`);
+
     // SMTP Configuration from environment variables
     const smtpConfig = {
       host: process.env.SMTP_HOST,
@@ -587,28 +594,49 @@ app.post("/api/contact", async (req, res) => {
     // Check if SMTP is configured
     if (!smtpConfig.host || !smtpConfig.auth.user || !smtpConfig.auth.pass) {
       console.warn("SMTP is not fully configured. Logging message to console instead of sending email.");
-      return res.json({ 
-        success: true, 
-        message: "Message received (SMTP not configured, logged to console)" 
+      return res.json({
+        success: true,
+        message: "Message received (SMTP not configured, logged to console)"
       });
     }
 
     try {
       const transporter = nodemailer.createTransport(smtpConfig);
 
-      const mailOptions = {
-        from: `"${name}" <${smtpConfig.auth.user}>`, // Use the authenticated user as sender
-        to: "info@hemingwaysjomtien.com",
-        replyTo: email,
-        subject: `New Contact Form Submission from ${name}`,
-        text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
-        html: `
+      const subject = isReservation
+        ? `New Reservation Request from ${name} (${date} ${time}, ${guests} guests)`
+        : `New Contact Form Submission from ${name}`;
+
+      const text = isReservation
+        ? `Name: ${name}\nPhone/WhatsApp: ${phone}\nDate: ${date}\nTime: ${time}\nGuests: ${guests}\n\nSpecial Requests:\n${message || '(none)'}`
+        : `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
+
+      const html = isReservation
+        ? `
+          <h3>New Reservation Request</h3>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Phone/WhatsApp:</strong> ${phone}</p>
+          <p><strong>Date:</strong> ${date}</p>
+          <p><strong>Time:</strong> ${time}</p>
+          <p><strong>Guests:</strong> ${guests}</p>
+          <p><strong>Special Requests:</strong></p>
+          <p>${(message || '(none)').replace(/\n/g, '<br>')}</p>
+        `
+        : `
           <h3>New Contact Form Submission</h3>
           <p><strong>Name:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Message:</strong></p>
           <p>${message.replace(/\n/g, '<br>')}</p>
-        `,
+        `;
+
+      const mailOptions = {
+        from: `"${name}" <${smtpConfig.auth.user}>`, // Use the authenticated user as sender
+        to: "info@hemingwaysjomtien.com",
+        replyTo: email || undefined,
+        subject,
+        text,
+        html,
       };
 
       await transporter.sendMail(mailOptions);
