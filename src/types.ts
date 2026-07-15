@@ -180,9 +180,10 @@ export interface Special {
 
 export interface SportsEvent {
   id?: string;
-  date: string;
-  time: string;
-  event: string;
-  comp: string;
+  date: string; // ISO date, e.g. "2026-07-16"
+  time: string; // Thailand start time, e.g. "20:00"
+  sport: string; // e.g. Football, Rugby, UFC, Cricket
+  competition: string; // e.g. Premier League, Six Nations
+  participants: string; // e.g. "Liverpool vs Arsenal"
   order: number;
 }

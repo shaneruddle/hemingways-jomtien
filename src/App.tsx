@@ -71,6 +71,7 @@ import SystemLogs from "./components/SystemLogs";
 import LoyaltyDashboard from "./components/LoyaltyDashboard";
 import CompanyProfileDashboard from "./components/CompanyProfileDashboard";
 import SpecialsDashboard from "./components/SpecialsDashboard";
+import SportsDashboard from "./components/SportsDashboard";
 import DrinksDashboard from "./components/DrinksDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
@@ -94,7 +95,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Food Menu", href: "menu" },
-    { name: "Sports Schedule", href: "sports" },
+    { name: "Sports Schedule", href: "/sports" },
     { name: "Daily Specials", href: "specials" },
     { name: "Location", href: "location" },
     { name: "Blog", href: "/blog" },
@@ -1052,7 +1053,6 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               {[
                 { label: 'Home', id: null },
                 { label: 'Food Menu', id: 'menu' },
-                { label: 'Sports Schedule', id: 'sports' },
                 { label: 'Daily Specials', id: 'specials' },
                 { label: 'Location', id: 'location' },
               ].map((link) => (
@@ -1071,6 +1071,15 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
                   {link.label}
                 </a>
               ))}
+              <Link
+                to="/sports"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold-400)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                Sports Schedule
+              </Link>
               <Link
                 to="/menu"
                 style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}
@@ -1174,18 +1183,68 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
   );
 };
 
+// Thailand-local "today" as YYYY-MM-DD, so fixture grouping matches the venue's clock
+// rather than the visitor's browser timezone.
+const bangkokToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+
+const formatFixtureDate = (iso: string) => {
+  const dt = new Date(`${iso}T00:00:00`);
+  if (isNaN(dt.getTime())) return iso;
+  return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+};
+
+const FixtureRow = ({ event, idx }: { event: SportsEvent; idx: number }) => (
+  <motion.div
+    initial={{ opacity: 0, x: -20 }}
+    whileInView={{ opacity: 1, x: 0 }}
+    transition={{ delay: idx * 0.05 }}
+    viewport={{ once: true }}
+    className="hw-card"
+    style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}
+  >
+    {/* Date / Time */}
+    <div style={{ minWidth: 96, textAlign: 'center', flexShrink: 0 }}>
+      <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, color: 'var(--gold-400)' }}>{event.time}</div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
+        {formatFixtureDate(event.date)} · Thailand time
+      </div>
+    </div>
+
+    <div style={{ width: 1, height: 36, background: 'var(--border)', flexShrink: 0 }} className="hidden md:block" />
+
+    {/* Fixture info */}
+    <div style={{ flex: 1, minWidth: 180 }}>
+      <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {event.participants}
+      </div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+        {event.sport}{event.competition ? ` · ${event.competition}` : ''}
+      </div>
+    </div>
+
+    {/* Live badge only for today's fixtures */}
+    {event.date === bangkokToday() && (
+      <span className="hw-badge hw-badge-live" style={{ flexShrink: 0 }}>
+        <span
+          className="hw-pulse"
+          style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cream-50)', display: 'inline-block', flexShrink: 0 }}
+        />
+        TODAY
+      </span>
+    )}
+  </motion.div>
+);
+
+// Homepage teaser: today's fixtures if there are any, otherwise the next few upcoming.
+// Always links through to the full /sports schedule.
 const SportsSchedule = () => {
   const [events, setEvents] = useState<SportsEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "sports_schedule"), orderBy("order", "asc"));
+    const q = query(collection(db, "sports_schedule"), orderBy("date", "asc"), orderBy("order", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const sportsEvents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as SportsEvent[];
-      setEvents(sportsEvents);
+      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[]);
       setLoading(false);
     }, (err) => {
       console.warn("Sports schedule listener error:", err.message);
@@ -1196,6 +1255,12 @@ const SportsSchedule = () => {
 
   if (loading) return null;
   if (events.length === 0) return null;
+
+  const today = bangkokToday();
+  const todayEvents = events.filter(e => e.date === today);
+  const upcoming = events.filter(e => e.date > today).slice(0, 4);
+  const shown = todayEvents.length > 0 ? todayEvents : upcoming;
+  if (shown.length === 0) return null;
 
   return (
     <section id="sports" style={{ background: 'var(--ink-900)', padding: '80px 24px', overflow: 'hidden' }}>
@@ -1212,7 +1277,7 @@ const SportsSchedule = () => {
             }}
           >
             LIVE SPORT{' '}
-            <span style={{ color: 'var(--gold-500)' }}>TODAY</span>
+            <span style={{ color: 'var(--gold-500)' }}>{todayEvents.length > 0 ? 'TODAY' : 'THIS WEEK'}</span>
           </h2>
           <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: 'var(--text-muted)', marginTop: 12 }}>
             Catch all the action on our 15 big screens.
@@ -1220,45 +1285,147 @@ const SportsSchedule = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860, margin: '0 auto' }}>
-          {events.map((event, idx) => (
-            <motion.div
-              key={event.id || idx}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              viewport={{ once: true }}
-              className="hw-card"
-              style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}
-            >
-              {/* Time */}
-              <div style={{ minWidth: 80, textAlign: 'center', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, color: 'var(--gold-400)' }}>{event.time}</div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{event.date}</div>
-              </div>
+          {shown.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
+        </div>
 
-              <div style={{ width: 1, height: 36, background: 'var(--border)', flexShrink: 0 }} className="hidden md:block" />
-
-              {/* Event info */}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, color: 'var(--cream-50)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{event.event}</div>
-                {event.comp && (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{event.comp}</div>
-                )}
-              </div>
-
-              {/* Live badge */}
-              <span className="hw-badge hw-badge-live" style={{ flexShrink: 0 }}>
-                <span
-                  className="hw-pulse"
-                  style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cream-50)', display: 'inline-block', flexShrink: 0 }}
-                />
-                LIVE
-              </span>
-            </motion.div>
-          ))}
+        <div style={{ textAlign: 'center', marginTop: 36 }}>
+          <Link to="/sports" onClick={() => window.scrollTo(0, 0)} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px' }}>
+            View Full Schedule
+          </Link>
         </div>
       </div>
     </section>
+  );
+};
+
+// Standalone /sports page: today's fixtures first, then upcoming, in readable text
+// (not image-only), plus a way to reach us if a match isn't listed.
+const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile | null }) => {
+  const [events, setEvents] = useState<SportsEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = 'Sports Schedule | Hemingways Jomtien';
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "sports_schedule"), orderBy("date", "asc"), orderBy("order", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[]);
+      setLoading(false);
+    }, (err) => {
+      console.warn("Sports schedule listener error:", err.message);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const today = bangkokToday();
+  const todayEvents = events.filter(e => e.date === today);
+  const upcoming = events.filter(e => e.date > today);
+
+  const phone = companyProfile?.phone || "+6664 620 9225";
+  const whatsapp = companyProfile?.whatsapp || "";
+  const whatsappDigits = whatsapp.replace(/[^\d]/g, '');
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--ink-850)' }}>
+      {/* Header, with the promotional poster image retained as a secondary visual */}
+      <section style={{ position: 'relative', background: 'var(--ink-900)', padding: '140px 24px 0', overflow: 'hidden' }}>
+        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
+          <div style={{ marginBottom: 12 }}>
+            <span className="hw-badge hw-badge-gold">15 Big Screens</span>
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(34px, 5vw, 58px)', color: 'var(--cream-50)', textTransform: 'uppercase', margin: '0 0 14px' }}>
+            Sports Schedule
+          </h1>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-muted)', maxWidth: 620, margin: '0 auto 40px', lineHeight: 1.7 }}>
+            Every fixture below, with kickoff times in Thailand time. Can't make it in? Ask us to put your match on.
+          </p>
+        </div>
+        <div style={{ maxWidth: 'var(--container)', margin: '0 auto', position: 'relative', borderRadius: 'var(--radius-md) var(--radius-md) 0 0', overflow: 'hidden', height: 220, background: 'var(--ink-800)' }}>
+          <FirebaseImage
+            src="/assets/sport-action.jpg"
+            alt="Live sport on the big screens at Hemingways Jomtien"
+            className="w-full h-full"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            priority
+          />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(12,12,12,0) 0%, var(--ink-850) 100%)' }} />
+        </div>
+      </section>
+
+      <section style={{ padding: '56px 24px 80px' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          {loading ? (
+            <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>Loading schedule...</p>
+          ) : events.length === 0 ? (
+            <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>No fixtures posted yet — check back soon, or ask us about your match below.</p>
+          ) : (
+            <>
+              {todayEvents.length > 0 && (
+                <div style={{ marginBottom: 44 }}>
+                  <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
+                    Today
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {todayEvents.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
+                  </div>
+                </div>
+              )}
+
+              {upcoming.length > 0 && (
+                <div>
+                  <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
+                    Upcoming Fixtures
+                  </h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {upcoming.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
+                  </div>
+                </div>
+              )}
+
+              {todayEvents.length === 0 && upcoming.length === 0 && (
+                <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>No fixtures posted yet — check back soon, or ask us about your match below.</p>
+              )}
+            </>
+          )}
+
+          {/* Contact CTA */}
+          <div className="hw-card" style={{ marginTop: 56, padding: '28px 24px', textAlign: 'center' }}>
+            <h3 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 18, textTransform: 'uppercase', color: 'var(--cream-50)', margin: '0 0 8px' }}>
+              Can't see your match? Contact us.
+            </h3>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', margin: '0 0 20px' }}>
+              Tell us the fixture and we'll do our best to show it on one of our 15 screens.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={`tel:${phone.replace(/\s/g, '')}`} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}>
+                <Phone size={16} /> Call {phone}
+              </a>
+              {whatsappDigits && (
+                <a
+                  href={`https://wa.me/${whatsappDigits}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+                >
+                  <MessageCircle size={16} /> WhatsApp
+                </a>
+              )}
+              <Link
+                to="/contact-us"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                Reserve a Table
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 };
 
@@ -1886,6 +2053,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
           <Route path="users" element={isManager ? <UserManagement isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="loyalty" element={isManager ? <LoyaltyDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="specials" element={isMarketing ? <SpecialsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route path="sports" element={isMarketing ? <SportsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="drinks" element={isMarketing ? <DrinksDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="images" element={isMarketing ? <ImageManagement /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="blog" element={isMarketing ? <BlogDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
@@ -1896,6 +2064,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
         <Route path="/import" element={isMarketing ? <BulkImport /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. Please login as admin. <Auth onUserChange={setUser} /></div>} />
         <Route path="/contact-us" element={<ContactUs companyProfile={companyProfile} />} />
+        <Route path="/sports" element={<SportsSchedulePage companyProfile={companyProfile} />} />
         <Route path="/blog" element={<BlogList />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/careers" element={<CareersList />} />

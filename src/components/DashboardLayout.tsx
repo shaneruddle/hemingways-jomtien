@@ -19,7 +19,8 @@ import {
   Image as ImageIcon,
   FileText,
   Building2,
-  Briefcase
+  Briefcase,
+  Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../firebase';
@@ -381,6 +382,17 @@ export default function DashboardLayout({ user }: { user: any }) {
               to="/dashboard/users"
               isCollapsed={isCollapsed}
               isActive={isActive('/dashboard/users')}
+            />
+          )}
+
+          {/* Sports Schedule */}
+          {canSeeMenu(role) && (
+            <SidebarItem
+              icon={<Trophy size={18} />}
+              label="Sports Schedule"
+              to="/dashboard/sports"
+              isCollapsed={isCollapsed}
+              isActive={isActive('/dashboard/sports')}
             />
           )}
 
