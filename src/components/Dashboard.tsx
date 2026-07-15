@@ -46,7 +46,8 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  Calculator
+  Calculator,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -632,8 +633,10 @@ const GhostBtn: React.FC<{
 };
 
 // ─── Main Dashboard component ─────────────────────────────────────────────────
-export default function Dashboard() {
+export default function Dashboard({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [showClearImagesConfirm, setShowClearImagesConfirm] = useState(false);
+  const [clearImagesConfirmText, setClearImagesConfirmText] = useState('');
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -798,8 +801,16 @@ export default function Dashboard() {
     }
   };
 
-  const clearAllImages = async () => {
-    if (!window.confirm('WARNING: This will remove ALL image references from ALL menu items in the database. This is a "Fresh Start" action. Local files in /public/menu will NOT be affected, but the database will no longer point to them. Continue?')) return;
+  // Number of menu items that actually have at least one image field set —
+  // shown in the confirmation modal so the admin knows exactly what's about
+  // to be wiped, not just the total item count.
+  const itemsWithImages = items.filter(item =>
+    item.image || item.secondaryImage || item.highResImage || item.socialImage ||
+    item.primaryPhotoPath || item.secondaryPhotoPath || (item.promoImages && item.promoImages.length > 0)
+  );
+
+  const confirmClearAllImages = async () => {
+    if (clearImagesConfirmText.trim().toUpperCase() !== 'CLEAR') return;
     setIsClearingImages(true);
     let clearedCount = 0;
     try {
@@ -820,6 +831,7 @@ export default function Dashboard() {
       });
       if (clearedCount > 0) {
         await batch.commit();
+        await logActivity('Cleared All Image References', `Cleared image references for ${clearedCount} menu items`, 'menu');
         setSuccess(`Successfully cleared image references for ${clearedCount} items!`);
         toast.success(`Cleared ${clearedCount} items!`);
         imageService.clearCache();
@@ -830,6 +842,8 @@ export default function Dashboard() {
       toast.error('Failed to clear images');
     } finally {
       setIsClearingImages(false);
+      setShowClearImagesConfirm(false);
+      setClearImagesConfirmText('');
     }
   };
 
@@ -1206,9 +1220,13 @@ export default function Dashboard() {
           <GhostBtn onClick={fixImageBuckets} disabled={isFixingBuckets}>
             {isFixingBuckets ? 'Fixing...' : 'Fix Buckets'}
           </GhostBtn>
-          <GhostBtn onClick={clearAllImages} disabled={isClearingImages} danger>
-            {isClearingImages ? 'Clearing...' : 'Clear Images'}
-          </GhostBtn>
+          {/* Destructive action — restricted to Super Admin so an ordinary
+              admin can't accidentally wipe every menu item's image references. */}
+          {isSuperAdmin && (
+            <GhostBtn onClick={() => setShowClearImagesConfirm(true)} disabled={isClearingImages} danger>
+              {isClearingImages ? 'Clearing...' : 'Clear Images'}
+            </GhostBtn>
+          )}
           <TealBtn onClick={startAdd}>
             <Plus size={14} /> Add Item
           </TealBtn>
@@ -1902,6 +1920,73 @@ export default function Dashboard() {
           item={costingItem}
           onClose={() => setCostingItem(null)}
         />
+      )}
+
+      {showClearImagesConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', boxShadow: '0 8px 32px rgba(0,0,0,0.14)', width: '100%', maxWidth: 480 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 24px', borderBottom: '1px solid #e5e7eb' }}>
+              <AlertTriangle size={20} color="#E11E15" />
+              <h2 style={{ margin: 0, fontFamily: "'Anton', sans-serif", fontSize: 18, color: '#111827', textTransform: 'uppercase' }}>
+                Clear All Image References?
+              </h2>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ margin: 0, fontFamily: "'Barlow', sans-serif", fontSize: 14, color: '#374151', lineHeight: 1.6 }}>
+                This removes the image reference fields (image, secondaryImage, highResImage, socialImage,
+                primaryPhotoPath, secondaryPhotoPath, promoImages) from{' '}
+                <strong>{itemsWithImages.length} of {items.length}</strong> menu item{items.length === 1 ? '' : 's'} currently
+                showing an image — every item in the entire menu, not a filtered subset.
+              </p>
+              <p style={{ margin: 0, fontFamily: "'Barlow', sans-serif", fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>
+                The uploaded files themselves are <strong>not</strong> deleted from storage — only the database's
+                pointers to them are cleared, so every menu item will show no image on the site until re-linked.
+                This cannot be undone from the dashboard.
+              </p>
+              <div>
+                <label htmlFor="clear-images-confirm-input" style={{ display: 'block', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b7280', marginBottom: 6 }}>
+                  Type CLEAR to confirm
+                </label>
+                <input
+                  id="clear-images-confirm-input"
+                  type="text"
+                  value={clearImagesConfirmText}
+                  onChange={e => setClearImagesConfirmText(e.target.value)}
+                  placeholder="CLEAR"
+                  autoFocus
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 13px', border: '1px solid #d1d5db', borderRadius: 2, fontFamily: "'Barlow', sans-serif", fontSize: 15, outline: 'none' }}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '16px 24px', borderTop: '1px solid #e5e7eb' }}>
+              <button
+                onClick={() => { setShowClearImagesConfirm(false); setClearImagesConfirmText(''); }}
+                style={{ padding: '10px 18px', background: 'none', border: '1px solid #e5e7eb', borderRadius: 2, color: '#6b7280', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmClearAllImages}
+                disabled={clearImagesConfirmText.trim().toUpperCase() !== 'CLEAR' || isClearingImages}
+                style={{
+                  padding: '10px 18px',
+                  background: clearImagesConfirmText.trim().toUpperCase() === 'CLEAR' ? '#E11E15' : '#f3a8a4',
+                  border: 'none',
+                  borderRadius: 2,
+                  color: '#ffffff',
+                  fontFamily: "'Oswald', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  cursor: clearImagesConfirmText.trim().toUpperCase() === 'CLEAR' && !isClearingImages ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {isClearingImages ? 'Clearing…' : 'Yes, Clear All Images'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

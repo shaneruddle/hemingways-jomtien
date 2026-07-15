@@ -2207,7 +2207,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
 
         {/* Dashboard Routes with Sidebar Layout */}
         <Route path="/dashboard" element={isMarketing ? <DashboardLayout user={user} /> : <div style={{ paddingTop: 128, textAlign: 'center', height: '100vh', background: 'var(--ink-850)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>Access Denied. <Auth onUserChange={setUser} /></div>}>
-          <Route index element={isMarketing ? <Dashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+          <Route index element={isMarketing ? <Dashboard isSuperAdmin={isSuperAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="categories" element={isMarketing ? <CategoriesDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="finance" element={isManager ? <FinanceDashboard user={user} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="finance/import" element={isManager ? <BulkFinanceImport /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
