@@ -259,6 +259,7 @@ const DigitalMenuDisplay = () => {
                   setActiveCategory(cat);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
+                aria-pressed={activeCategory === cat}
                 className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
                   activeCategory === cat
                     ? "bg-navy border-navy text-white shadow-xl shadow-navy/20 scale-105"
@@ -271,6 +272,7 @@ const DigitalMenuDisplay = () => {
             {todaysSpecials.length > 0 && (
               <button
                 onClick={() => { setActiveCategory(SPECIALS_TAB); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                aria-pressed={activeCategory === SPECIALS_TAB}
                 className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
                   activeCategory === SPECIALS_TAB
                     ? "bg-teal-600 border-teal-600 text-white shadow-xl shadow-teal-600/20 scale-105"
@@ -283,6 +285,7 @@ const DigitalMenuDisplay = () => {
             {drinks.length > 0 && (
               <button
                 onClick={() => { setActiveCategory(DRINKS_TAB); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                aria-pressed={activeCategory === DRINKS_TAB}
                 className={`px-4 py-0.5 sm:py-2 rounded-full font-bold text-sm transition-all border-2 ${
                   activeCategory === DRINKS_TAB
                     ? "bg-amber-700 border-amber-700 text-white shadow-xl shadow-amber-700/20 scale-105"

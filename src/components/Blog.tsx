@@ -220,6 +220,69 @@ export const BlogPostPage = () => {
         )}
 
         <PostBody text={post.body} />
+
+        {/* End-of-article: back link, contact/reservation CTA, related posts */}
+        <div style={{ marginTop: 56, paddingTop: 32, borderTop: `1px solid var(--border)` }}>
+          <Link
+            to="/blog"
+            onClick={() => window.scrollTo(0, 0)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-400)', textDecoration: 'none', marginBottom: 32 }}
+          >
+            <ArrowLeft size={14} /> Back to All Posts
+          </Link>
+
+          <div className="hw-card" style={{ padding: '28px 24px', textAlign: 'center', marginBottom: 40 }}>
+            <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 18, textTransform: 'uppercase', color: 'var(--cream-50)', margin: '0 0 8px' }}>
+              Liked what you read?
+            </h2>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', margin: '0 0 20px' }}>
+              Come see us at Hemingways Jomtien — book a table or get in touch with any questions.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/reserve" onClick={() => window.scrollTo(0, 0)} className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px' }}>
+                Reserve a Table
+              </Link>
+              <Link
+                to="/contact-us"
+                onClick={() => window.scrollTo(0, 0)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', border: `1px solid var(--border)`, borderRadius: 'var(--radius-md)', color: 'var(--cream-50)', textDecoration: 'none', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                Contact Us
+              </Link>
+            </div>
+          </div>
+
+          {(() => {
+            const related = posts.filter(p => p.id !== post.id).slice(0, 3);
+            if (related.length === 0) return null;
+            return (
+              <div>
+                <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
+                  Related Posts
+                </div>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {related.map(rp => (
+                    <Link
+                      key={rp.id}
+                      to={`/blog/${rp.slug}`}
+                      onClick={() => window.scrollTo(0, 0)}
+                      style={{ textDecoration: 'none', display: 'block' }}
+                    >
+                      <div className="hw-card" style={{ padding: '16px 18px', height: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-condensed)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 8 }}>
+                          <Calendar size={11} /> {formatDate(rp.date)}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 15, color: 'var(--cream-50)', textTransform: 'uppercase', lineHeight: 1.3 }}>
+                          {rp.title}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       </article>
     </div>
   );

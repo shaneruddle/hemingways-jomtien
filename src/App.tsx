@@ -94,6 +94,16 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Keyboard access: Escape closes the mobile menu drawer.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Food Menu", href: "menu" },
@@ -251,6 +261,8 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
         <button
           className="lg:hidden"
           onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isOpen}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cream-50)', padding: 4 }}
         >
           {isOpen ? <X size={24} /> : <MenuIcon size={24} />}
@@ -1211,8 +1223,9 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
           </p>
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={labelStyle}>Name</label>
+              <label htmlFor="footer-contact-name" style={labelStyle}>Name</label>
               <input
+                id="footer-contact-name"
                 className="hw-input"
                 type="text"
                 placeholder="Your name"
@@ -1222,8 +1235,9 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               />
             </div>
             <div>
-              <label style={labelStyle}>Email</label>
+              <label htmlFor="footer-contact-email" style={labelStyle}>Email</label>
               <input
+                id="footer-contact-email"
                 className="hw-input"
                 type="email"
                 placeholder="your@email.com"
@@ -1233,8 +1247,9 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
               />
             </div>
             <div>
-              <label style={labelStyle}>Message</label>
+              <label htmlFor="footer-contact-message" style={labelStyle}>Message</label>
               <textarea
+                id="footer-contact-message"
                 className="hw-input"
                 placeholder="Your message..."
                 rows={3}
@@ -1954,8 +1969,9 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
               <div style={cardTitle}>Send Us a Message</div>
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label style={labelStyle}>Name</label>
+                  <label htmlFor="contact-us-name" style={labelStyle}>Name</label>
                   <input
+                    id="contact-us-name"
                     className="hw-input"
                     type="text"
                     placeholder="Your name"
@@ -1965,8 +1981,9 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Email</label>
+                  <label htmlFor="contact-us-email" style={labelStyle}>Email</label>
                   <input
+                    id="contact-us-email"
                     className="hw-input"
                     type="email"
                     placeholder="your@email.com"
@@ -1976,8 +1993,9 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Message</label>
+                  <label htmlFor="contact-us-message" style={labelStyle}>Message</label>
                   <textarea
+                    id="contact-us-message"
                     className="hw-input"
                     placeholder="A group booking, private event enquiry, or any other question..."
                     rows={5}

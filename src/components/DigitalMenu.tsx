@@ -301,6 +301,7 @@ const DigitalMenu = () => {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
+                aria-pressed={activeCategory === cat}
                 className={`w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all ${
                   activeCategory === cat
                   ? "bg-navy text-white shadow-sm"
@@ -315,6 +316,7 @@ const DigitalMenu = () => {
             {todaysSpecials.length > 0 && (
               <button
                 onClick={() => setActiveCategory(SPECIALS_TAB)}
+                aria-pressed={activeCategory === SPECIALS_TAB}
                 className="w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all mt-3"
                 style={
                   activeCategory === SPECIALS_TAB
@@ -330,6 +332,7 @@ const DigitalMenu = () => {
             {drinks.length > 0 && (
               <button
                 onClick={() => setActiveCategory(DRINKS_TAB)}
+                aria-pressed={activeCategory === DRINKS_TAB}
                 className="w-full text-left px-4 py-2 rounded-xl font-medium text-sm transition-all mt-2"
                 style={
                   activeCategory === DRINKS_TAB
