@@ -131,12 +131,14 @@ export const BlogList = () => {
                   <Link to={`/blog/${post.slug}`} onClick={() => window.scrollTo(0, 0)} style={{ textDecoration: 'none', display: 'block' }}>
                     <div className="hw-card" style={{ overflow: 'hidden', height: '100%' }}>
                       {post.heroImage && (
-                        <FirebaseImage
-                          src={normalizeImageUrl(post.heroImage)}
-                          alt={post.title}
-                          className="w-full"
-                          style={{ height: 190, objectFit: 'cover', width: '100%' }}
-                        />
+                        <div style={{ height: 190, background: 'var(--ink-800)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <FirebaseImage
+                            src={normalizeImageUrl(post.heroImage)}
+                            alt={post.title}
+                            className="w-full h-full"
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        </div>
                       )}
                       <div style={{ padding: '22px 22px 26px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-condensed)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 10 }}>
@@ -213,7 +215,7 @@ export const BlogPostPage = () => {
             src={normalizeImageUrl(post.heroImage)}
             alt={post.title}
             className="w-full"
-            style={{ width: '100%', maxHeight: 420, objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', marginBottom: 32 }}
+            style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', marginBottom: 32 }}
           />
         )}
 
@@ -251,12 +253,14 @@ export const LatestPosts = () => {
               <Link to={`/blog/${post.slug}`} onClick={() => window.scrollTo(0, 0)} style={{ textDecoration: 'none', display: 'block' }}>
                 <div className="hw-card" style={{ overflow: 'hidden', height: '100%' }}>
                   {post.heroImage && (
-                    <FirebaseImage
-                      src={normalizeImageUrl(post.heroImage)}
-                      alt={post.title}
-                      className="w-full"
-                      style={{ height: 180, objectFit: 'cover', width: '100%' }}
-                    />
+                    <div style={{ height: 180, background: 'var(--ink-800)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <FirebaseImage
+                        src={normalizeImageUrl(post.heroImage)}
+                        alt={post.title}
+                        className="w-full h-full"
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    </div>
                   )}
                   <div style={{ padding: '20px 22px 24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-condensed)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 10 }}>
