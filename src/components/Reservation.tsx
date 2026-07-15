@@ -4,6 +4,7 @@ import { Phone, MessageCircle, MapPin, Users, Calendar, Clock } from 'lucide-rea
 import { db } from '../firebase';
 import { toast } from 'sonner';
 import type { CompanyProfile } from '../types';
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits } from '../utils/companyDefaults';
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -42,9 +43,9 @@ export const ReservationPage = ({ companyProfile }: { companyProfile: CompanyPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const phone = companyProfile?.phone || "+6664 620 9225";
-  const address = companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150";
-  const whatsappDigits = (companyProfile?.whatsapp || '').replace(/[^\d]/g, '');
+  const phone = formatPhoneDisplay(companyProfile?.phone);
+  const address = companyProfile?.address || DEFAULT_COMPANY_PROFILE.address;
+  const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
   useEffect(() => {

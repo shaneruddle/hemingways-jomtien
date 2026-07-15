@@ -44,6 +44,7 @@ import { db, auth } from "./firebase";
 import { MenuItem, Category, Special, SportsEvent } from "./types";
 import { handleFirestoreError } from "./utils/firestore";
 import { normalizeImageUrl } from "./utils/images";
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatOpeningHoursSummary } from "./utils/companyDefaults";
 // Optimized Sub-components
 import MenuItemCard from "./components/menu/MenuItemCard";
 import { FirebaseImage } from "./components/ui/FirebaseImage";
@@ -210,11 +211,11 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
               ))}
               {/* Phone */}
               <a
-                href={`tel:${companyProfile?.phone || '+66646209225'}`}
+                href={`tel:+${phoneDigits(companyProfile?.phone || DEFAULT_COMPANY_PROFILE.phone)}`}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--gold-400)', fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textDecoration: 'none' }}
               >
                 <Phone size={14} />
-                {companyProfile?.phone || '+6664 620 9225'}
+                {formatPhoneDisplay(companyProfile?.phone)}
               </a>
               <Link
                 to="/reserve"
@@ -864,7 +865,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
-              src={`https://www.google.com/maps?q=${encodeURIComponent(companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150")}&output=embed`}
+              src={`https://www.google.com/maps?q=${encodeURIComponent(companyProfile?.address || DEFAULT_COMPANY_PROFILE.address)}&output=embed`}
             />
           )}
         </motion.div>
@@ -891,8 +892,8 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             {[
-              { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150" },
-              { icon: <Phone size={20} />, label: 'Phone', value: companyProfile?.phone || "+6664 620 9225" },
+              { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || DEFAULT_COMPANY_PROFILE.address },
+              { icon: <Phone size={20} />, label: 'Phone', value: formatPhoneDisplay(companyProfile?.phone) },
             ].map((item, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                 <div style={{ background: 'var(--ink-700)', borderRadius: 'var(--radius-md)', padding: 10, color: 'var(--gold-500)', flexShrink: 0, border: `1px solid var(--border)` }}>
@@ -913,30 +914,58 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               <div>
                 <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Hours</div>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-100)' }}>
-                  <p>Open Daily · 9:30 AM – 12:00 AM</p>
+                  <p>{formatOpeningHoursSummary(companyProfile?.openingHours)}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Social */}
+          {/* Social — only shown when the field is actually set in Company Profile */}
           <div style={{ display: 'flex', gap: 12, marginTop: 36 }}>
-            <a
-              href={companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
-            >
-              <Facebook size={20} />
-            </a>
-            <a
-              href={companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
-            >
-              <Instagram size={20} />
-            </a>
+            {companyProfile?.socialLinks?.facebook !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.facebook || DEFAULT_COMPANY_PROFILE.socialLinks.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <Facebook size={20} />
+              </a>
+            )}
+            {companyProfile?.socialLinks?.instagram !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.instagram || DEFAULT_COMPANY_PROFILE.socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <Instagram size={20} />
+              </a>
+            )}
+            {companyProfile?.socialLinks?.tripAdvisor && (
+              <a
+                href={companyProfile.socialLinks.tripAdvisor}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="TripAdvisor"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <Globe size={20} />
+              </a>
+            )}
+            {companyProfile?.lineId && (
+              <a
+                href={`https://line.me/ti/p/~${companyProfile.lineId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LINE"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)', transition: 'border-color 0.2s ease' }}
+              >
+                <MessageCircle size={20} />
+              </a>
+            )}
           </div>
         </motion.div>
       </div>
@@ -1019,25 +1048,42 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
         <div>
           <img src="/assets/logo/hemingways-logo-white.png" height={40} alt="Hemingways Jomtien" style={{ height: 40, width: 'auto', marginBottom: 16 }} />
           <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 24, maxWidth: 260 }}>
-            {companyProfile?.description || "Jomtien's biggest expat sports bar and restaurant. Quality food, cold beer, and all your favourite sports on 15 screens."}
+            {companyProfile?.description || DEFAULT_COMPANY_PROFILE.description}
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
-            <a
-              href={companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
-            >
-              <Facebook size={18} />
-            </a>
-            <a
-              href={companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien"}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
-            >
-              <Instagram size={18} />
-            </a>
+            {companyProfile?.socialLinks?.facebook !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.facebook || DEFAULT_COMPANY_PROFILE.socialLinks.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+              >
+                <Facebook size={18} />
+              </a>
+            )}
+            {companyProfile?.socialLinks?.instagram !== '' && (
+              <a
+                href={companyProfile?.socialLinks?.instagram || DEFAULT_COMPANY_PROFILE.socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+              >
+                <Instagram size={18} />
+              </a>
+            )}
+            {companyProfile?.lineId && (
+              <a
+                href={`https://line.me/ti/p/~${companyProfile.lineId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LINE"
+                style={{ background: 'var(--ink-700)', border: `1px solid var(--border)`, borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-500)' }}
+              >
+                <MessageCircle size={18} />
+              </a>
+            )}
           </div>
         </div>
 
@@ -1050,18 +1096,18 @@ const Footer = ({ companyProfile }: { companyProfile: CompanyProfile | null }) =
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <MapPin size={15} style={{ color: 'var(--gold-500)', flexShrink: 0, marginTop: 2 }} />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                {companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150"}
+                {companyProfile?.address || DEFAULT_COMPANY_PROFILE.address}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Phone size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>
-                {companyProfile?.phone || "+6664 620 9225"}
+                {formatPhoneDisplay(companyProfile?.phone)}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Clock size={15} style={{ color: 'var(--gold-500)', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>Open Daily · 9:30 AM – 12:00 AM</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)' }}>{formatOpeningHoursSummary(companyProfile?.openingHours)}</span>
             </div>
           </div>
 
@@ -1343,9 +1389,8 @@ const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile
   const todayEvents = events.filter(e => e.date === today);
   const upcoming = events.filter(e => e.date > today);
 
-  const phone = companyProfile?.phone || "+6664 620 9225";
-  const whatsapp = companyProfile?.whatsapp || "";
-  const whatsappDigits = whatsapp.replace(/[^\d]/g, '');
+  const phone = formatPhoneDisplay(companyProfile?.phone);
+  const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink-850)' }}>
@@ -1670,10 +1715,10 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const phone = companyProfile?.phone || "+6664 620 9225";
-  const email = companyProfile?.email || "info@hemingwaysjomtien.com";
-  const address = companyProfile?.address || "Hemingway's Jomtien, Jomtien Sai 2 Rd, Pattaya City, Chon Buri 20150";
-  const whatsappDigits = (companyProfile?.whatsapp || '').replace(/[^\d]/g, '');
+  const phone = formatPhoneDisplay(companyProfile?.phone);
+  const email = companyProfile?.email || DEFAULT_COMPANY_PROFILE.email;
+  const address = companyProfile?.address || DEFAULT_COMPANY_PROFILE.address;
+  const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -1731,9 +1776,10 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
   const socials = [
-    { icon: <Facebook size={20} />, href: companyProfile?.socialLinks?.facebook || "https://www.facebook.com/hemingwaysjomtien", label: 'Facebook' },
-    { icon: <Instagram size={20} />, href: companyProfile?.socialLinks?.instagram || "https://www.instagram.com/hemingwaysjomtien", label: 'Instagram' },
+    ...(companyProfile?.socialLinks?.facebook !== '' ? [{ icon: <Facebook size={20} />, href: companyProfile?.socialLinks?.facebook || DEFAULT_COMPANY_PROFILE.socialLinks.facebook, label: 'Facebook' }] : []),
+    ...(companyProfile?.socialLinks?.instagram !== '' ? [{ icon: <Instagram size={20} />, href: companyProfile?.socialLinks?.instagram || DEFAULT_COMPANY_PROFILE.socialLinks.instagram, label: 'Instagram' }] : []),
     ...(companyProfile?.socialLinks?.tripAdvisor ? [{ icon: <Globe size={20} />, href: companyProfile.socialLinks.tripAdvisor, label: 'TripAdvisor' }] : []),
+    ...(companyProfile?.lineId ? [{ icon: <MessageCircle size={20} />, href: `https://line.me/ti/p/~${companyProfile.lineId}`, label: 'LINE' }] : []),
   ];
 
   return (
@@ -1827,14 +1873,35 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
               <div style={{ ...cardTitle, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Clock size={15} /> Opening Hours
               </div>
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-50)', margin: 0 }}>Open Daily · 9:30 AM – 12:00 AM</p>
+              {(() => {
+                const hours = companyProfile?.openingHours || DEFAULT_COMPANY_PROFILE.openingHours;
+                const days: { key: keyof CompanyProfile['openingHours']; label: string }[] = [
+                  { key: 'monday', label: 'Monday' }, { key: 'tuesday', label: 'Tuesday' }, { key: 'wednesday', label: 'Wednesday' },
+                  { key: 'thursday', label: 'Thursday' }, { key: 'friday', label: 'Friday' }, { key: 'saturday', label: 'Saturday' }, { key: 'sunday', label: 'Sunday' },
+                ];
+                const values = days.map(d => (hours[d.key] || '').trim());
+                const allSame = values[0] && values.every(v => v === values[0]);
+                if (allSame) {
+                  return <p style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--cream-50)', margin: 0 }}>Open Daily · {values[0]}</p>;
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {days.map(d => (
+                      <div key={d.key} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--cream-100)' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>{d.label}</span>
+                        <span>{hours[d.key] || 'Closed'}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Getting here */}
             <div className="hw-card" style={{ padding: '28px 24px' }}>
               <div style={cardTitle}>Getting Here</div>
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 16 }}>
-                We're on Jomtien Sai 2 Road, a few minutes from Jomtien Beach and around 15 minutes from central Pattaya. Parking is available, and any taxi or Bolt driver will know the road — just say "Hemingways, Jomtien Sai Song".
+                We're a few minutes from Jomtien Beach and around 15 minutes from central Pattaya — see the address above. Parking is available, and any taxi or Bolt driver will know Hemingways.
               </p>
               <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="hw-btn-warm" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <MapPin size={16} /> Open in Google Maps
