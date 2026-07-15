@@ -582,7 +582,10 @@ type Language = 'en' | 'zh' | 'ru' | 'th';
 const Menu = () => {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
   const [activeCategory, setActiveCategory] = useState("");
+  const [userSelectedCategory, setUserSelectedCategory] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
@@ -593,8 +596,10 @@ const Menu = () => {
         ...doc.data()
       })) as Category[];
       setCategoryList(cats);
+      setCategoriesLoaded(true);
     }, (err) => {
       console.warn("Categories listener error:", err.message);
+      setCategoriesLoaded(true);
     });
     return () => unsubscribe();
   }, []);
@@ -613,22 +618,34 @@ const Menu = () => {
       const sortedItems = menuItems.sort((a, b) => (a.order || 0) - (b.order || 0));
 
       setItems(sortedItems);
-      if (sortedItems.length > 0 && !activeCategory) {
-        const availableCats = categoryList.length > 0
-          ? categoryList.filter(c => c.name !== "More Add Ons")
-          : [];
-
-        const firstCat = availableCats.length > 0
-          ? availableCats.find(c => sortedItems.some(i => i.category === c.name))?.name || sortedItems.find(i => i.category !== "More Add Ons")?.category || sortedItems[0].category
-          : sortedItems.find(i => i.category !== "More Add Ons")?.category || sortedItems[0].category;
-
-        setActiveCategory(firstCat);
-      }
+      setItemsLoaded(true);
     }, (err) => {
       console.warn("Menu listener error:", err.message);
+      setItemsLoaded(true);
     });
     return () => unsubscribe();
-  }, [categoryList]);
+  }, []);
+
+  // Pick the default category once BOTH categories and items have loaded, using
+  // the dashboard's display order (categoryList, sorted by its own "order"
+  // field) rather than menu-item order. Previously this ran inside the menu
+  // items listener keyed off whichever of the two Firestore listeners happened
+  // to resolve first; when items arrived before categories, it fell back to
+  // picking whatever category the first item (by item order) belonged to -
+  // which is how the homepage ended up defaulting to Soups instead of
+  // Breakfast even though Breakfast is #1 in the dashboard's category order.
+  useEffect(() => {
+    if (userSelectedCategory || activeCategory) return;
+    if (!categoriesLoaded || !itemsLoaded || items.length === 0) return;
+
+    const availableCats = categoryList.filter(c => c.name !== "More Add Ons");
+    const firstByDashboardOrder = availableCats.find(c => items.some(i => i.category === c.name))?.name;
+    const firstByFallbackOrder = Array.from(new Set(items.map(i => i.category)))
+      .filter(c => c !== "More Add Ons")
+      .sort()[0];
+
+    setActiveCategory(firstByDashboardOrder || firstByFallbackOrder || items[0].category);
+  }, [categoriesLoaded, itemsLoaded, categoryList, items, userSelectedCategory, activeCategory]);
 
   const categories = useMemo(() => {
     let cats: string[] = [];
@@ -763,7 +780,8 @@ const Menu = () => {
               return (
                 <button
                   key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => { setUserSelectedCategory(true); setActiveCategory(cat); }}
+                  aria-pressed={isActive}
                   style={{
                     padding: '14px 20px',
                     background: 'transparent',
