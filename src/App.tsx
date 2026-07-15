@@ -1510,6 +1510,14 @@ const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile
   );
 };
 
+// Today's day name in Bangkok timezone (UTC+7), matching the same calculation
+// DigitalMenuDisplay.tsx already uses for its day-based specials filtering.
+const bangkokDayName = () => {
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const bangkokMs = Date.now() + (7 * 60 * 60 * 1000);
+  return DAYS[new Date(bangkokMs).getUTCDay()];
+};
+
 const Specials = () => {
   const [specials, setSpecials] = useState<Special[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1531,7 +1539,20 @@ const Specials = () => {
   }, []);
 
   if (loading) return null;
-  if (specials.length === 0) return null;
+
+  // Same day-based scheduling logic as the digital menu (DigitalMenuDisplay.tsx):
+  // a special shows if it's scheduled for today, or set to Daily/Every Day, or
+  // Weekend and today is Sat/Sun. The homepage previously showed every special
+  // regardless of its configured day, ignoring this scheduling entirely.
+  const todayDayName = bangkokDayName();
+  const todaysSpecials = specials.filter(s =>
+    s.day === todayDayName ||
+    s.day === 'Daily' ||
+    s.day === 'Every Day' ||
+    (s.day === 'Weekend' && ['Saturday', 'Sunday'].includes(todayDayName))
+  );
+
+  if (todaysSpecials.length === 0) return null;
 
   return (
     <section id="specials" style={{ background: 'var(--ink-850)', padding: '80px 24px', overflow: 'hidden' }}>
@@ -1558,7 +1579,7 @@ const Specials = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {specials.map((special, idx) => (
+          {todaysSpecials.map((special, idx) => (
             <motion.div
               key={special.id || idx}
               initial={{ opacity: 0, y: 20 }}

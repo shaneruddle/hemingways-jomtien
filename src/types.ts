@@ -170,6 +170,7 @@ export interface PayrollSummary {
 export interface Special {
   id?: string;
   name: string;
+  day: string; // e.g. Monday..Sunday, "Weekend", "Daily", "Every Day" — see SpecialsDashboard.tsx
   description: string;
   price?: string;
   image?: string;
