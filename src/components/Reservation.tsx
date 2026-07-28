@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { toast } from 'sonner';
 import type { CompanyProfile } from '../types';
 import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits } from '../utils/companyDefaults';
+import { Footer } from './Footer';
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -249,6 +250,11 @@ export const ReservationPage = ({ companyProfile }: { companyProfile: CompanyPro
           </div>
         </div>
       </section>
+
+      {/* This page's reservation form above already serves as the primary way
+          to reach us, so the footer's identical "Get in Touch" form is
+          suppressed to avoid showing two forms on the same page. */}
+      <Footer companyProfile={companyProfile} hideContactForm />
     </div>
   );
 };
