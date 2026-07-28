@@ -209,22 +209,43 @@ export function planImport(
   const matchedIds = new Set<string>();
   const plan: ImportPlan = { toAdd: [], toUpdate: [], toSkip: [], toDelete: [] };
 
+  // Track rows already staged as an add within THIS SAME upload (keyed the
+  // same way as the existing-schedule lookups above), so a duplicate row
+  // inside the CSV itself — same source_id, or same date+time+sport+
+  // participants repeated by mistake — collapses into one document instead
+  // of creating a second one. The later occurrence in the file wins.
+  const addedBySourceId = new Map<string, number>(); // -> index into plan.toAdd
+  const addedByKey = new Map<string, number>();
+
   for (const row of validRows) {
     const data = toEventData(row);
-    const match = (row.source_id && bySourceId.get(row.source_id)) || byKey.get(normalizedFixtureKey(data));
-    if (match?.id) {
-      matchedIds.add(match.id);
-      if (sameFixtureData(data, match)) {
+    const key = normalizedFixtureKey(data);
+    const existingMatch = (row.source_id && bySourceId.get(row.source_id)) || byKey.get(key);
+
+    if (existingMatch?.id) {
+      matchedIds.add(existingMatch.id);
+      if (sameFixtureData(data, existingMatch)) {
         plan.toSkip.push({ row, data });
       } else {
-        plan.toUpdate.push({ id: match.id, data, row });
+        plan.toUpdate.push({ id: existingMatch.id, data, row });
       }
+      continue;
+    }
+
+    let dupIndex: number | undefined;
+    if (row.source_id && addedBySourceId.has(row.source_id)) dupIndex = addedBySourceId.get(row.source_id);
+    else if (addedByKey.has(key)) dupIndex = addedByKey.get(key);
+
+    if (dupIndex !== undefined) {
+      plan.toAdd[dupIndex] = { row, data };
     } else {
-      plan.toAdd.push({ row, data });
+      const idx = plan.toAdd.push({ row, data }) - 1;
+      if (row.source_id) addedBySourceId.set(row.source_id, idx);
+      addedByKey.set(key, idx);
     }
   }
 
-  if (mode === 'replace' && range) {
+  if (mode === 'replace' && range && range.start && range.end && range.start <= range.end) {
     plan.toDelete = existing.filter(e =>
       !!e.id && !matchedIds.has(e.id) && e.date >= range.start && e.date <= range.end
     );
