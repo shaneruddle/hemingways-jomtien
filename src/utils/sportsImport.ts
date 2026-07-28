@@ -237,7 +237,24 @@ export function planImport(
     else if (addedByKey.has(key)) dupIndex = addedByKey.get(key);
 
     if (dupIndex !== undefined) {
+      // Replacing this slot's row: drop ITS old identity from both maps
+      // first (only if they still point at this slot — a shared source_id
+      // may have already been reassigned by an earlier iteration). Without
+      // this, a later row that happens to share the outgoing row's now-
+      // stale key would wrongly match this slot and clobber the row we're
+      // about to write here.
+      const previous = plan.toAdd[dupIndex];
+      if (previous.row.source_id && addedBySourceId.get(previous.row.source_id) === dupIndex) {
+        addedBySourceId.delete(previous.row.source_id);
+      }
+      const previousKey = normalizedFixtureKey(previous.data);
+      if (addedByKey.get(previousKey) === dupIndex) {
+        addedByKey.delete(previousKey);
+      }
+
       plan.toAdd[dupIndex] = { row, data };
+      if (row.source_id) addedBySourceId.set(row.source_id, dupIndex);
+      addedByKey.set(key, dupIndex);
     } else {
       const idx = plan.toAdd.push({ row, data }) - 1;
       if (row.source_id) addedBySourceId.set(row.source_id, idx);
