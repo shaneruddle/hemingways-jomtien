@@ -7,13 +7,11 @@ import { db } from '../firebase';
 import { logActivity } from '../utils/logger';
 import { toast } from 'sonner';
 import {
-  Plus, Edit2, Trash2, Save, X, AlertCircle, Trophy, Calendar, Clock
+  Plus, Edit2, Trash2, Save, X, AlertCircle, Trophy, Calendar, Clock, Upload
 } from 'lucide-react';
 import type { SportsEvent } from '../types';
-
-const SPORT_OPTIONS = [
-  'Football', 'Rugby', 'Cricket', 'UFC / MMA', 'Boxing', 'Golf', 'Tennis', 'Motorsport', 'Other',
-];
+import { SPORT_OPTIONS } from '../utils/sportsImport';
+import SportsImportModal from './SportsImportModal';
 
 // ── Shared inline-style helpers (mirrors SpecialsDashboard for visual consistency) ──
 const S = {
@@ -186,6 +184,11 @@ export default function SportsDashboard() {
   const [modal, setModal] = useState<'add' | SportsEvent | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  // Imports accumulate history fast (a full season of weekly CSVs), so split
+  // the flat list into Upcoming (today + future, the common case) and Past —
+  // the "dashboard Past/Archived view" from the Phase 2 handover.
+  const [listView, setListView] = useState<'upcoming' | 'past'>('upcoming');
 
   useEffect(() => {
     const q = query(collection(db, 'sports_schedule'), orderBy('date', 'asc'), orderBy('order', 'asc'));
@@ -259,9 +262,14 @@ export default function SportsDashboard() {
           <div style={S.eyebrow}>Content</div>
           <h1 style={S.title}>SPORTS SCHEDULE</h1>
         </div>
-        <button style={S.btnPrimary} onClick={() => setModal('add')}>
-          <Plus size={16} /> Add Fixture
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button style={{ ...S.btnPrimary, background: '#ffffff', color: '#1DA0A8' }} onClick={() => setShowImport(true)}>
+            <Upload size={16} /> Import Fixtures
+          </button>
+          <button style={S.btnPrimary} onClick={() => setModal('add')}>
+            <Plus size={16} /> Add Fixture
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -277,14 +285,54 @@ export default function SportsDashboard() {
               <Trophy size={24} />
             </div>
             <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>No Fixtures Yet</div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Add today's and upcoming fixtures so they show on the public Sports Schedule page.</div>
-            <button style={S.btnPrimary} onClick={() => setModal('add')}>
-              <Plus size={15} /> Add First Fixture
-            </button>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Add today's and upcoming fixtures, or import a CSV, so they show on the public Sports Schedule page.</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button style={{ ...S.btnPrimary, background: '#ffffff', color: '#1DA0A8' }} onClick={() => setShowImport(true)}>
+                <Upload size={15} /> Import Fixtures
+              </button>
+              <button style={S.btnPrimary} onClick={() => setModal('add')}>
+                <Plus size={15} /> Add First Fixture
+              </button>
+            </div>
           </div>
         ) : (
+          <>
+            {(() => {
+              const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+              const upcomingCount = events.filter(e => e.date >= today).length;
+              const pastCount = events.length - upcomingCount;
+              return (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  {(['upcoming', 'past'] as const).map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setListView(v)}
+                      style={{
+                        padding: '8px 16px', borderRadius: 2, cursor: 'pointer',
+                        fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase',
+                        border: `1px solid ${listView === v ? '#1DA0A8' : '#e5e7eb'}`,
+                        background: listView === v ? '#1DA0A8' : '#ffffff',
+                        color: listView === v ? '#ffffff' : '#6b7280',
+                      }}
+                    >
+                      {v === 'upcoming' ? `Upcoming (${upcomingCount})` : `Past (${pastCount})`}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-            {events.map(event => (
+            {(() => {
+              const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+              const filtered = events.filter(e => (listView === 'upcoming' ? e.date >= today : e.date < today));
+              if (filtered.length === 0) {
+                return (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 14, color: '#9ca3af' }}>
+                    No {listView} fixtures.
+                  </div>
+                );
+              }
+              return filtered.map(event => (
               <div
                 key={event.id}
                 style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap' }}
@@ -321,8 +369,10 @@ export default function SportsDashboard() {
                   </button>
                 </div>
               </div>
-            ))}
+              ));
+            })()}
           </div>
+          </>
         )}
       </div>
 
@@ -331,6 +381,13 @@ export default function SportsDashboard() {
           event={modal === 'add' ? null : modal}
           onClose={() => setModal(null)}
           onSave={handleSave}
+        />
+      )}
+
+      {showImport && (
+        <SportsImportModal
+          existingEvents={events}
+          onClose={() => setShowImport(false)}
         />
       )}
     </div>

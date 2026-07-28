@@ -192,4 +192,8 @@ export interface SportsEvent {
   competition: string; // e.g. Premier League, Six Nations
   participants: string; // e.g. "Liverpool vs Arsenal"
   order: number;
+  // Optional stable ID from the weekly CSV import, used to safely re-import
+  // the same file without creating duplicates. Manually-added fixtures
+  // never have one.
+  source_id?: string;
 }
