@@ -177,6 +177,11 @@ export interface Special {
   startDate?: string;
   endDate?: string;
   order: number;
+  // Whether this Special is currently being offered. Independent of `day`,
+  // which describes *when* it runs. Missing/undefined is treated as active
+  // (true) everywhere this field is read — see isSpecialActive() in
+  // src/utils/specials.ts — so existing records stay visible after deploy.
+  isActive?: boolean;
 }
 
 export interface SportsEvent {
