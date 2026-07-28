@@ -1091,15 +1091,28 @@ const SportsSchedule = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let fallbackUnsub: (() => void) | null = null;
     const q = query(collection(db, "sports_schedule"), orderBy("date", "asc"), orderBy("order", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[]);
       setLoading(false);
     }, (err) => {
+      // The compound orderBy above needs a composite index (declared in
+      // firestore.indexes.json) that isn't deployed on every environment.
+      // Without this fallback, an index-required error here left the
+      // homepage showing nothing instead of the fixtures -- fall back to a
+      // single-field sort and finish the sort client-side, matching the
+      // same fallback already used in the admin Sports dashboard.
       console.warn("Sports schedule listener error:", err.message);
-      setLoading(false);
+      const q2 = query(collection(db, "sports_schedule"), orderBy("date", "asc"));
+      fallbackUnsub = onSnapshot(q2, (snap2) => {
+        const evs = snap2.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[];
+        evs.sort((a, b) => (a.date === b.date ? (a.order || 0) - (b.order || 0) : 0));
+        setEvents(evs);
+        setLoading(false);
+      });
     });
-    return () => unsubscribe();
+    return () => { unsubscribe(); fallbackUnsub?.(); };
   }, []);
 
   if (loading) return null;
@@ -1159,15 +1172,25 @@ const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile
   }, []);
 
   useEffect(() => {
+    let fallbackUnsub: (() => void) | null = null;
     const q = query(collection(db, "sports_schedule"), orderBy("date", "asc"), orderBy("order", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[]);
       setLoading(false);
     }, (err) => {
+      // Same missing-composite-index fallback as the homepage teaser above --
+      // see the comment there. This is the dedicated /sports page, so it's
+      // the one place this content gap is most visible to a customer.
       console.warn("Sports schedule listener error:", err.message);
-      setLoading(false);
+      const q2 = query(collection(db, "sports_schedule"), orderBy("date", "asc"));
+      fallbackUnsub = onSnapshot(q2, (snap2) => {
+        const evs = snap2.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SportsEvent[];
+        evs.sort((a, b) => (a.date === b.date ? (a.order || 0) - (b.order || 0) : 0));
+        setEvents(evs);
+        setLoading(false);
+      });
     });
-    return () => unsubscribe();
+    return () => { unsubscribe(); fallbackUnsub?.(); };
   }, []);
 
   const today = bangkokToday();
