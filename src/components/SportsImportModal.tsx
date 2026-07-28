@@ -56,6 +56,12 @@ const badgeStyle: React.CSSProperties = {
 // A row is actually importable if it validates cleanly (or only has warnings) and hasn't been excluded.
 const isIncludable = (row: ImportRow) => row.status !== 'error' && !row.excluded;
 
+// Both endpoints must be present, and To must not be before From — an empty
+// or backwards range would otherwise silently match zero fixtures for
+// deletion while still presenting itself as a range replacement.
+const isRangeValid = (range: { start: string; end: string }) =>
+  !!range.start && !!range.end && range.start <= range.end;
+
 export default function SportsImportModal({
   existingEvents, onClose,
 }: {
@@ -114,14 +120,18 @@ export default function SportsImportModal({
 
   const handleConfirm = async () => {
     setImporting(true);
-    try {
-      const ops: { type: 'set' | 'update' | 'delete'; ref: ReturnType<typeof doc>; data?: any }[] = [];
-      plan.toAdd.forEach(({ data }) => ops.push({ type: 'set', ref: doc(collection(db, 'sports_schedule')), data }));
-      plan.toUpdate.forEach(({ id, data }) => ops.push({ type: 'update', ref: doc(db, 'sports_schedule', id), data }));
-      plan.toDelete.forEach(ev => ev.id && ops.push({ type: 'delete', ref: doc(db, 'sports_schedule', ev.id) }));
+    const ops: { type: 'set' | 'update' | 'delete'; ref: ReturnType<typeof doc>; data?: any }[] = [];
+    plan.toAdd.forEach(({ data }) => ops.push({ type: 'set', ref: doc(collection(db, 'sports_schedule')), data }));
+    plan.toUpdate.forEach(({ id, data }) => ops.push({ type: 'update', ref: doc(db, 'sports_schedule', id), data }));
+    plan.toDelete.forEach(ev => ev.id && ops.push({ type: 'delete', ref: doc(db, 'sports_schedule', ev.id) }));
 
-      // Firestore batches cap at 500 writes; chunk defensively even though a
-      // weekly import is realistically well under that.
+    // Firestore batches cap at 500 writes; chunk defensively even though a
+    // weekly import is realistically well under that. Each chunk commits
+    // independently, so if one fails partway through a rare oversized
+    // import, earlier chunks are already applied — track and report that
+    // rather than claiming nothing happened.
+    let committedOps = 0;
+    try {
       for (let i = 0; i < ops.length; i += 400) {
         const batch = writeBatch(db);
         ops.slice(i, i + 400).forEach(op => {
@@ -130,6 +140,7 @@ export default function SportsImportModal({
           else batch.delete(op.ref);
         });
         await batch.commit();
+        committedOps += Math.min(400, ops.length - i);
       }
 
       const rangeLabel = mode === 'replace' && range.start ? ` (${range.start} to ${range.end})` : '';
@@ -144,7 +155,19 @@ export default function SportsImportModal({
       toast.success('Import complete');
     } catch (err) {
       console.error('Import error:', err);
-      toast.error('Import failed — nothing extra was changed beyond what you see below. Check the console for details and try again.');
+      if (committedOps > 0 && committedOps < ops.length) {
+        // A later chunk failed after earlier ones already committed — this
+        // import is only partly applied. Log it so it can be reconciled,
+        // and say so plainly instead of implying nothing happened.
+        await logActivity(
+          'Sports Fixtures Import Partially Failed',
+          `${fileName || 'CSV'}: only ${committedOps} of ${ops.length} writes committed before an error. Review the Sports Schedule for missing/duplicate fixtures before re-importing.`,
+          'menu'
+        ).catch(() => {});
+        toast.error(`Import failed partway through: ${committedOps} of ${ops.length} changes were already saved. Check the schedule before re-importing to avoid duplicates.`);
+      } else {
+        toast.error('Import failed — nothing was changed. Check the console for details and try again.');
+      }
     } finally {
       setImporting(false);
     }
@@ -281,19 +304,27 @@ export default function SportsImportModal({
               </div>
 
               {mode === 'replace' && (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
-                  <div>
-                    <label style={S.label}>From</label>
-                    <input type="date" style={S.input} value={range.start} disabled={step === 'confirm'} onChange={e => setRange(r => ({ ...r, start: e.target.value }))} />
+                <>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
+                    <div>
+                      <label style={S.label}>From</label>
+                      <input type="date" style={S.input} value={range.start} disabled={step === 'confirm'} onChange={e => setRange(r => ({ ...r, start: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={S.label}>To</label>
+                      <input type="date" style={S.input} value={range.end} disabled={step === 'confirm'} onChange={e => setRange(r => ({ ...r, end: e.target.value }))} />
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#9ca3af', paddingBottom: 6 }}>
+                      Defaults to the date range found in this file. Only fixtures dated inside this range are ever removed.
+                    </div>
                   </div>
-                  <div>
-                    <label style={S.label}>To</label>
-                    <input type="date" style={S.input} value={range.end} disabled={step === 'confirm'} onChange={e => setRange(r => ({ ...r, end: e.target.value }))} />
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#9ca3af', paddingBottom: 6 }}>
-                    Defaults to the date range found in this file. Only fixtures dated inside this range are ever removed.
-                  </div>
-                </div>
+                  {!isRangeValid(range) && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#b91c1c', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
+                      <AlertCircle size={14} />
+                      Both From and To are required, and To must be on or after From — otherwise nothing gets removed, even though this looks like a range replace.
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -352,8 +383,8 @@ export default function SportsImportModal({
             {step === 'preview' && (
               <button
                 type="button"
-                style={{ ...S.btnPrimary, opacity: includable.length === 0 || (mode === 'replace' && !range.start) ? 0.5 : 1 }}
-                disabled={includable.length === 0 || (mode === 'replace' && !range.start)}
+                style={{ ...S.btnPrimary, opacity: includable.length === 0 || (mode === 'replace' && !isRangeValid(range)) ? 0.5 : 1 }}
+                disabled={includable.length === 0 || (mode === 'replace' && !isRangeValid(range))}
                 onClick={() => setStep('confirm')}
               >
                 Review Import <ArrowRight size={15} />
