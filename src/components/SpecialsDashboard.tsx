@@ -8,10 +8,12 @@ import { db, auth, storage } from '../firebase';
 import { normalizeImageUrl } from '../utils/images';
 import { FirebaseImage } from './ui/FirebaseImage';
 import { logActivity } from '../utils/logger';
+import { isSpecialActive } from '../utils/specials';
 import { toast } from 'sonner';
 import {
   Plus, Edit2, Trash2, Save, X, Upload,
-  Calendar, AlertCircle, Check, Image as ImageIcon
+  Calendar, AlertCircle, Check, Image as ImageIcon,
+  EyeOff, Eye
 } from 'lucide-react';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -21,6 +23,9 @@ interface Special {
   day: string;
   image: string;
   order: number;
+  // Whether this Special is currently being offered. Independent of `day`
+  // (which describes when it runs). Missing = active — see isSpecialActive().
+  isActive?: boolean;
   // legacy fields kept for compatibility
   description?: string;
   price?: string;
@@ -246,8 +251,15 @@ function SpecialModal({
     day: special?.day || 'Monday',
     image: special?.image || '',
     order: special?.order ?? 0,
+    isActive: special ? isSpecialActive(special) : true,
   });
   const [saving, setSaving] = useState(false);
+  // Whether the user actually touched the availability toggle in this modal
+  // session. If they didn't, we omit isActive from the save payload below so
+  // an unrelated edit (e.g. changing the title) can't clobber an availability
+  // change someone else made via the quick-toggle button while this modal
+  // was open — see Codex review on PR #4.
+  const [isActiveTouched, setIsActiveTouched] = useState(false);
 
   const storagePath = `specials/${Date.now()}-${form.name.replace(/\s+/g, '-').toLowerCase() || 'special'}`;
 
@@ -256,7 +268,14 @@ function SpecialModal({
     if (!form.name.trim()) { toast.error('Title is required'); return; }
     setSaving(true);
     try {
-      await onSave(form);
+      const payload = { ...form };
+      if (!isNew && !isActiveTouched) {
+        // Editing an existing Special and the user never touched availability:
+        // don't send isActive at all, so the current live value (which may
+        // have changed since this modal opened) is left untouched.
+        delete (payload as Partial<typeof payload>).isActive;
+      }
+      await onSave(payload);
     } finally {
       setSaving(false);
     }
@@ -315,6 +334,46 @@ function SpecialModal({
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+          </div>
+
+          {/* Availability */}
+          <div>
+            <label style={S.label}>Availability</label>
+            <button
+              type="button"
+              onClick={() => {
+                setIsActiveTouched(true);
+                setForm(f => ({ ...f, isActive: !isSpecialActive(f) }));
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 13px',
+                background: isSpecialActive(form) ? 'rgba(29,160,168,0.08)' : 'rgba(107,114,128,0.08)',
+                border: `1px solid ${isSpecialActive(form) ? '#1DA0A8' : '#d1d5db'}`,
+                borderRadius: 2, cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <span
+                style={{
+                  position: 'relative', width: 38, height: 20, borderRadius: 10, flexShrink: 0,
+                  background: isSpecialActive(form) ? '#1DA0A8' : '#9ca3af',
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute', top: 2, left: isSpecialActive(form) ? 20 : 2,
+                    width: 16, height: 16, borderRadius: '50%', background: '#ffffff',
+                    transition: 'left 0.15s ease', boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+                  }}
+                />
+              </span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: '#111827' }}>
+                {isSpecialActive(form)
+                  ? 'Available — showing on the site when scheduled'
+                  : 'Off menu — hidden everywhere until switched back on'}
+              </span>
+            </button>
           </div>
 
           {/* Order */}
@@ -407,6 +466,27 @@ export default function SpecialsDashboard() {
     }
   };
 
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const handleToggleActive = async (special: Special) => {
+    if (!special.id) return;
+    const nextActive = !isSpecialActive(special);
+    setTogglingId(special.id);
+    try {
+      await updateDoc(doc(db, 'specials', special.id), { isActive: nextActive } as any);
+      await logActivity(
+        nextActive ? 'Special Activated' : 'Special Deactivated',
+        `${nextActive ? 'Activated' : 'Deactivated'}: ${special.name}`,
+        'menu'
+      );
+      toast.success(nextActive ? 'Special turned back on' : 'Special taken off menu');
+    } catch (err) {
+      console.error('Toggle availability error:', err);
+      toast.error('Failed to update availability');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ ...S.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -456,10 +536,12 @@ export default function SpecialsDashboard() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-            {specials.map(special => (
+            {specials.map(special => {
+              const active = isSpecialActive(special);
+              return (
               <div
                 key={special.id}
-                style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', transition: 'border-color 0.2s ease' }}
+                style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', transition: 'border-color 0.2s ease', opacity: active ? 1 : 0.72 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = '#d1d5db')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
               >
@@ -469,7 +551,7 @@ export default function SpecialsDashboard() {
                     <FirebaseImage
                       src={normalizeImageUrl(special.image)}
                       alt={special.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: active ? 'none' : 'grayscale(0.6)' }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
@@ -489,6 +571,20 @@ export default function SpecialsDashboard() {
                     <Calendar size={11} />
                     {special.day}
                   </div>
+                  {/* Availability badge */}
+                  {!active && (
+                    <div style={{
+                      position: 'absolute', top: 10, right: 10,
+                      background: '#111827', color: '#ffffff',
+                      fontFamily: 'var(--font-condensed)', fontWeight: 700,
+                      fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+                      padding: '4px 10px', borderRadius: '2px',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}>
+                      <EyeOff size={11} />
+                      Off Menu
+                    </div>
+                  )}
                 </div>
 
                 {/* Body */}
@@ -496,7 +592,7 @@ export default function SpecialsDashboard() {
                   <div style={{ fontFamily: 'var(--font-condensed)', fontWeight: 600, fontSize: 18, textTransform: 'uppercase', color: '#111827', marginBottom: 12, letterSpacing: '0.02em' }}>
                     {special.name}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                     <button
                       onClick={() => setModal(special)}
                       style={S.btnGhost}
@@ -515,9 +611,32 @@ export default function SpecialsDashboard() {
                       <Trash2 size={13} /> {deleting === special.id ? 'Deleting…' : 'Delete'}
                     </button>
                   </div>
+                  {/* Availability quick toggle — its own full-width row, separated from
+                      Edit/Delete above, so it can't be mis-clicked as part of that group. */}
+                  <button
+                    onClick={() => handleToggleActive(special)}
+                    disabled={togglingId === special.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                      width: '100%', padding: '9px 12px', marginTop: 2,
+                      background: active ? '#ffffff' : 'rgba(29,160,168,0.08)',
+                      border: `1px solid ${active ? '#e5e7eb' : '#1DA0A8'}`,
+                      borderRadius: 2, cursor: togglingId === special.id ? 'default' : 'pointer',
+                      color: active ? '#6b7280' : '#127a80',
+                      fontFamily: 'var(--font-condensed)', fontWeight: 600,
+                      fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase',
+                      opacity: togglingId === special.id ? 0.6 : 1,
+                    }}
+                  >
+                    {active ? <EyeOff size={13} /> : <Eye size={13} />}
+                    {togglingId === special.id
+                      ? 'Updating…'
+                      : active ? 'Take Off Menu' : 'Put Back On Menu'}
+                  </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -8,6 +8,7 @@ import { MenuItem, Category } from "../types";
 import { handleFirestoreError } from "../utils/firestore";
 import { normalizeImageUrl } from "../utils/images";
 import { FirebaseImage } from "./ui/FirebaseImage";
+import { isSpecialVisibleToday } from "../utils/specials";
 
 // Optimized Sub-components
 import MenuItemCardGrid from "./menu/MenuItemCardGrid";
@@ -33,6 +34,7 @@ interface Special {
   day: string;
   image: string;
   order: number;
+  isActive?: boolean;
 }
 
 interface Drink {
@@ -199,14 +201,9 @@ const DigitalMenu = () => {
     return DAYS[new Date(bangkokMs).getUTCDay()];
   }, []);
 
-  // Only show specials matching today, Daily, Every Day, or Weekend (Sat/Sun)
+  // Only show specials matching today (or Daily/Every Day/Weekend) AND currently active.
   const todaysSpecials = useMemo(() => {
-    return specials.filter(s =>
-      s.day === todayDayName ||
-      s.day === 'Daily' ||
-      s.day === 'Every Day' ||
-      (s.day === 'Weekend' && ['Saturday', 'Sunday'].includes(todayDayName))
-    );
+    return specials.filter(s => isSpecialVisibleToday(s, todayDayName));
   }, [specials, todayDayName]);
 
   // Fallback if active category disappears
@@ -221,6 +218,17 @@ const DigitalMenu = () => {
       setActiveCategory(categories[0]);
     }
   }, [categories, activeCategory]);
+
+  // If a visitor is on the Specials tab and staff deactivates the last
+  // visible special (or the day rolls over), the tab button disappears but
+  // activeCategory would otherwise stay stuck on it, leaving an empty grid
+  // with no way back except manually picking another tab. Bounce back to
+  // the first real category instead.
+  useEffect(() => {
+    if (activeCategory === SPECIALS_TAB && todaysSpecials.length === 0 && categories.length > 0) {
+      setActiveCategory(categories[0]);
+    }
+  }, [activeCategory, todaysSpecials.length, categories]);
 
   const getLocalizedName = useCallback((item: MenuItem) => {
     switch (language) {
