@@ -175,6 +175,17 @@ const DigitalMenuDisplay = () => {
     }
   }, [categories, activeCategory]);
 
+  // If a visitor is on the Specials tab and staff deactivates the last
+  // visible special (or the day rolls over), the tab button disappears but
+  // activeCategory would otherwise stay stuck on it, leaving an empty grid
+  // with no way back except manually picking another tab. Bounce back to
+  // the first real category instead.
+  useEffect(() => {
+    if (activeCategory === SPECIALS_TAB && todaysSpecials.length === 0 && categories.length > 0) {
+      setActiveCategory(categories[0]);
+    }
+  }, [activeCategory, todaysSpecials.length, categories]);
+
   const getLocalizedName = useCallback((item: MenuItem) => {
     switch (language) {
       case 'zh': return item.name_chinese || item.name;

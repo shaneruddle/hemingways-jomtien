@@ -254,6 +254,12 @@ function SpecialModal({
     isActive: special ? isSpecialActive(special) : true,
   });
   const [saving, setSaving] = useState(false);
+  // Whether the user actually touched the availability toggle in this modal
+  // session. If they didn't, we omit isActive from the save payload below so
+  // an unrelated edit (e.g. changing the title) can't clobber an availability
+  // change someone else made via the quick-toggle button while this modal
+  // was open — see Codex review on PR #4.
+  const [isActiveTouched, setIsActiveTouched] = useState(false);
 
   const storagePath = `specials/${Date.now()}-${form.name.replace(/\s+/g, '-').toLowerCase() || 'special'}`;
 
@@ -262,7 +268,14 @@ function SpecialModal({
     if (!form.name.trim()) { toast.error('Title is required'); return; }
     setSaving(true);
     try {
-      await onSave(form);
+      const payload = { ...form };
+      if (!isNew && !isActiveTouched) {
+        // Editing an existing Special and the user never touched availability:
+        // don't send isActive at all, so the current live value (which may
+        // have changed since this modal opened) is left untouched.
+        delete (payload as Partial<typeof payload>).isActive;
+      }
+      await onSave(payload);
     } finally {
       setSaving(false);
     }
@@ -328,7 +341,10 @@ function SpecialModal({
             <label style={S.label}>Availability</label>
             <button
               type="button"
-              onClick={() => setForm(f => ({ ...f, isActive: !isSpecialActive(f) }))}
+              onClick={() => {
+                setIsActiveTouched(true);
+                setForm(f => ({ ...f, isActive: !isSpecialActive(f) }));
+              }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '10px 13px',
