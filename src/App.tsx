@@ -675,6 +675,12 @@ const Menu = () => {
     return items.filter(item => item.category === activeCategory);
   }, [items, activeCategory]);
 
+  // True until both Firestore listeners have resolved at least once (success
+  // or error). Gates the "No items found" message so it can only ever be
+  // shown once loading has genuinely finished — otherwise it flashes on
+  // every homepage load, for the brief moment before either listener fires.
+  const loading = !categoriesLoaded || !itemsLoaded;
+
   const getLocalizedName = (item: MenuItem) => {
     switch (language) {
       case 'zh': return item.name_chinese || item.name;
@@ -821,25 +827,41 @@ const Menu = () => {
         </div>
 
         {/* Menu items */}
-        <motion.div
-          key={activeCategory + language}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid md:grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-0"
-        >
-          {filteredItems.map((item, idx) => (
-            <MenuItemCard
-              key={item.id || idx}
-              item={item}
-              language={language}
-              getLocalizedName={getLocalizedName}
-              getLocalizedDesc={getLocalizedDesc}
-              renderPrice={renderPrice}
-            />
-          ))}
-        </motion.div>
-
-        {filteredItems.length === 0 && (
+        {loading ? (
+          <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-0" aria-hidden="true">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col gap-0 items-stretch bg-white rounded-[32px] border border-gray-100 shadow-sm w-full max-w-[550px] mx-auto overflow-hidden mb-6"
+              >
+                <div className="w-full aspect-[3/2] bg-gray-200 animate-pulse" />
+                <div className="flex-1 w-full p-6 flex flex-col gap-3">
+                  <div className="h-6 w-2/3 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+                  <div className="h-4 w-4/5 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredItems.length > 0 ? (
+          <motion.div
+            key={activeCategory + language}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid md:grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-0"
+          >
+            {filteredItems.map((item, idx) => (
+              <MenuItemCard
+                key={item.id || idx}
+                item={item}
+                language={language}
+                getLocalizedName={getLocalizedName}
+                getLocalizedDesc={getLocalizedDesc}
+                renderPrice={renderPrice}
+              />
+            ))}
+          </motion.div>
+        ) : (
           <div
             style={{
               textAlign: 'center',
