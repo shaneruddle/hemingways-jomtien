@@ -706,10 +706,48 @@ app.post("/api/contact", async (req, res) => {
     },
   };
 
+  // Resolves any hero/social image value stored on an article/page into an
+  // absolute, publicly fetchable HTTPS URL suitable for og:image/twitter:image.
+  // Mirrors the client-side ImageService.resolveNoCache() logic so a raw
+  // gs://bucket/path Firebase Storage URI (the format hero images are stored
+  // in) is routed through the public /api/image-proxy endpoint instead of
+  // being naively concatenated onto the site origin, which previously
+  // produced an invalid URL like https://.../gs://bucket/path.
   const absoluteImage = (img?: string) => {
-    if (!img) return DEFAULT_OG_IMAGE;
-    if (img.startsWith('http')) return img;
-    return `${SITE_ORIGIN}${img.startsWith('/') ? '' : '/'}${img}`;
+    const trimmed = img?.trim();
+    if (!trimmed) return DEFAULT_OG_IMAGE;
+
+    // Already an absolute/protocol-relative URL.
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('//')) return `https:${trimmed}`;
+
+    // Raw Firebase Storage URI — resolve through the public image-proxy
+    // endpoint rather than concatenating the site origin onto a gs:// value.
+    if (trimmed.startsWith('gs://')) {
+      const parts = trimmed.split('/');
+      const storagePath = parts.length >= 4 ? parts.slice(3).join('/') : '';
+      if (!storagePath) return DEFAULT_OG_IMAGE; // malformed gs:// URI
+      return `${SITE_ORIGIN}/api/image-proxy?path=${encodeURIComponent(storagePath)}`;
+    }
+
+    // data: URIs aren't valid og:image/twitter:image values (both require a
+    // fetchable HTTP(S) URL) — fall back rather than emit a broken tag.
+    if (trimmed.startsWith('data:')) return DEFAULT_OG_IMAGE;
+
+    // Relative path — known static-asset prefixes are served directly;
+    // anything else is treated as a Firebase Storage object path and routed
+    // through the image proxy, matching ImageService.resolveNoCache().
+    if (
+      trimmed.startsWith('/logo.png') ||
+      trimmed.startsWith('/favicon') ||
+      trimmed.startsWith('/api/') ||
+      trimmed.startsWith('/assets/')
+    ) {
+      return `${SITE_ORIGIN}${trimmed}`;
+    }
+
+    const cleanPath = trimmed.replace(/^\/+/, '');
+    return `${SITE_ORIGIN}/api/image-proxy?path=${encodeURIComponent(cleanPath)}`;
   };
 
   const buildSeoTags = (opts: { title: string; description: string; url: string; image?: string; type?: string }) => {
