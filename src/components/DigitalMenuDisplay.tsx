@@ -42,6 +42,7 @@ const DigitalMenuDisplay = () => {
   const isPreview = searchParams.get('preview') === 'true';
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [loading, setLoading] = useState({ menu: true });
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [language, setLanguage] = useState<Language>('en');
@@ -51,7 +52,17 @@ const DigitalMenuDisplay = () => {
   const [drinks, setDrinks] = useState<MenuItem[]>([]);
   const initialCategorySet = useRef(false);
 
-  const isLoading = loading.menu || (isPreview && authLoading);
+  // True until the categories/menu listeners have resolved AND, if there are
+  // any items, a default category has been picked. Without that last clause,
+  // if the menu-items listener resolves before the categories listener, this
+  // would briefly go false while activeCategory is still "" (the picking
+  // effect below only runs *after* that render commits), flashing "No items
+  // found" for a frame -- the same class of gap fixed on the homepage menu.
+  // It also stops the category-picking effect from ever locking onto a
+  // fallback category (picked by item order rather than the dashboard's
+  // category order) before categoryList has actually loaded, which is how
+  // this page could previously open on something other than Breakfast.
+  const isLoading = loading.menu || !categoriesLoaded || (isPreview && authLoading) || (items.length > 0 && !activeCategory);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(query(collection(db, "categories"), orderBy("order", "asc")), (snapshot) => {
@@ -60,8 +71,10 @@ const DigitalMenuDisplay = () => {
         ...doc.data()
       })) as Category[];
       setCategoryList(cats);
+      setCategoriesLoaded(true);
     }, (err) => {
       console.warn("Categories listener error:", err.message);
+      setCategoriesLoaded(true);
     });
     return () => unsubscribe();
   }, []);
@@ -121,16 +134,19 @@ const DigitalMenuDisplay = () => {
     return () => unsub();
   }, []);
 
-  // Separate effect to handle initial category selection once both items and categoryList are ready
+  // Separate effect to handle initial category selection once both items and
+  // categoryList are ready. Gated directly on categoriesLoaded/loading.menu
+  // (not the derived isLoading above, which itself depends on activeCategory
+  // being set -- referencing isLoading here would be circular).
   useEffect(() => {
-    if (!initialCategorySet.current && !isLoading && items.length > 0) {
+    if (!initialCategorySet.current && !loading.menu && categoriesLoaded && items.length > 0) {
       const firstCat = categoryList.length > 0
         ? categoryList.find(c => items.some(i => i.category === c.name))?.name || items[0].category
         : items[0].category;
       setActiveCategory(firstCat);
       initialCategorySet.current = true;
     }
-  }, [items, categoryList, isLoading]);
+  }, [items, categoryList, categoriesLoaded, loading.menu]);
 
   const categories = useMemo(() => {
     const itemCats = Array.from(new Set<string>(items.map(item => item.category)));
