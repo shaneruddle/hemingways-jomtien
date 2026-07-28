@@ -695,8 +695,11 @@ export default function Dashboard({ isSuperAdmin = false }: { isSuperAdmin?: boo
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 4000);
-
+    // No artificial timeout here: the onSnapshot listener below already calls
+    // setLoading(false) on both success and error, so a fallback timer only
+    // risked ending the loading spinner *before* real data arrived on a slow
+    // connection — which briefly showed "No items found, add your first
+    // item" over a menu that was actually still loading.
     const q = query(collection(db, 'menu'), orderBy('order', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const menuItems = snapshot.docs.map(doc => ({
@@ -724,7 +727,6 @@ export default function Dashboard({ isSuperAdmin = false }: { isSuperAdmin?: boo
     return () => {
       unsubscribe();
       unsubscribeCategories();
-      clearTimeout(timer);
     };
   }, []);
 

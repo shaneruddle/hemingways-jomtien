@@ -305,7 +305,12 @@ const DigitalMenuDisplay = () => {
           </div>
         </div>
         <div className="min-h-[60vh] scroll-mt-32">
-          <AnimatePresence mode="wait">
+          {/* mode="popLayout" (rather than "wait") lets the incoming panel
+              fade in immediately while the outgoing one animates out on top
+              of it, instead of waiting for a full exit before anything new
+              appears -- avoiding a ~0.8s blank gap on every category/language
+              switch even though the underlying data never actually empties. */}
+          <AnimatePresence mode="popLayout">
             <motion.div
               key={activeCategory + language}
               initial={{ opacity: 0, y: 20 }}
