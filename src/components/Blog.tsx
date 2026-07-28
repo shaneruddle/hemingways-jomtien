@@ -7,6 +7,7 @@ import DOMPurify from 'dompurify';
 import { db } from '../firebase';
 import { normalizeImageUrl } from '../utils/images';
 import { FirebaseImage } from './ui/FirebaseImage';
+import { AdaptiveImageBox } from './ui/AdaptiveImageBox';
 import type { BlogPost } from './BlogDashboard';
 
 export const usePublishedPosts = () => {
@@ -131,14 +132,11 @@ export const BlogList = () => {
                   <Link to={`/blog/${post.slug}`} onClick={() => window.scrollTo(0, 0)} style={{ textDecoration: 'none', display: 'block' }}>
                     <div className="hw-card" style={{ overflow: 'hidden', height: '100%' }}>
                       {post.heroImage && (
-                        <div style={{ height: 190, background: 'var(--ink-800)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <FirebaseImage
-                            src={normalizeImageUrl(post.heroImage)}
-                            alt={post.title}
-                            className="w-full h-full"
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                          />
-                        </div>
+                        <AdaptiveImageBox
+                          src={normalizeImageUrl(post.heroImage)}
+                          alt={post.title}
+                          defaultAspectRatio="4 / 3"
+                        />
                       )}
                       <div style={{ padding: '22px 22px 26px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-condensed)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 10 }}>
@@ -316,14 +314,11 @@ export const LatestPosts = () => {
               <Link to={`/blog/${post.slug}`} onClick={() => window.scrollTo(0, 0)} style={{ textDecoration: 'none', display: 'block' }}>
                 <div className="hw-card" style={{ overflow: 'hidden', height: '100%' }}>
                   {post.heroImage && (
-                    <div style={{ height: 180, background: 'var(--ink-800)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <FirebaseImage
-                        src={normalizeImageUrl(post.heroImage)}
-                        alt={post.title}
-                        className="w-full h-full"
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                      />
-                    </div>
+                    <AdaptiveImageBox
+                      src={normalizeImageUrl(post.heroImage)}
+                      alt={post.title}
+                      defaultAspectRatio="4 / 3"
+                    />
                   )}
                   <div style={{ padding: '20px 22px 24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-condensed)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 10 }}>

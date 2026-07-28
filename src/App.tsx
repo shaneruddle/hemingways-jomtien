@@ -49,6 +49,7 @@ import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatOpening
 // Optimized Sub-components
 import MenuItemCard from "./components/menu/MenuItemCard";
 import { FirebaseImage } from "./components/ui/FirebaseImage";
+import { AdaptiveImageBox } from "./components/ui/AdaptiveImageBox";
 import LanguageSwitcher from "./components/menu/LanguageSwitcher";
 import MenuItemCardGrid from "./components/menu/MenuItemCardGrid";
 import Dashboard from "./components/Dashboard";
@@ -1591,12 +1592,11 @@ const Specials = () => {
               style={{ display: 'flex', flexDirection: 'column' }}
             >
               {/* Image */}
-              <div style={{ position: 'relative', height: 220, overflow: 'hidden', background: 'var(--ink-800)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FirebaseImage
+              <div style={{ position: 'relative' }}>
+                <AdaptiveImageBox
                   src={normalizeImageUrl(special.image || "/logo.png")}
                   alt={special.name}
-                  className="w-full h-full"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', transition: 'transform 0.5s ease' }}
+                  defaultAspectRatio="4 / 3"
                 />
                 {/* Price stamp */}
                 {special.price && (
