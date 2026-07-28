@@ -690,7 +690,7 @@ app.post("/api/contact", async (req, res) => {
     },
     '/contact-us': {
       title: 'Contact Us | Hemingways Jomtien',
-      description: 'Call, message or find Hemingways Jomtien. Reservations, group bookings and private events. Jomtien Sai 2 Road, Pattaya. Open daily 9:30 AM - 12:00 AM.',
+      description: 'Call, message or find Hemingways Jomtien. Reservations, group bookings and private events. 414/21 Thappraya Road, Pattaya. Open daily 9:30 AM - 12:00 AM.',
     },
     '/blog': {
       title: 'Blog - News & Events | Hemingways Jomtien',
