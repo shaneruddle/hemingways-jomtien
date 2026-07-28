@@ -675,11 +675,16 @@ const Menu = () => {
     return items.filter(item => item.category === activeCategory);
   }, [items, activeCategory]);
 
-  // True until both Firestore listeners have resolved at least once (success
-  // or error). Gates the "No items found" message so it can only ever be
-  // shown once loading has genuinely finished — otherwise it flashes on
-  // every homepage load, for the brief moment before either listener fires.
-  const loading = !categoriesLoaded || !itemsLoaded;
+  // True until both Firestore listeners have resolved AND, if there are any
+  // published items, a default category has been picked. That second part
+  // matters because the default-category effect above only runs *after* a
+  // render has already committed with both listeners resolved — without it,
+  // there's a one-frame gap where loading is false, activeCategory is still
+  // "", and filteredItems is (wrongly) empty, which is the exact flash this
+  // flag exists to prevent. When there genuinely are no published items,
+  // that effect never sets a category, so loading correctly still becomes
+  // false and the real "no items" message shows.
+  const loading = !categoriesLoaded || !itemsLoaded || (items.length > 0 && !activeCategory);
 
   const getLocalizedName = (item: MenuItem) => {
     switch (language) {
