@@ -736,14 +736,18 @@ app.post("/api/contact", async (req, res) => {
 
     // Relative path — known static-asset prefixes are served directly;
     // anything else is treated as a Firebase Storage object path and routed
-    // through the image proxy, matching ImageService.resolveNoCache().
+    // through the image proxy, matching ImageService.resolveNoCache(). Ensure
+    // a leading slash before checking prefixes so a value missing one (e.g.
+    // "api/image-proxy?path=...", "assets/roast-food.jpg") still matches
+    // instead of being mis-treated as a raw storage object path.
+    const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
     if (
-      trimmed.startsWith('/logo.png') ||
-      trimmed.startsWith('/favicon') ||
-      trimmed.startsWith('/api/') ||
-      trimmed.startsWith('/assets/')
+      withLeadingSlash.startsWith('/logo.png') ||
+      withLeadingSlash.startsWith('/favicon') ||
+      withLeadingSlash.startsWith('/api/') ||
+      withLeadingSlash.startsWith('/assets/')
     ) {
-      return `${SITE_ORIGIN}${trimmed}`;
+      return `${SITE_ORIGIN}${withLeadingSlash}`;
     }
 
     const cleanPath = trimmed.replace(/^\/+/, '');
