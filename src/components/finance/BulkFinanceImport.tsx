@@ -43,7 +43,7 @@ const EXPENSE_CATEGORIES = [
   { id: 'uncategorized',         name: 'Uncategorized Expense' },
 ];
 
-const INCOME_CATEGORIES = ['Food', 'Drinks', 'Meal Preps', 'Catering', 'Other'];
+const INCOME_CATEGORIES = ['Food & Drink', 'Grab', 'Other Income'];
 
 const DEFAULT_EXPENSE_MAP: Record<string, string> = {
   'Food Expense':            'food_expense',
@@ -81,9 +81,9 @@ const DEFAULT_EXPENSE_MAP: Record<string, string> = {
 };
 
 const DEFAULT_INCOME_MAP: Record<string, string> = {
-  'Other Incomes':       'Other',
-  'Food & Drink Income ': 'Food',
-  'Food & Drink Income':  'Food',
+  'Other Incomes':       'Other Income',
+  'Food & Drink Income ': 'Food & Drink',
+  'Food & Drink Income':  'Food & Drink',
 };
 
 // ── CSV parser ─────────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export default function BulkFinanceImport() {
         if (!statsMap[key]) {
           const mappedTo = row.type === 'Expense'
             ? (DEFAULT_EXPENSE_MAP[row.category] || 'other')
-            : (DEFAULT_INCOME_MAP[row.category] || DEFAULT_INCOME_MAP[row.category.trim()] || 'Other');
+            : (DEFAULT_INCOME_MAP[row.category] || DEFAULT_INCOME_MAP[row.category.trim()] || 'Other Income');
           statsMap[key] = { original: row.category, type: row.type, count: 0, total: 0, mappedTo };
         }
         statsMap[key].count++;
@@ -203,7 +203,7 @@ export default function BulkFinanceImport() {
       const newIncMap = { ...DEFAULT_INCOME_MAP };
       for (const s of stats) {
         if (s.type === 'Expense' && !(s.original in newExpMap)) newExpMap[s.original] = 'other';
-        if (s.type === 'Income' && !(s.original in newIncMap)) newIncMap[s.original] = 'Other';
+        if (s.type === 'Income' && !(s.original in newIncMap)) newIncMap[s.original] = 'Other Income';
       }
       setExpenseMap(newExpMap);
       setIncomeMap(newIncMap);
@@ -266,7 +266,7 @@ export default function BulkFinanceImport() {
       const batch = writeBatch(db);
       const chunk = incomeRows.slice(i, i + BATCH_SIZE);
       for (const row of chunk) {
-        const cat = incomeMap[row.category] || incomeMap[row.category.trim()] || 'Other';
+        const cat = incomeMap[row.category] || incomeMap[row.category.trim()] || 'Other Income';
         batch.set(doc(collection(db, 'finance_income')), {
           date:       row.date,
           amount:     row.amount,
@@ -442,7 +442,7 @@ export default function BulkFinanceImport() {
                     <td className="px-4 py-3 text-right text-gray-500">฿{stat.total.toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <select
-                        value={incomeMap[stat.original] || incomeMap[stat.original.trim()] || 'Other'}
+                        value={incomeMap[stat.original] || incomeMap[stat.original.trim()] || 'Other Income'}
                         onChange={e => setIncomeMap(prev => ({ ...prev, [stat.original]: e.target.value }))}
                         className={INPUT_CLS}
                       >

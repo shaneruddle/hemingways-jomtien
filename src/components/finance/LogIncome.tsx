@@ -6,14 +6,14 @@ import { Income } from './types';
 import { Check, Loader2, Search, X, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const INCOME_CATEGORIES = ['Food', 'Drinks', 'Meal Preps', 'Catering', 'Other'];
+const INCOME_CATEGORIES = ['Food & Drink', 'Grab', 'Other Income'];
 
 export default function LogIncome({ user, financeRole = 'owner' }: { user: any; financeRole?: string }) {
   const [saving, setSaving] = useState(false);
   const [recent, setRecent] = useState<Income[]>([]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 10),
-    category: 'Food',
+    category: 'Food & Drink',
     amount: '',
     notes: '',
   });
@@ -33,7 +33,7 @@ export default function LogIncome({ user, financeRole = 'owner' }: { user: any; 
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
-  const [editForm, setEditForm] = useState({ date: '', category: 'Food', amount: '', notes: '' });
+  const [editForm, setEditForm] = useState({ date: '', category: 'Food & Drink', amount: '', notes: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -62,7 +62,7 @@ export default function LogIncome({ user, financeRole = 'owner' }: { user: any; 
 
   const openEdit = (i: Income) => {
     setEditingIncome(i);
-    setEditForm({ date: i.date || '', category: i.category || 'Food', amount: i.amount != null ? String(i.amount) : '', notes: i.notes || '' });
+    setEditForm({ date: i.date || '', category: i.category || 'Food & Drink', amount: i.amount != null ? String(i.amount) : '', notes: i.notes || '' });
   };
   const closeEdit = () => setEditingIncome(null);
 

@@ -15,7 +15,7 @@ function gsToUrl(gs: string): string {
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
 }
 
-const INCOME_CATEGORIES = ['Food', 'Drinks', 'Meal Preps', 'Catering', 'Other'];
+const INCOME_CATEGORIES = ['Food & Drink', 'Grab', 'Other Income'];
 const PAGE_SIZE = 50;
 
 const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
