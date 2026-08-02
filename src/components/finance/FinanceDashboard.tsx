@@ -6,7 +6,8 @@ import Ingredients from './Ingredients';
 import RecipeCosting from './RecipeCosting';
 import FinanceReports from './FinanceReports';
 import FinanceSuppliers from './FinanceSuppliers';
-import { LayoutDashboard, Receipt, TrendingUp, Scale, FileBarChart, ChefHat, Upload, Truck } from 'lucide-react';
+import MonthlySummary from './MonthlySummary';
+import { LayoutDashboard, Receipt, TrendingUp, Scale, FileBarChart, ChefHat, Upload, Truck, Landmark } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 type FinanceRole = 'owner' | 'manager' | 'cashier';
@@ -28,6 +29,7 @@ const ALL_TABS = [
   { id: 'ingredients',  label: 'Ingredients',      icon: <Scale size={16} />,           roles: ['owner', 'manager'] },
   { id: 'recipes',      label: 'Recipe Costing',   icon: <ChefHat size={16} />,         roles: ['owner', 'manager'] },
   { id: 'reports',      label: 'Reports',          icon: <FileBarChart size={16} />,    roles: ['owner'] },
+  { id: 'monthly-summary', label: 'Monthly Summary', icon: <Landmark size={16} />, roles: ['owner'] },
 ];
 
 export default function FinanceDashboard({ user }: { user: any }) {
@@ -74,6 +76,7 @@ export default function FinanceDashboard({ user }: { user: any }) {
         {activeTab === 'ingredients' && <Ingredients />}
         {activeTab === 'recipes'     && <RecipeCosting />}
         {activeTab === 'reports'     && <FinanceReports />}
+        {activeTab === 'monthly-summary' && <MonthlySummary />}
       </div>
     </div>
   );
