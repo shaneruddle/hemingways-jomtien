@@ -68,7 +68,7 @@ export interface UserProfile {
   id?: string;
   email: string;
   displayName?: string;
-  role: 'admin' | 'marketing' | 'cashier' | 'employee';
+  role: 'admin' | 'marketing' | 'cashier' | 'employee' | 'super_admin';
   createdAt: string;
   lastLogin?: string;
   uid: string;
