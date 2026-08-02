@@ -40,7 +40,7 @@ export interface Income {
   id: string;
   date: string; // YYYY-MM-DD
   amount: number;
-  category: string; // Food, Drinks, Meal Preps, Other
+  category: string; // Food & Drink, Grab, Other Income
   notes?: string;
   logged_by: string;
   created_at: string;
