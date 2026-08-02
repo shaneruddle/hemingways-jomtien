@@ -20,7 +20,8 @@ import {
   FileText,
   Building2,
   Briefcase,
-  Trophy
+  Trophy,
+  Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../firebase';
@@ -54,6 +55,11 @@ function canSeeMenu(role: string) {
 }
 function canSeeFinance(role: string) {
   return ['super_admin','admin','manager'].includes(role);
+}
+// Deliberately narrower than the other canSeeX() helpers — this page is
+// visible to the super admin only, not admin/manager.
+function canSeeMonthlySummary(role: string) {
+  return role === 'super_admin';
 }
 function canSeeLoyalty(role: string) {
   return ['super_admin','admin','manager'].includes(role);
@@ -362,6 +368,16 @@ export default function DashboardLayout({ user }: { user: any }) {
               isActive={isSubActive('/dashboard/finance')}
             />
           )}
+          {/* Monthly Summary (super admin only) */}
+          {canSeeMonthlySummary(role) && (
+            <SidebarItem
+              icon={<Landmark size={18} />}
+              label="Monthly Summary"
+              to="/dashboard/monthly-summary"
+              isCollapsed={isCollapsed}
+              isActive={isActive('/dashboard/monthly-summary')}
+            />
+  )}
 
           {/* Loyalty */}
           {canSeeLoyalty(role) && (
