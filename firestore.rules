@@ -8,7 +8,8 @@ service cloud.firestore {
     function isAdmin() { 
       return isSignedIn() && (
         (request.auth.token.email.lower() == "info@hemingwaysjomtien.com") ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin")
+        (request.auth.token.email.lower() == "shaneruddle@gmail.com") ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ["admin", "super_admin"])
       );
     }
     
@@ -42,7 +43,7 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.keys().hasAll(['email', 'role', 'uid']) &&
              data.email is string && data.email.size() <= 100 &&
-             data.role in ['admin', 'staff', 'user', 'cashier', 'marketing', 'employee', 'admin'] &&
+             data.role in ['admin', 'super_admin', 'staff', 'user', 'cashier', 'marketing', 'employee', 'admin'] &&
              data.uid == request.auth.uid;
     }
 
