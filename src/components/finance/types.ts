@@ -78,3 +78,21 @@ export interface MonthlySummary {
   income_by_category: Record<string, number>;
   expenses_by_category: Record<string, number>;
 }
+
+// Manually-logged monthly ledger row (Balance / Income / COGS / Operating Expense /
+// Profit / Dividends / New Balance). Super admin only — see MonthlySummary.tsx.
+export interface MonthlySummaryRow {
+  id: string;
+  order: number; // sequential sort key (oldest first); not derived from `label`
+  label: string; // e.g. "December 2023" or "Balance from old Accounts"
+  balance: number; // starting balance for the period
+  income: number;
+  cogsExpense: number;
+  operatingExpense: number;
+  dividends: number;
+  profit: number; // = income - cogsExpense - operatingExpense
+  newBalance: number; // = balance + profit - dividends
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
