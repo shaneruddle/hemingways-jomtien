@@ -3,7 +3,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, d
 import { db, auth } from '../../firebase';
 import { logActivity } from '../../utils/logger';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, X, RefreshCw, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, X, RefreshCw, Download, StickyNote } from 'lucide-react';
 import { MonthlySummaryRow } from './types';
 
 const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -95,6 +95,9 @@ export default function MonthlySummary() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [generatingReportId, setGeneratingReportId] = useState<string | null>(null);
+  const [noteRow, setNoteRow] = useState<MonthlySummaryRow | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(''); // 'YYYY-MM', Add-mode month picker
   const [autoCalcLoading, setAutoCalcLoading] = useState(false);
   const [autoFilled, setAutoFilled] = useState(false);
@@ -303,6 +306,36 @@ export default function MonthlySummary() {
     }
   };
 
+  const openNote = (r: MonthlySummaryRow) => {
+    setNoteRow(r);
+    setNoteText(r.notes || '');
+  };
+
+  const closeNote = () => {
+    setNoteRow(null);
+    setNoteText('');
+  };
+
+  const handleSaveNote = async () => {
+    if (!noteRow) return;
+    setSavingNote(true);
+    try {
+      await updateDoc(doc(db, 'finance_monthly_summary', noteRow.id), {
+        notes: noteText.trim(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth.currentUser?.email || 'unknown',
+      });
+      await logActivity('Monthly Summary Note Updated', noteRow.label, 'finance');
+      toast.success('Note saved');
+      closeNote();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save note — super admin permissions required');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const handleDelete = async (r: MonthlySummaryRow) => {
     if (!window.confirm(`Delete "${r.label}"? This cannot be undone.`)) return;
     setDeletingId(r.id);
@@ -381,6 +414,13 @@ export default function MonthlySummary() {
                           title="Generate partner report (PDF)"
                         >
                           {generatingReportId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        </button>
+                        <button
+                          onClick={() => openNote(r)}
+                          className={`transition-colors ${r.notes?.trim() ? 'text-[#1DA0A8]' : 'text-gray-400 hover:text-[#1DA0A8]'}`}
+                          title={r.notes?.trim() ? 'View/edit note' : 'Add note'}
+                        >
+                          <StickyNote size={14} />
                         </button>
                         <button onClick={() => openEdit(r)} className="text-gray-400 hover:text-[#1DA0A8] transition-colors" title="Edit">
                           <Pencil size={14} />
@@ -518,6 +558,39 @@ export default function MonthlySummary() {
                 className="flex-1 py-2.5 bg-[#1DA0A8] text-white rounded-xl font-bold hover:bg-[#18919a] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (<><Loader2 size={16} className="animate-spin" /> Saving...</>) : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {noteRow && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeNote}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-ink">Note — {noteRow.label}</h3>
+              <button onClick={closeNote} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Internal note for this month (not shown in partner reports)..."
+              rows={6}
+              autoFocus
+              className="w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8] text-gray-900 resize-none"
+            />
+            <div className="flex gap-3 mt-6">
+              <button onClick={closeNote} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNote}
+                disabled={savingNote}
+                className="flex-1 py-2.5 bg-[#1DA0A8] text-white rounded-xl font-bold hover:bg-[#18919a] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingNote ? (<><Loader2 size={16} className="animate-spin" /> Saving...</>) : 'Save'}
               </button>
             </div>
           </div>
