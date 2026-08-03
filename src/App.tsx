@@ -66,6 +66,7 @@ import DigitalMenu from "./components/DigitalMenu";
 import DigitalMenuDisplay from "./components/DigitalMenuDisplay";
 import FinanceDashboard from "./components/finance/FinanceDashboard";
 import BulkFinanceImport from "./components/finance/BulkFinanceImport";
+import MonthlySummary from "./components/finance/MonthlySummary";
 import ExpenseEntry from "./components/finance/ExpenseEntry";
 import StaffPortal from "./components/StaffPortal";
 import DashboardLayout from "./components/DashboardLayout";
@@ -1973,6 +1974,7 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
           <Route path="categories" element={isMarketing ? <CategoriesDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="finance" element={isManager ? <FinanceDashboard user={user} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="finance/import" element={isManager ? <BulkFinanceImport /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
+                              <Route path="monthly-summary" element={isSuperAdmin ? <MonthlySummary /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="users" element={isManager ? <UserManagement isSuperAdmin={isSuperAdmin} isAdmin={isAdmin} /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="loyalty" element={isManager ? <LoyaltyDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />
           <Route path="specials" element={isMarketing ? <SpecialsDashboard /> : <div style={{ padding: 80, textAlign: 'center' }}>Access Denied</div>} />

@@ -47,6 +47,8 @@ export default function MonthlySummary() {
     () => (rows && rows.length > 0 ? rows[rows.length - 1].newBalance : 0),
     [rows]
   );
+    // Fetched oldest-first (needed for nextOrder/lastNewBalance above); displayed newest-first.
+    const displayRows = useMemo(() => (rows ? [...rows].reverse() : rows), [rows]);
 
   const openAdd = () => {
     setEditingRow(null);
@@ -148,17 +150,6 @@ export default function MonthlySummary() {
     }
   };
 
-  const totals = useMemo(() => {
-    const src = rows || [];
-    return {
-      income: src.reduce((s, r) => s + (r.income || 0), 0),
-      cogsExpense: src.reduce((s, r) => s + (r.cogsExpense || 0), 0),
-      operatingExpense: src.reduce((s, r) => s + (r.operatingExpense || 0), 0),
-      profit: src.reduce((s, r) => s + (r.profit || 0), 0),
-      dividends: src.reduce((s, r) => s + (r.dividends || 0), 0),
-    };
-  }, [rows]);
-
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -203,7 +194,7 @@ export default function MonthlySummary() {
                 </tr>
               </thead>
               <tbody>
-                {(rows || []).map(r => (
+                {(displayRows || []).map(r => (
                   <tr key={r.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-4 py-3 font-medium text-ink whitespace-nowrap">{r.label}</td>
                     <td className="px-4 py-3 text-right text-gray-600">{fmt(r.balance)}</td>
@@ -231,21 +222,6 @@ export default function MonthlySummary() {
                   </tr>
                 ))}
               </tbody>
-              {rows && rows.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-gray-100 bg-cream/50 font-bold">
-                    <td className="px-4 py-3 text-ink">All-time</td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3 text-right text-green-600">{fmt(totals.income)}</td>
-                    <td className="px-4 py-3 text-right text-red-500">{fmt(totals.cogsExpense)}</td>
-                    <td className="px-4 py-3 text-right text-red-500">{fmt(totals.operatingExpense)}</td>
-                    <td className={`px-4 py-3 text-right ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(totals.profit)}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{fmt(totals.dividends)}</td>
-                    <td className="px-4 py-3"></td>
-                    <td className="px-4 py-3"></td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
         )
