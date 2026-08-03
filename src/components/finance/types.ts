@@ -92,6 +92,7 @@ export interface MonthlySummaryRow {
   dividends: number;
   profit: number; // = income - cogsExpense - operatingExpense
   newBalance: number; // = balance + profit - dividends
+  notes?: string; // free-text admin note for this month, not shown in partner reports
   createdAt?: string;
   updatedAt?: string;
   updatedBy?: string;
