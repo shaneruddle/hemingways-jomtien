@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs, where } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
 import { logActivity } from '../../utils/logger';
@@ -95,6 +95,10 @@ export default function MonthlySummary() {
   const [selectedMonth, setSelectedMonth] = useState(''); // 'YYYY-MM', Add-mode month picker
   const [autoCalcLoading, setAutoCalcLoading] = useState(false);
   const [autoFilled, setAutoFilled] = useState(false);
+  // Guards against out-of-order resolution: if the user changes the month while a
+  // previous computeMonthTotals() call is still in flight, only the response for the
+  // most recently requested month is allowed to write into the form.
+  const autoCalcRequestId = useRef(0);
 
   useEffect(() => {
     const q = query(collection(db, 'finance_monthly_summary'), orderBy('order', 'asc'));
@@ -127,9 +131,11 @@ export default function MonthlySummary() {
   // Runs the live aggregation for a given month and fills it into the form. Used both
   // by the Add-mode month picker and the Edit-mode "Recalculate" button.
   const runAutoCalc = async (year: number, month: number) => {
+    const requestId = ++autoCalcRequestId.current;
     setAutoCalcLoading(true);
     try {
       const totals = await computeMonthTotals(year, month);
+      if (requestId !== autoCalcRequestId.current) return; // superseded by a newer request
       setForm(f => ({
         ...f,
         income: String(totals.income),
@@ -139,10 +145,11 @@ export default function MonthlySummary() {
       }));
       setAutoFilled(true);
     } catch (err) {
+      if (requestId !== autoCalcRequestId.current) return; // superseded by a newer request
       console.error(err);
       toast.error('Failed to pull logged totals for that month');
     } finally {
-      setAutoCalcLoading(false);
+      if (requestId === autoCalcRequestId.current) setAutoCalcLoading(false);
     }
   };
 
