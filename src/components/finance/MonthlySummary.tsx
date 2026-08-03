@@ -176,8 +176,16 @@ export default function MonthlySummary() {
     if (!y || !m) return;
     const year = y;
     const month = m - 1;
-    setForm(f => ({ ...f, label: formatMonthLabel(year, month) }));
-    runAutoCalc(year, month);
+    if (isAutoCalcEligible(year, month)) {
+      setForm(f => ({ ...f, label: formatMonthLabel(year, month) }));
+      runAutoCalc(year, month);
+    } else {
+      // Historical months are seeded manually — never auto-fill from live data, and
+      // invalidate any in-flight request from a previously selected eligible month.
+      autoCalcRequestId.current++;
+      setAutoFilled(false);
+      setForm(f => ({ ...f, label: formatMonthLabel(year, month), income: '', cogsExpense: '', operatingExpense: '', dividends: '' }));
+    }
   };
 
   const openEdit = (r: MonthlySummaryRow) => {
@@ -196,7 +204,9 @@ export default function MonthlySummary() {
 
   const handleRecalc = () => {
     if (!editingRow) return;
-    const parsed = parseMonthLabel(editingRow.label);
+    // Use the currently displayed label (which the user may have edited), not the
+    // row's original label, so the fetched totals always match what will be saved.
+    const parsed = parseMonthLabel(form.label);
     if (!parsed) return;
     runAutoCalc(parsed.year, parsed.month);
   };
@@ -209,8 +219,10 @@ export default function MonthlySummary() {
   const previewProfit = num(form.income) - num(form.cogsExpense) - num(form.operatingExpense);
   const previewNewBalance = num(form.balance) + previewProfit - num(form.dividends);
 
-  // Whether the currently-open Edit row's month is eligible for the "Recalculate" button.
-  const editingParsed = editingRow ? parseMonthLabel(editingRow.label) : null;
+  // Whether the currently-displayed label (which may have been edited) is eligible
+  // for the "Recalculate" button — always derived from form.label, not the original
+  // row, so eligibility and the fetch in handleRecalc agree on the same month.
+  const editingParsed = editingRow ? parseMonthLabel(form.label) : null;
   const editingRecalcEligible = !!editingParsed && isAutoCalcEligible(editingParsed.year, editingParsed.month);
 
   const handleSave = async () => {
