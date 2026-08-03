@@ -3,8 +3,9 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, d
 import { db, auth } from '../../firebase';
 import { logActivity } from '../../utils/logger';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, X, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, X, RefreshCw, Download } from 'lucide-react';
 import { MonthlySummaryRow } from './types';
+import { generateMonthlyReportPdf } from './monthlyReportPdf';
 
 const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const num = (v: string) => (v.trim() === '' ? 0 : parseFloat(v) || 0);
@@ -12,17 +13,19 @@ const num = (v: string) => (v.trim() === '' ? 0 : parseFloat(v) || 0);
 const emptyForm = { label: '', balance: '', income: '', cogsExpense: '', operatingExpense: '', dividends: '' };
 type FormState = typeof emptyForm;
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
 // Expense categories (see EXPENSE_CATEGORIES in LogExpense.tsx) that count as Cost of
 // Goods Sold rather than Operating Expense for the auto-calculated Monthly Summary.
-const COGS_CATEGORY_IDS = new Set(['food_expense', 'drink_expense', 'ice']);
-const COGS_CATEGORY_NAMES = new Set(['Food Expense', 'Drink Expense', 'Ice']);
-const DIVIDEND_CATEGORY_ID = 'dividends';
-const DIVIDEND_CATEGORY_NAME = 'Dividends';
+// Exported so monthlyReportPdf.ts uses the exact same categorization — never redefine
+// this list a second time elsewhere.
+export const COGS_CATEGORY_IDS = new Set(['food_expense', 'drink_expense', 'ice']);
+export const COGS_CATEGORY_NAMES = new Set(['Food Expense', 'Drink Expense', 'Ice']);
+export const DIVIDEND_CATEGORY_ID = 'dividends';
+export const DIVIDEND_CATEGORY_NAME = 'Dividends';
 
 // Auto-calculation only applies from July 2026 onward — earlier months were seeded
 // manually from historical records and should not be silently overwritten from live data.
@@ -38,7 +41,7 @@ function formatMonthLabel(year: number, month: number) {
 
 // Parses labels like "July 2026" back into { year, month }. Returns null for labels
 // that don't match that pattern (e.g. "Balance from old Accounts").
-function parseMonthLabel(label: string): { year: number; month: number } | null {
+export function parseMonthLabel(label: string): { year: number; month: number } | null {
   const parts = label.trim().split(/\s+/);
   if (parts.length < 2) return null;
   const year = parseInt(parts[parts.length - 1], 10);
@@ -49,7 +52,7 @@ function parseMonthLabel(label: string): { year: number; month: number } | null 
   return { year, month };
 }
 
-function nextMonth(year: number, month: number) {
+export function nextMonth(year: number, month: number) {
   return month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
 }
 
@@ -92,6 +95,7 @@ export default function MonthlySummary() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [generatingReportId, setGeneratingReportId] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(''); // 'YYYY-MM', Add-mode month picker
   const [autoCalcLoading, setAutoCalcLoading] = useState(false);
   const [autoFilled, setAutoFilled] = useState(false);
@@ -283,6 +287,20 @@ export default function MonthlySummary() {
     }
   };
 
+  const handleGenerateReport = async (r: MonthlySummaryRow) => {
+    if (!rows) return;
+    setGeneratingReportId(r.id);
+    try {
+      await generateMonthlyReportPdf(r, rows);
+      await logActivity('Monthly Report Generated', r.label, 'finance');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate report');
+    } finally {
+      setGeneratingReportId(null);
+    }
+  };
+
   const handleDelete = async (r: MonthlySummaryRow) => {
     if (!window.confirm(`Delete "${r.label}"? This cannot be undone.`)) return;
     setDeletingId(r.id);
@@ -354,6 +372,14 @@ export default function MonthlySummary() {
                     <td className="px-4 py-3 text-right font-bold text-ink">{fmt(r.newBalance)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => handleGenerateReport(r)}
+                          disabled={generatingReportId === r.id}
+                          className="text-gray-400 hover:text-[#1DA0A8] transition-colors disabled:opacity-50"
+                          title="Generate partner report (PDF)"
+                        >
+                          {generatingReportId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        </button>
                         <button onClick={() => openEdit(r)} className="text-gray-400 hover:text-[#1DA0A8] transition-colors" title="Edit">
                           <Pencil size={14} />
                         </button>
