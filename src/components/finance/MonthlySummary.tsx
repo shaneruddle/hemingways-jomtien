@@ -5,7 +5,6 @@ import { logActivity } from '../../utils/logger';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Loader2, X, RefreshCw, Download } from 'lucide-react';
 import { MonthlySummaryRow } from './types';
-import { generateMonthlyReportPdf } from './monthlyReportPdf';
 
 const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const num = (v: string) => (v.trim() === '' ? 0 : parseFloat(v) || 0);
@@ -291,6 +290,9 @@ export default function MonthlySummary() {
     if (!rows) return;
     setGeneratingReportId(r.id);
     try {
+      // Dynamically imported so the jsPDF/autotable bundle is only downloaded when a
+      // report is actually requested, not by every visitor who loads this page.
+      const { generateMonthlyReportPdf } = await import('./monthlyReportPdf');
       await generateMonthlyReportPdf(r, rows);
       await logActivity('Monthly Report Generated', r.label, 'finance');
     } catch (err) {

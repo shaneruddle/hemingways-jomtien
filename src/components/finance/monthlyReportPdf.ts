@@ -22,6 +22,12 @@ const GREEN = '#1E8E5A';
 
 const fmt = (n: number) => `${n < 0 ? '-' : ''}THB ${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt0 = (n: number) => `${n < 0 ? '-' : ''}THB ${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+// Guards against zero/near-zero denominators (e.g. a month with only a single
+// zero-valued entry, or offsetting positive/negative adjustments) so the PDF
+// never prints NaN% or Infinity%.
+const pct = (num: number, den: number) => (Math.abs(den) < 0.005 ? '—' : `${((num / den) * 100).toFixed(1)}%`);
+// Anything below this is treated as float noise, not a real mismatch.
+const MISMATCH_EPSILON = 1;
 
 type CategoryBreakdown = {
   hasData: boolean;
@@ -213,9 +219,13 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
   }
 
   // ---- Income breakdown ---------------------------------------------------
+  // Percentages and the Total row are always derived from the fetched category
+  // entries themselves (one snapshot), never mixed with row.income — so this
+  // table is internally consistent even if it doesn't match the saved summary.
   if (breakdown.hasData && breakdown.incomeByCategory.size > 0) {
     const incomeEntries = sortedEntries(breakdown.incomeByCategory);
     const incomeTotal = incomeEntries.reduce((s, [, v]) => s + v, 0);
+    const incomeMismatch = Math.abs(incomeTotal - row.income) > MISMATCH_EPSILON;
     const startY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
@@ -227,7 +237,7 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
       tableWidth: 120,
       head: [['Category', 'Amount', '% of Income']],
       body: [
-        ...incomeEntries.map(([name, amt]) => [name, fmt0(amt), `${((amt / incomeTotal) * 100).toFixed(1)}%`]),
+        ...incomeEntries.map(([name, amt]) => [name, fmt0(amt), pct(amt, incomeTotal)]),
         ['Total', fmt0(incomeTotal), '100.0%'],
       ],
       headStyles: { fillColor: '#EAF6F6', textColor: INK, fontStyle: 'bold', fontSize: 9.5 },
@@ -237,6 +247,17 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
         if (data.row.index === incomeEntries.length) data.cell.styles.fontStyle = 'bold';
       },
     });
+    if (incomeMismatch) {
+      const afterY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.setTextColor(MUTED);
+      doc.text(
+        `Note: itemized income above (${fmt0(incomeTotal)}) differs from the saved summary income (${fmt0(row.income)}) —`,
+        marginX, afterY
+      );
+      doc.text('transactions may have been logged or edited after this month was saved.', marginX, afterY + 4);
+    }
   }
 
   // ---- Expense breakdown (new page) ---------------------------------------
@@ -257,6 +278,14 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
     const operatingEntries = sortedEntries(breakdown.operatingByCategory);
     const chartBottom = 26 + 6 + combined.length * 8.2 + 10;
 
+    // Subtotals and percentages are derived entirely from the fetched category
+    // entries (one snapshot) rather than mixed with the row's saved totals, so
+    // the subtotal row always equals the sum of the category lines above it.
+    const cogsTotalFromBreakdown = cogsEntries.reduce((s, [, v]) => s + v, 0);
+    const operatingTotalFromBreakdown = operatingEntries.reduce((s, [, v]) => s + v, 0);
+    const expenseTotalFromBreakdown = cogsTotalFromBreakdown + operatingTotalFromBreakdown;
+    const expenseMismatch = Math.abs(expenseTotalFromBreakdown - expense) > MISMATCH_EPSILON;
+
     if (cogsEntries.length > 0) {
       autoTable(doc, {
         startY: chartBottom,
@@ -264,8 +293,8 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
         tableWidth: (pageW - marginX * 2 - 6) / 2,
         head: [['COGS Category', 'Amount', '% of Total']],
         body: [
-          ...cogsEntries.map(([n, v]) => [n, fmt(v), `${((v / expense) * 100).toFixed(1)}%`]),
-          ['Subtotal', fmt(row.cogsExpense), `${((row.cogsExpense / expense) * 100).toFixed(1)}%`],
+          ...cogsEntries.map(([n, v]) => [n, fmt(v), pct(v, expenseTotalFromBreakdown)]),
+          ['Subtotal', fmt(cogsTotalFromBreakdown), pct(cogsTotalFromBreakdown, expenseTotalFromBreakdown)],
         ],
         headStyles: { fillColor: '#F3F4F6', textColor: INK, fontStyle: 'bold', fontSize: 8.5 },
         styles: { font: 'helvetica', fontSize: 8.5, textColor: INK },
@@ -282,8 +311,8 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
         tableWidth: (pageW - marginX * 2 - 6) / 2,
         head: [['Operating Category', 'Amount', '% of Total']],
         body: [
-          ...operatingEntries.map(([n, v]) => [n, fmt(v), `${((v / expense) * 100).toFixed(1)}%`]),
-          ['Subtotal', fmt(row.operatingExpense), `${((row.operatingExpense / expense) * 100).toFixed(1)}%`],
+          ...operatingEntries.map(([n, v]) => [n, fmt(v), pct(v, expenseTotalFromBreakdown)]),
+          ['Subtotal', fmt(operatingTotalFromBreakdown), pct(operatingTotalFromBreakdown, expenseTotalFromBreakdown)],
         ],
         headStyles: { fillColor: '#F3F4F6', textColor: INK, fontStyle: 'bold', fontSize: 8.5 },
         styles: { font: 'helvetica', fontSize: 8.5, textColor: INK },
@@ -292,6 +321,18 @@ export async function generateMonthlyReportPdf(row: MonthlySummaryRow, allRows: 
           if (data.row.index === operatingEntries.length) data.cell.styles.fontStyle = 'bold';
         },
       });
+    }
+
+    if (expenseMismatch) {
+      const bothTables = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.setTextColor(MUTED);
+      doc.text(
+        `Note: itemized expenses above (${fmt0(expenseTotalFromBreakdown)}) differ from the saved summary expense (${fmt0(expense)}) —`,
+        marginX, bothTables
+      );
+      doc.text('transactions may have been logged or edited after this month was saved.', marginX, bothTables + 4);
     }
   }
 
