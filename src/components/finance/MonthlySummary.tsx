@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs, where } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
 import { logActivity } from '../../utils/logger';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, X, RefreshCw } from 'lucide-react';
 import { MonthlySummaryRow } from './types';
 
 const fmt = (n: number) => `฿${(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -11,6 +11,77 @@ const num = (v: string) => (v.trim() === '' ? 0 : parseFloat(v) || 0);
 
 const emptyForm = { label: '', balance: '', income: '', cogsExpense: '', operatingExpense: '', dividends: '' };
 type FormState = typeof emptyForm;
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+// Expense categories (see EXPENSE_CATEGORIES in LogExpense.tsx) that count as Cost of
+// Goods Sold rather than Operating Expense for the auto-calculated Monthly Summary.
+const COGS_CATEGORY_IDS = new Set(['food_expense', 'drink_expense', 'ice']);
+const COGS_CATEGORY_NAMES = new Set(['Food Expense', 'Drink Expense', 'Ice']);
+const DIVIDEND_CATEGORY_ID = 'dividends';
+const DIVIDEND_CATEGORY_NAME = 'Dividends';
+
+// Auto-calculation only applies from July 2026 onward — earlier months were seeded
+// manually from historical records and should not be silently overwritten from live data.
+const AUTO_CALC_START = { year: 2026, month: 6 }; // month is 0-indexed (6 = July)
+
+function isAutoCalcEligible(year: number, month: number) {
+  return year > AUTO_CALC_START.year || (year === AUTO_CALC_START.year && month >= AUTO_CALC_START.month);
+}
+
+function formatMonthLabel(year: number, month: number) {
+  return `${MONTH_NAMES[month]} ${year}`;
+}
+
+// Parses labels like "July 2026" back into { year, month }. Returns null for labels
+// that don't match that pattern (e.g. "Balance from old Accounts").
+function parseMonthLabel(label: string): { year: number; month: number } | null {
+  const parts = label.trim().split(/\s+/);
+  if (parts.length < 2) return null;
+  const year = parseInt(parts[parts.length - 1], 10);
+  if (!Number.isFinite(year)) return null;
+  const monthName = parts.slice(0, -1).join(' ').toLowerCase();
+  const month = MONTH_NAMES.findIndex(m => m.toLowerCase() === monthName);
+  if (month === -1) return null;
+  return { year, month };
+}
+
+function nextMonth(year: number, month: number) {
+  return month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
+}
+
+// Sums finance_income / finance_expenses for the given calendar month into the four
+// fields Monthly Summary tracks. Dates in both collections are 'YYYY-MM-DD' strings.
+async function computeMonthTotals(year: number, month: number) {
+  const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const { year: endYear, month: endMonth } = nextMonth(year, month);
+  const endDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-01`;
+
+  const [incomeSnap, expenseSnap] = await Promise.all([
+    getDocs(query(collection(db, 'finance_income'), where('date', '>=', startDate), where('date', '<', endDate))),
+    getDocs(query(collection(db, 'finance_expenses'), where('date', '>=', startDate), where('date', '<', endDate))),
+  ]);
+
+  const income = incomeSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+
+  let cogsExpense = 0;
+  let operatingExpense = 0;
+  let dividends = 0;
+  expenseSnap.docs.forEach(d => {
+    const e = d.data();
+    const total = e.total || 0;
+    const isDividend = e.category_id === DIVIDEND_CATEGORY_ID || e.category_name === DIVIDEND_CATEGORY_NAME;
+    const isCogs = (e.category_id && COGS_CATEGORY_IDS.has(e.category_id)) || COGS_CATEGORY_NAMES.has(e.category_name);
+    if (isDividend) dividends += total;
+    else if (isCogs) cogsExpense += total;
+    else operatingExpense += total;
+  });
+
+  return { income, cogsExpense, operatingExpense, dividends };
+}
 
 export default function MonthlySummary() {
   const [rows, setRows] = useState<MonthlySummaryRow[] | null>(null);
@@ -21,6 +92,9 @@ export default function MonthlySummary() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(''); // 'YYYY-MM', Add-mode month picker
+  const [autoCalcLoading, setAutoCalcLoading] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'finance_monthly_summary'), orderBy('order', 'asc'));
@@ -47,17 +121,61 @@ export default function MonthlySummary() {
     () => (rows && rows.length > 0 ? rows[rows.length - 1].newBalance : 0),
     [rows]
   );
-    // Fetched oldest-first (needed for nextOrder/lastNewBalance above); displayed newest-first.
-    const displayRows = useMemo(() => (rows ? [...rows].reverse() : rows), [rows]);
+  // Fetched oldest-first (needed for nextOrder/lastNewBalance above); displayed newest-first.
+  const displayRows = useMemo(() => (rows ? [...rows].reverse() : rows), [rows]);
+
+  // Runs the live aggregation for a given month and fills it into the form. Used both
+  // by the Add-mode month picker and the Edit-mode "Recalculate" button.
+  const runAutoCalc = async (year: number, month: number) => {
+    setAutoCalcLoading(true);
+    try {
+      const totals = await computeMonthTotals(year, month);
+      setForm(f => ({
+        ...f,
+        income: String(totals.income),
+        cogsExpense: String(totals.cogsExpense),
+        operatingExpense: String(totals.operatingExpense),
+        dividends: String(totals.dividends),
+      }));
+      setAutoFilled(true);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to pull logged totals for that month');
+    } finally {
+      setAutoCalcLoading(false);
+    }
+  };
 
   const openAdd = () => {
     setEditingRow(null);
-    setForm({ ...emptyForm, balance: lastNewBalance ? String(lastNewBalance) : '' });
+    setAutoFilled(false);
+
+    // Default the picker to the month after the most recent existing row.
+    const lastLabel = rows && rows.length > 0 ? rows[rows.length - 1].label : null;
+    const parsedLast = lastLabel ? parseMonthLabel(lastLabel) : null;
+    const now = new Date();
+    const fallback = { year: now.getFullYear(), month: now.getMonth() };
+    const { year, month } = parsedLast ? nextMonth(parsedLast.year, parsedLast.month) : fallback;
+
+    setSelectedMonth(`${year}-${String(month + 1).padStart(2, '0')}`);
+    setForm({ ...emptyForm, label: formatMonthLabel(year, month), balance: lastNewBalance ? String(lastNewBalance) : '' });
     setShowForm(true);
+    runAutoCalc(year, month);
+  };
+
+  const handleMonthChange = (value: string) => {
+    setSelectedMonth(value);
+    const [y, m] = value.split('-').map(Number);
+    if (!y || !m) return;
+    const year = y;
+    const month = m - 1;
+    setForm(f => ({ ...f, label: formatMonthLabel(year, month) }));
+    runAutoCalc(year, month);
   };
 
   const openEdit = (r: MonthlySummaryRow) => {
     setEditingRow(r);
+    setAutoFilled(false);
     setForm({
       label: r.label,
       balance: String(r.balance ?? ''),
@@ -69,6 +187,13 @@ export default function MonthlySummary() {
     setShowForm(true);
   };
 
+  const handleRecalc = () => {
+    if (!editingRow) return;
+    const parsed = parseMonthLabel(editingRow.label);
+    if (!parsed) return;
+    runAutoCalc(parsed.year, parsed.month);
+  };
+
   const closeForm = () => {
     setShowForm(false);
     setEditingRow(null);
@@ -76,6 +201,10 @@ export default function MonthlySummary() {
 
   const previewProfit = num(form.income) - num(form.cogsExpense) - num(form.operatingExpense);
   const previewNewBalance = num(form.balance) + previewProfit - num(form.dividends);
+
+  // Whether the currently-open Edit row's month is eligible for the "Recalculate" button.
+  const editingParsed = editingRow ? parseMonthLabel(editingRow.label) : null;
+  const editingRecalcEligible = !!editingParsed && isAutoCalcEligible(editingParsed.year, editingParsed.month);
 
   const handleSave = async () => {
     if (!form.label.trim()) {
@@ -237,16 +366,45 @@ export default function MonthlySummary() {
               </button>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Month label</label>
-                <input
-                  type="text"
-                  value={form.label}
-                  onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                  placeholder="e.g. July 2026"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8] text-gray-900"
-                />
-              </div>
+              {editingRow ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Month label</label>
+                  <input
+                    type="text"
+                    value={form.label}
+                    onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+                    placeholder="e.g. July 2026"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8] text-gray-900"
+                  />
+                  {editingRecalcEligible && (
+                    <button
+                      type="button"
+                      onClick={handleRecalc}
+                      disabled={autoCalcLoading}
+                      className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[#1DA0A8] hover:text-[#18919a] disabled:opacity-50"
+                    >
+                      {autoCalcLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                      Recalculate from logged data
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={e => handleMonthChange(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DA0A8] text-gray-900"
+                  />
+                </div>
+              )}
+              {autoFilled && (
+                <p className="text-xs text-gray-400 flex items-center gap-1.5 -mt-2">
+                  {autoCalcLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                  Income / COGS / Operating / Dividends pulled from logged transactions for {form.label} — review before saving.
+                </p>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Balance (starting, ฿)</label>
                 <input
