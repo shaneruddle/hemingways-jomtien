@@ -79,6 +79,7 @@ import SpecialsDashboard from "./components/SpecialsDashboard";
 import SportsDashboard from "./components/SportsDashboard";
 import { SportsGroupedSchedule } from "./components/SportsGroupedSchedule";
 import { ReservationPage } from "./components/Reservation";
+import { DataDeletionPage, PrivacyPolicyPage } from "./components/PrivacyPages";
 import DrinksDashboard from "./components/DrinksDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
@@ -1967,6 +1968,8 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/careers" element={<CareersList />} />
         <Route path="/careers/:jobId" element={<CareersJobPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage companyProfile={companyProfile} />} />
+        <Route path="/data-deletion" element={<DataDeletionPage companyProfile={companyProfile} />} />
         <Route path="/admin/login" element={<AdminLogin />} />
       </Routes>
 

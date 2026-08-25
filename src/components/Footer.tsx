@@ -320,6 +320,14 @@ export const Footer = ({ companyProfile, hideContactForm }: FooterProps) => {
         <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-faint)' }}>
           © {new Date().getFullYear()} Hemingways Jomtien · Restaurant & Bar · Also now on Grab Food
         </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap', marginTop: 8 }}>
+          <Link to="/privacy-policy" onClick={() => window.scrollTo(0, 0)} style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>
+            Privacy Policy · นโยบายความเป็นส่วนตัว
+          </Link>
+          <Link to="/data-deletion" onClick={() => window.scrollTo(0, 0)} style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>
+            Data Deletion · การลบข้อมูล
+          </Link>
+        </div>
       </div>
     </footer>
   );
