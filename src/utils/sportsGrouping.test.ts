@@ -23,7 +23,7 @@ describe('sportsGroupFor', () => {
       sport: 'Other',
       competition: 'Australian Horse Racing',
       participants: 'Shown daily',
-    }))).toBe('Racing');
+    }))).toBe('Horse Racing');
   });
 
   it('recognises rugby and fight competitions stored under Other', () => {
@@ -39,9 +39,18 @@ describe('sportsGroupFor', () => {
     }))).toBe('Combat Sports');
   });
 
-  it('keeps uncategorised sports together', () => {
-    expect(sportsGroupFor(event({ sport: 'Golf' }))).toBe('Other Sports');
-    expect(sportsGroupFor(event({ sport: 'Tennis' }))).toBe('Other Sports');
+  it('keeps major imported sports as their own customer-facing categories', () => {
+    expect(sportsGroupFor(event({ sport: 'Golf' }))).toBe('Golf');
+    expect(sportsGroupFor(event({ sport: 'Tennis' }))).toBe('Tennis');
+    expect(sportsGroupFor(event({ sport: 'Cycling' }))).toBe('Cycling');
+    expect(sportsGroupFor(event({ sport: 'Snooker' }))).toBe('Snooker');
+  });
+
+  it('recognises current import aliases', () => {
+    expect(sportsGroupFor(event({ sport: 'MotoGP' }))).toBe('Motorsport');
+    expect(sportsGroupFor(event({ sport: 'NRL' }))).toBe('Rugby');
+    expect(sportsGroupFor(event({ sport: 'AFL' }))).toBe('Australian Rules');
+    expect(sportsGroupFor(event({ sport: 'NFL' }))).toBe('American Football');
   });
 });
 
@@ -55,5 +64,19 @@ describe('groupSportsEvents', () => {
 
     expect(groups.map(group => group.name)).toEqual(['Rugby', 'Cricket']);
     expect(groups[1].events.map(item => item.participants)).toEqual(['First', 'Second']);
+  });
+
+  it('creates alphabetised competition subgroups within each sport', () => {
+    const [football] = groupSportsEvents([
+      event({ sport: 'Football', competition: 'German Bundesliga', participants: 'Dortmund vs Hamburg' }),
+      event({ sport: 'Football', competition: 'English Premier League', participants: 'Liverpool vs Arsenal' }),
+      event({ sport: 'Football', competition: 'English Premier League', participants: 'Chelsea vs Brighton' }),
+    ]);
+
+    expect(football.competitions.map(competition => competition.name)).toEqual([
+      'English Premier League',
+      'German Bundesliga',
+    ]);
+    expect(football.competitions[0].events).toHaveLength(2);
   });
 });
