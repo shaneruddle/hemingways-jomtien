@@ -3,7 +3,23 @@ import { SportsEvent } from '../types';
 // Kept here (rather than duplicated in SportsDashboard.tsx) so the importer
 // validates against the same list the manual Add/Edit Fixture form uses.
 export const SPORT_OPTIONS = [
-  'Football', 'Rugby', 'Cricket', 'UFC / MMA', 'Boxing', 'Golf', 'Tennis', 'Motorsport', 'Other',
+  'Football',
+  'Rugby',
+  'Cricket',
+  'Golf',
+  'Tennis',
+  'Boxing',
+  'UFC / MMA',
+  'Muay Thai',
+  'Motorsport',
+  'Horse Racing',
+  'Cycling',
+  'Darts',
+  'Hockey',
+  'Snooker',
+  'American Football',
+  'Australian Rules',
+  'Other',
 ];
 
 export const IMPORT_CSV_COLUMNS = [
