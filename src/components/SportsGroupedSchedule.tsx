@@ -22,17 +22,13 @@ const FixtureRow = ({ event, today }: { event: SportsEvent; today: string }) => 
   <div className="sports-fixture-row">
     <div className="sports-fixture-when">
       <div className="sports-fixture-time">{event.time}</div>
-      <div className="sports-fixture-date">
-        {event.date === today ? 'Today' : formatFixtureDate(event.date)}
-        {' · '}Thailand time
-      </div>
+      <div className="sports-fixture-date">{event.date === today ? 'Today' : formatFixtureDate(event.date)}</div>
+      <div className="sports-fixture-zone">Thailand time</div>
     </div>
 
     <div className="sports-fixture-copy">
       <div className="sports-fixture-name">{event.participants}</div>
-      {event.competition && (
-        <div className="sports-fixture-competition">{event.competition}</div>
-      )}
+      <div className="sports-fixture-sport">{event.sport}</div>
     </div>
 
     {event.date === today && (
@@ -106,9 +102,22 @@ export const SportsGroupedSchedule = ({
                 <ChevronDown className="sports-group-chevron" size={18} aria-hidden="true" />
               </span>
             </summary>
-            <div className="sports-group-fixtures">
-              {group.events.map((event, index) => (
-                <FixtureRow key={event.id || `${event.date}-${event.time}-${index}`} event={event} today={today} />
+            <div className="sports-competitions">
+              {group.competitions.map(competition => (
+                <details className="sports-competition" key={competition.name} open>
+                  <summary className="sports-competition-summary">
+                    <span>{competition.name}</span>
+                    <span className="sports-competition-summary-meta">
+                      {competition.events.length} fixture{competition.events.length === 1 ? '' : 's'}
+                      <ChevronDown className="sports-competition-chevron" size={16} aria-hidden="true" />
+                    </span>
+                  </summary>
+                  <div className="sports-group-fixtures">
+                    {competition.events.map((event, index) => (
+                      <FixtureRow key={event.id || `${event.date}-${event.time}-${index}`} event={event} today={today} />
+                    ))}
+                  </div>
+                </details>
               ))}
             </div>
           </details>
