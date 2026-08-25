@@ -77,6 +77,7 @@ import LoyaltyDashboard from "./components/LoyaltyDashboard";
 import CompanyProfileDashboard from "./components/CompanyProfileDashboard";
 import SpecialsDashboard from "./components/SpecialsDashboard";
 import SportsDashboard from "./components/SportsDashboard";
+import { SportsGroupedSchedule } from "./components/SportsGroupedSchedule";
 import { ReservationPage } from "./components/Reservation";
 import DrinksDashboard from "./components/DrinksDashboard";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
@@ -1195,8 +1196,7 @@ const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile
   }, []);
 
   const today = bangkokToday();
-  const todayEvents = events.filter(e => e.date === today);
-  const upcoming = events.filter(e => e.date > today);
+  const visibleEvents = events.filter(e => e.date >= today);
 
   const phone = formatPhoneDisplay(companyProfile?.phone);
   const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
@@ -1232,36 +1232,8 @@ const SportsSchedulePage = ({ companyProfile }: { companyProfile: CompanyProfile
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           {loading ? (
             <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>Loading schedule...</p>
-          ) : events.length === 0 ? (
-            <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>No fixtures posted yet — check back soon, or ask us about your match below.</p>
           ) : (
-            <>
-              {todayEvents.length > 0 && (
-                <div style={{ marginBottom: 44 }}>
-                  <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
-                    Today
-                  </h2>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {todayEvents.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
-                  </div>
-                </div>
-              )}
-
-              {upcoming.length > 0 && (
-                <div>
-                  <h2 style={{ fontFamily: 'var(--font-condensed)', fontWeight: 700, fontSize: 20, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-500)', marginBottom: 18 }}>
-                    Upcoming Fixtures
-                  </h2>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {upcoming.map((event, idx) => <FixtureRow key={event.id || idx} event={event} idx={idx} />)}
-                  </div>
-                </div>
-              )}
-
-              {todayEvents.length === 0 && upcoming.length === 0 && (
-                <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', textAlign: 'center' }}>No fixtures posted yet — check back soon, or ask us about your match below.</p>
-              )}
-            </>
+            <SportsGroupedSchedule events={visibleEvents} today={today} />
           )}
 
           {/* Contact CTA */}
