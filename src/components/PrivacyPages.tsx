@@ -15,7 +15,7 @@ const privacyContent: Record<Language, { title: string; intro: string; updated: 
   en: {
     title: 'Privacy Notice',
     intro: 'This notice explains how Hemingways Jomtien collects, uses, stores and protects personal information when you contact or use our services.',
-    updated: 'Last updated: 25 August 2026',
+    updated: 'Last updated: 26 August 2026',
     sections: [
       {
         heading: '1. Who we are',
@@ -88,18 +88,28 @@ const privacyContent: Record<Language, { title: string; intro: string; updated: 
         ],
       },
       {
-        heading: '6. Retention',
+        heading: '6. CCTV with video and sound recording',
+        paragraphs: [
+          'We use visible CCTV cameras that record video and sound in the restaurant and bar areas, entrances, terrace, outside frontage and kitchen. The cameras support the legitimate interests of protecting guests, staff and property; maintaining safety and security; preventing and investigating theft, damage, misconduct and other incidents; and establishing, exercising or defending legal claims.',
+          'The system may capture images, voices, activities, vehicles and belongings of customers, visitors, staff and other people in or around the monitored areas. It does not use facial recognition or any other means of automatically identifying people. Cameras are not installed in toilets, changing areas, staff rest areas or other private areas.',
+          'Recordings remain on the on-site DVR for up to seven days and are then automatically overwritten. If an incident occurs, relevant recordings may be exported and retained for longer where reasonably necessary to investigate or resolve the incident, comply with law, assist an authorised investigation, or establish, exercise or defend legal claims. Such retained footage will be deleted when it is no longer reasonably required.',
+          'Only authorised business management personnel may view or export recordings. No external CCTV company or cloud service has access to the system. Recordings may be disclosed where reasonably necessary or legally required, including to police, courts, regulators or persons involved in investigating or resolving an incident.',
+          'Please read this CCTV notice before entering a monitored area. To ask about CCTV information or exercise an applicable privacy right, contact us using the details in section 10. We may need to verify your identity and locate the relevant recording using an approximate date, time and area. A request may be restricted where disclosure would affect another person’s privacy or safety, compromise security or an investigation, or conflict with a legal obligation.',
+        ],
+      },
+      {
+        heading: '7. Retention of other information',
         paragraphs: [
           'Customer contact details, delivery information and related conversation records are normally retained for up to 18 months after the most recent relevant interaction. We may retain particular records for longer where required by law, accounting obligations, security, fraud prevention, dispute resolution, or another lawful and documented business need.',
           'When information is no longer reasonably required, we will delete it or remove identifying details where practical.',
         ],
       },
       {
-        heading: '7. Security and access',
+        heading: '8. Security and access',
         paragraphs: ['Access to customer information is limited to authorised Hemingways personnel and service providers who need it for legitimate operational purposes. We use reasonable technical and organisational safeguards. No internet or messaging service, however, can be guaranteed completely secure.'],
       },
       {
-        heading: '8. Your choices and rights',
+        heading: '9. Your choices and rights',
         paragraphs: ['Subject to applicable law, you may ask us to:'],
         bullets: [
           'confirm whether we hold personal information about you and provide access to it;',
@@ -119,11 +129,11 @@ const privacyContent: Record<Language, { title: string; intro: string; updated: 
         ],
       },
       {
-        heading: '9. Contact us',
+        heading: '10. Contact us',
         paragraphs: ['For privacy questions or requests, email info@hemingwaysjomtien.com, telephone +66 64 620 9225, or visit Hemingways Jomtien at the address above.'],
       },
       {
-        heading: '10. Changes to this notice',
+        heading: '11. Changes to this notice',
         paragraphs: ['We may update this notice when our services, technology or legal obligations change. The current version and last-updated date will be published on this page.'],
       },
     ],
@@ -131,7 +141,7 @@ const privacyContent: Record<Language, { title: string; intro: string; updated: 
   th: {
     title: 'ประกาศความเป็นส่วนตัว',
     intro: 'ประกาศฉบับนี้อธิบายวิธีที่ Hemingways Jomtien เก็บรวบรวม ใช้ จัดเก็บ และปกป้องข้อมูลส่วนบุคคล เมื่อท่านติดต่อหรือใช้บริการของเรา',
-    updated: 'ปรับปรุงล่าสุด: 25 สิงหาคม 2569',
+    updated: 'ปรับปรุงล่าสุด: 26 สิงหาคม 2569',
     sections: [
       {
         heading: '1. เกี่ยวกับเรา',
@@ -204,18 +214,28 @@ const privacyContent: Record<Language, { title: string; intro: string; updated: 
         ],
       },
       {
-        heading: '6. ระยะเวลาการเก็บรักษา',
+        heading: '6. กล้องวงจรปิดที่บันทึกภาพและเสียง',
+        paragraphs: [
+          'เราใช้กล้องวงจรปิดที่มองเห็นได้และบันทึกภาพพร้อมเสียงในบริเวณร้านอาหารและบาร์ ทางเข้า ระเบียง พื้นที่ด้านหน้าร้าน และห้องครัว เพื่อประโยชน์โดยชอบด้วยกฎหมายในการปกป้องลูกค้า พนักงาน และทรัพย์สิน รักษาความปลอดภัย ป้องกันและตรวจสอบการโจรกรรม ความเสียหาย การประพฤติมิชอบหรือเหตุการณ์อื่น ตลอดจนก่อตั้ง ใช้ หรือป้องกันสิทธิเรียกร้องตามกฎหมาย',
+          'ระบบอาจบันทึกภาพ เสียงพูด กิจกรรม ยานพาหนะ และทรัพย์สินของลูกค้า ผู้มาติดต่อ พนักงาน และบุคคลอื่นที่อยู่ในหรือรอบพื้นที่ที่มีกล้อง ระบบไม่ใช้เทคโนโลยีจดจำใบหน้าหรือวิธีการอื่นเพื่อระบุตัวบุคคลโดยอัตโนมัติ และไม่ติดตั้งกล้องในห้องน้ำ ห้องเปลี่ยนเสื้อผ้า พื้นที่พักผ่อนของพนักงาน หรือพื้นที่ส่วนตัวอื่น',
+          'ข้อมูลบันทึกจะเก็บไว้ในเครื่องบันทึก DVR ณ สถานประกอบการเป็นเวลาไม่เกิน 7 วัน ก่อนถูกบันทึกทับโดยอัตโนมัติ หากเกิดเหตุการณ์ เราอาจส่งออกและเก็บข้อมูลเฉพาะส่วนที่เกี่ยวข้องไว้นานขึ้นเท่าที่จำเป็นอย่างสมเหตุสมผล เพื่อสอบสวนหรือแก้ไขเหตุการณ์ ปฏิบัติตามกฎหมาย ให้ความช่วยเหลือในการสอบสวนที่ได้รับอนุญาต หรือก่อตั้ง ใช้ หรือป้องกันสิทธิเรียกร้องตามกฎหมาย และจะลบข้อมูลดังกล่าวเมื่อไม่มีความจำเป็นต้องใช้อีกต่อไป',
+          'เฉพาะบุคลากรฝ่ายบริหารของธุรกิจที่ได้รับอนุญาตเท่านั้นที่สามารถดูหรือส่งออกข้อมูลบันทึก บริษัทกล้องวงจรปิดภายนอกหรือบริการคลาวด์ไม่สามารถเข้าถึงระบบได้ เราอาจเปิดเผยข้อมูลเมื่อมีความจำเป็นอย่างสมเหตุสมผลหรือเมื่อกฎหมายกำหนด รวมถึงต่อเจ้าหน้าที่ตำรวจ ศาล หน่วยงานกำกับดูแล หรือบุคคลที่เกี่ยวข้องกับการสอบสวนหรือการแก้ไขเหตุการณ์',
+          'โปรดอ่านประกาศเกี่ยวกับกล้องวงจรปิดฉบับนี้ก่อนเข้าสู่พื้นที่ที่มีการบันทึก หากต้องการสอบถามเกี่ยวกับข้อมูลจากกล้องวงจรปิดหรือใช้สิทธิด้านความเป็นส่วนตัว โปรดติดต่อเราตามรายละเอียดในข้อ 10 เราอาจต้องยืนยันตัวตนของท่านและใช้ข้อมูลวันที่ เวลา และบริเวณโดยประมาณเพื่อค้นหาข้อมูลที่เกี่ยวข้อง เราอาจจำกัดคำขอหากการเปิดเผยข้อมูลจะกระทบต่อความเป็นส่วนตัวหรือความปลอดภัยของบุคคลอื่น กระทบต่อการรักษาความปลอดภัยหรือการสอบสวน หรือขัดต่อหน้าที่ตามกฎหมาย',
+        ],
+      },
+      {
+        heading: '7. ระยะเวลาการเก็บรักษาข้อมูลอื่น',
         paragraphs: [
           'โดยปกติ เราเก็บรายละเอียดการติดต่อลูกค้า ข้อมูลการจัดส่ง และบันทึกการสนทนาที่เกี่ยวข้องไว้ไม่เกิน 18 เดือนนับจากการติดต่อที่เกี่ยวข้องครั้งล่าสุด เราอาจเก็บบันทึกบางรายการไว้นานกว่านั้นเมื่อกฎหมายกำหนด เพื่อการบัญชี ความปลอดภัย การป้องกันการทุจริต การระงับข้อพิพาท หรือเพื่อความจำเป็นทางธุรกิจอื่นที่ชอบด้วยกฎหมายและมีการบันทึกเหตุผลไว้',
           'เมื่อไม่มีความจำเป็นต้องใช้ข้อมูลอย่างสมเหตุสมผลอีกต่อไป เราจะลบข้อมูลหรือนำข้อมูลที่สามารถระบุตัวบุคคลออกเมื่อสามารถดำเนินการได้',
         ],
       },
       {
-        heading: '7. ความปลอดภัยและการเข้าถึงข้อมูล',
+        heading: '8. ความปลอดภัยและการเข้าถึงข้อมูล',
         paragraphs: ['การเข้าถึงข้อมูลลูกค้าจำกัดเฉพาะบุคลากรของ Hemingways และผู้ให้บริการที่ได้รับอนุญาตและมีความจำเป็นต้องใช้ข้อมูลเพื่อวัตถุประสงค์ในการดำเนินงานที่ชอบด้วยกฎหมาย เราใช้มาตรการรักษาความปลอดภัยทางเทคนิคและทางองค์กรที่เหมาะสม อย่างไรก็ตาม ไม่มีบริการอินเทอร์เน็ตหรือระบบรับส่งข้อความใดที่สามารถรับประกันความปลอดภัยได้อย่างสมบูรณ์'],
       },
       {
-        heading: '8. ทางเลือกและสิทธิของท่าน',
+        heading: '9. ทางเลือกและสิทธิของท่าน',
         paragraphs: ['ภายใต้กฎหมายที่ใช้บังคับ ท่านอาจขอให้เรา:'],
         bullets: [
           'ยืนยันว่าเราเก็บข้อมูลส่วนบุคคลของท่านหรือไม่ และขอเข้าถึงข้อมูลดังกล่าว;',
@@ -235,11 +255,11 @@ const privacyContent: Record<Language, { title: string; intro: string; updated: 
         ],
       },
       {
-        heading: '9. ติดต่อเรา',
+        heading: '10. ติดต่อเรา',
         paragraphs: ['หากมีคำถามหรือคำขอเกี่ยวกับความเป็นส่วนตัว โปรดติดต่อทางอีเมล info@hemingwaysjomtien.com โทรศัพท์ +66 64 620 9225 หรือมาติดต่อที่ Hemingways Jomtien ตามที่อยู่ข้างต้น'],
       },
       {
-        heading: '10. การเปลี่ยนแปลงประกาศฉบับนี้',
+        heading: '11. การเปลี่ยนแปลงประกาศฉบับนี้',
         paragraphs: ['เราอาจปรับปรุงประกาศฉบับนี้เมื่อบริการ เทคโนโลยี หรือหน้าที่ตามกฎหมายของเราเปลี่ยนแปลง โดยจะเผยแพร่ฉบับปัจจุบันและวันที่ปรับปรุงล่าสุดไว้ในหน้านี้'],
       },
     ],
