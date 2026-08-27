@@ -8,7 +8,7 @@ import { SportsEvent } from '../types';
 import {
   ImportRow, SPORT_OPTIONS,
   parseImportCsv, revalidateRow, getMissingRequiredHeaders,
-  planImport, dateRangeOf, ImportPlan,
+  planImport, ImportPlan,
   CSV_TEMPLATE, CSV_EXAMPLE, downloadTextFile,
 } from '../utils/sportsImport';
 
@@ -56,11 +56,10 @@ const badgeStyle: React.CSSProperties = {
 // A row is actually importable if it validates cleanly (or only has warnings) and hasn't been excluded.
 const isIncludable = (row: ImportRow) => row.status !== 'error' && !row.excluded;
 
-// Both endpoints must be present, and To must not be before From — an empty
-// or backwards range would otherwise silently match zero fixtures for
-// deletion while still presenting itself as a range replacement.
-const isRangeValid = (range: { start: string; end: string }) =>
-  !!range.start && !!range.end && range.start <= range.end;
+// Keep every schedule change in one Firestore commit. Firestore permits 500
+// writes per batch; the lower ceiling leaves room for future batch-side
+// bookkeeping without ever falling back to partially committed chunks.
+export const MAX_ATOMIC_IMPORT_WRITES = 450;
 
 export default function SportsImportModal({
   existingEvents, onClose,
@@ -73,11 +72,15 @@ export default function SportsImportModal({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [mode, setMode] = useState<Mode>('merge');
-  const [range, setRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [isDragging, setIsDragging] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ added: number; updated: number; skipped: number; deleted: number } | null>(null);
 
   const includable = useMemo(() => rows.filter(isIncludable), [rows]);
+  const representedDates = useMemo(
+    () => [...new Set(includable.map(row => row.date))].sort(),
+    [includable]
+  );
   const counts = useMemo(() => ({
     valid: rows.filter(r => r.status === 'valid' && !r.excluded).length,
     warning: rows.filter(r => r.status === 'warning' && !r.excluded).length,
@@ -86,9 +89,11 @@ export default function SportsImportModal({
   }), [rows]);
 
   const plan: ImportPlan = useMemo(
-    () => planImport(includable, existingEvents, mode, mode === 'replace' ? range : undefined),
-    [includable, existingEvents, mode, range]
+    () => planImport(includable, existingEvents, mode, mode === 'replace' ? representedDates : []),
+    [includable, existingEvents, mode, representedDates]
   );
+  const writeCount = plan.toAdd.length + plan.toUpdate.length + plan.toDelete.length;
+  const isAtomicSize = writeCount <= MAX_ATOMIC_IMPORT_WRITES;
 
   const handleFile = async (file: File) => {
     setUploadError(null);
@@ -105,8 +110,6 @@ export default function SportsImportModal({
       return;
     }
     setRows(parsed);
-    const detectedRange = dateRangeOf(parsed.filter(isIncludable));
-    if (detectedRange) setRange(detectedRange);
     setStep('preview');
   };
 
@@ -125,29 +128,26 @@ export default function SportsImportModal({
     plan.toUpdate.forEach(({ id, data }) => ops.push({ type: 'update', ref: doc(db, 'sports_schedule', id), data }));
     plan.toDelete.forEach(ev => ev.id && ops.push({ type: 'delete', ref: doc(db, 'sports_schedule', ev.id) }));
 
-    // Firestore batches cap at 500 writes; chunk defensively even though a
-    // weekly import is realistically well under that. Each chunk commits
-    // independently, so if one fails partway through a rare oversized
-    // import, earlier chunks are already applied — track and report that
-    // rather than claiming nothing happened.
-    let committedOps = 0;
-    try {
-      for (let i = 0; i < ops.length; i += 400) {
-        const batch = writeBatch(db);
-        ops.slice(i, i + 400).forEach(op => {
-          if (op.type === 'set') batch.set(op.ref, op.data);
-          else if (op.type === 'update') batch.update(op.ref, op.data);
-          else batch.delete(op.ref);
-        });
-        await batch.commit();
-        committedOps += Math.min(400, ops.length - i);
-      }
+    if (ops.length > MAX_ATOMIC_IMPORT_WRITES) {
+      toast.error(`This import needs ${ops.length} changes. The safe maximum is ${MAX_ATOMIC_IMPORT_WRITES}; reduce the file or use Merge.`);
+      setImporting(false);
+      return;
+    }
 
-      const rangeLabel = mode === 'replace' && range.start ? ` (${range.start} to ${range.end})` : '';
+    try {
+      const batch = writeBatch(db);
+      ops.forEach(op => {
+        if (op.type === 'set') batch.set(op.ref, op.data);
+        else if (op.type === 'update') batch.update(op.ref, op.data);
+        else batch.delete(op.ref);
+      });
+      await batch.commit();
+
+      const dateLabel = mode === 'replace' ? ` (${representedDates.join(', ')})` : '';
       await logActivity(
         'Sports Fixtures Imported',
-        `${fileName || 'CSV'}: ${mode} import${rangeLabel} — ${plan.toAdd.length} added, ${plan.toUpdate.length} updated, ${plan.toSkip.length} skipped, ${plan.toDelete.length} removed`,
-        'menu'
+        `${fileName || 'CSV'}: ${mode} import${dateLabel} — ${plan.toAdd.length} added, ${plan.toUpdate.length} updated, ${plan.toSkip.length} skipped, ${plan.toDelete.length} removed`,
+        'sports'
       );
 
       setResult({ added: plan.toAdd.length, updated: plan.toUpdate.length, skipped: plan.toSkip.length, deleted: plan.toDelete.length });
@@ -155,19 +155,7 @@ export default function SportsImportModal({
       toast.success('Import complete');
     } catch (err) {
       console.error('Import error:', err);
-      if (committedOps > 0 && committedOps < ops.length) {
-        // A later chunk failed after earlier ones already committed — this
-        // import is only partly applied. Log it so it can be reconciled,
-        // and say so plainly instead of implying nothing happened.
-        await logActivity(
-          'Sports Fixtures Import Partially Failed',
-          `${fileName || 'CSV'}: only ${committedOps} of ${ops.length} writes committed before an error. Review the Sports Schedule for missing/duplicate fixtures before re-importing.`,
-          'menu'
-        ).catch(() => {});
-        toast.error(`Import failed partway through: ${committedOps} of ${ops.length} changes were already saved. Check the schedule before re-importing to avoid duplicates.`);
-      } else {
-        toast.error('Import failed — nothing was changed. Check the console for details and try again.');
-      }
+      toast.error('Import failed — nothing was changed. Check the console for details and try again.');
     } finally {
       setImporting(false);
     }
@@ -202,9 +190,23 @@ export default function SportsImportModal({
               </div>
 
               <label
+                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={e => { e.preventDefault(); setIsDragging(false); }}
+                onDrop={e => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (!file) return;
+                  if (!file.name.toLowerCase().endsWith('.csv')) {
+                    setUploadError('Please drop a .csv file.');
+                    return;
+                  }
+                  handleFile(file);
+                }}
                 style={{
-                  border: '2px dashed #d1d5db', borderRadius: 4, padding: '40px 24px', textAlign: 'center',
+                  border: `2px dashed ${isDragging ? '#1DA0A8' : '#d1d5db'}`, borderRadius: 4, padding: '40px 24px', textAlign: 'center',
                   cursor: 'pointer', color: '#6b7280', fontFamily: 'var(--font-sans)', fontSize: 14,
+                  background: isDragging ? 'rgba(29,160,168,0.08)' : '#ffffff',
                 }}
               >
                 <Upload size={28} style={{ marginBottom: 10 }} />
@@ -299,32 +301,21 @@ export default function SportsImportModal({
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 14, color: '#111827', cursor: step === 'confirm' ? 'default' : 'pointer' }}>
                   <input type="radio" checked={mode === 'replace'} disabled={step === 'confirm'} onChange={() => setMode('replace')} />
-                  Replace a date range — fixtures in that range not in this file are removed
+                  Replace CSV dates — remove unmatched fixtures only on dates present in this file
                 </label>
               </div>
 
               {mode === 'replace' && (
-                <>
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
-                    <div>
-                      <label style={S.label}>From</label>
-                      <input type="date" style={S.input} value={range.start} disabled={step === 'confirm'} onChange={e => setRange(r => ({ ...r, start: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={S.label}>To</label>
-                      <input type="date" style={S.input} value={range.end} disabled={step === 'confirm'} onChange={e => setRange(r => ({ ...r, end: e.target.value }))} />
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#9ca3af', paddingBottom: 6 }}>
-                      Defaults to the date range found in this file. Only fixtures dated inside this range are ever removed.
-                    </div>
-                  </div>
-                  {!isRangeValid(range) && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#b91c1c', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
-                      <AlertCircle size={14} />
-                      Both From and To are required, and To must be on or after From — otherwise nothing gets removed, even though this looks like a range replace.
-                    </div>
-                  )}
-                </>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: '#6b7280' }}>
+                  Dates that may be replaced: {representedDates.length > 0 ? representedDates.join(', ') : 'none'}. Dates missing from the CSV will not be changed.
+                </div>
+              )}
+
+              {!isAtomicSize && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#b91c1c', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
+                  <AlertCircle size={14} />
+                  This would make {writeCount} changes. The safe atomic maximum is {MAX_ATOMIC_IMPORT_WRITES}; reduce the file or use Merge.
+                </div>
               )}
             </div>
           )}
@@ -339,7 +330,7 @@ export default function SportsImportModal({
                 <li><strong>{plan.toUpdate.length}</strong> fixture{plan.toUpdate.length === 1 ? '' : 's'} updated</li>
                 <li><strong>{plan.toSkip.length}</strong> fixture{plan.toSkip.length === 1 ? '' : 's'} skipped (already up to date)</li>
                 {mode === 'replace' && (
-                  <li><strong>{plan.toDelete.length}</strong> existing fixture{plan.toDelete.length === 1 ? '' : 's'} in {range.start} to {range.end} removed (not present in this file)</li>
+                  <li><strong>{plan.toDelete.length}</strong> existing fixture{plan.toDelete.length === 1 ? '' : 's'} removed from the represented CSV dates only</li>
                 )}
               </ul>
               {plan.toDelete.length > 0 && (
@@ -383,15 +374,15 @@ export default function SportsImportModal({
             {step === 'preview' && (
               <button
                 type="button"
-                style={{ ...S.btnPrimary, opacity: includable.length === 0 || (mode === 'replace' && !isRangeValid(range)) ? 0.5 : 1 }}
-                disabled={includable.length === 0 || (mode === 'replace' && !isRangeValid(range))}
+                style={{ ...S.btnPrimary, opacity: includable.length === 0 || !isAtomicSize ? 0.5 : 1 }}
+                disabled={includable.length === 0 || !isAtomicSize}
                 onClick={() => setStep('confirm')}
               >
                 Review Import <ArrowRight size={15} />
               </button>
             )}
             {step === 'confirm' && (
-              <button type="button" style={{ ...S.btnPrimary, opacity: importing ? 0.6 : 1 }} disabled={importing} onClick={handleConfirm}>
+              <button type="button" style={{ ...S.btnPrimary, opacity: importing || !isAtomicSize ? 0.6 : 1 }} disabled={importing || !isAtomicSize} onClick={handleConfirm}>
                 {importing ? 'Importing…' : 'Confirm Import'}
               </button>
             )}

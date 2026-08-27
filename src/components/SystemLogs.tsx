@@ -24,6 +24,7 @@ const LOG_CATEGORIES = [
   { id: 'all', label: 'All Activities' },
   { id: 'menu', label: 'Menu' },
   { id: 'category', label: 'Categories' },
+  { id: 'sports', label: 'Sports' },
   { id: 'custom_meal', label: 'Custom Meals' },
   { id: 'finance', label: 'Finance' },
   { id: 'user', label: 'Users' },
@@ -35,6 +36,7 @@ const CategoryBadge = ({ category }: { category: SystemLog['category'] }) => {
   const styles: Record<string, string> = {
     menu: 'bg-blue-50 text-blue-600 border-blue-100',
     category: 'bg-purple-50 text-purple-600 border-purple-100',
+    sports: 'bg-amber-50 text-amber-700 border-amber-100',
     custom_meal: 'bg-orange-50 text-orange-600 border-orange-100',
     finance: 'bg-green-50 text-green-600 border-green-100',
     user: 'bg-indigo-50 text-indigo-600 border-indigo-100',

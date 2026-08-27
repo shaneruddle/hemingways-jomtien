@@ -45,7 +45,7 @@ import { MenuItem, Category, Special, SportsEvent } from "./types";
 import { bangkokDayName, isSpecialVisibleToday } from "./utils/specials";
 import { handleFirestoreError } from "./utils/firestore";
 import { normalizeImageUrl } from "./utils/images";
-import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatOpeningHoursSummary } from "./utils/companyDefaults";
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatOpeningHoursSummary, formatAddressDisplay } from "./utils/companyDefaults";
 // Optimized Sub-components
 import MenuItemCard from "./components/menu/MenuItemCard";
 import { FirebaseImage } from "./components/ui/FirebaseImage";
@@ -927,7 +927,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
               loading="lazy"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
-              src={`https://www.google.com/maps?q=${encodeURIComponent(companyProfile?.address || DEFAULT_COMPANY_PROFILE.address)}&output=embed`}
+              src={`https://www.google.com/maps?q=${encodeURIComponent(formatAddressDisplay(companyProfile?.address))}&output=embed`}
             />
           )}
         </motion.div>
@@ -954,7 +954,7 @@ const Location = ({ companyProfile }: { companyProfile: CompanyProfile | null })
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             {[
-              { icon: <MapPin size={20} />, label: 'Address', value: companyProfile?.address || DEFAULT_COMPANY_PROFILE.address },
+              { icon: <MapPin size={20} />, label: 'Address', value: formatAddressDisplay(companyProfile?.address) },
               { icon: <Phone size={20} />, label: 'Phone', value: formatPhoneDisplay(companyProfile?.phone) },
             ].map((item, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
@@ -1305,7 +1305,7 @@ const Specials = () => {
   if (todaysSpecials.length === 0) return null;
 
   return (
-    <section id="specials" style={{ background: 'var(--ink-850)', padding: '80px 24px', overflow: 'hidden' }}>
+    <section id="specials" style={{ background: 'var(--ink-850)', padding: '80px 24px', overflow: 'hidden', scrollMarginTop: 92 }}>
       <div style={{ maxWidth: 'var(--container)', margin: '0 auto' }}>
         {/* Heading */}
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
@@ -1505,7 +1505,7 @@ const ContactUs = ({ companyProfile }: { companyProfile: CompanyProfile | null }
 
   const phone = formatPhoneDisplay(companyProfile?.phone);
   const email = companyProfile?.email || DEFAULT_COMPANY_PROFILE.email;
-  const address = companyProfile?.address || DEFAULT_COMPANY_PROFILE.address;
+  const address = formatAddressDisplay(companyProfile?.address);
   const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
 
   useEffect(() => {

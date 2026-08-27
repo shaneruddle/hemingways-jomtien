@@ -118,7 +118,7 @@ export function validateRowFields(fields: RowFields): { status: ImportRowStatus;
 
   const warnings: string[] = [];
   if (sport && !SPORT_OPTIONS.includes(sport)) {
-    warnings.push(`Sport "${sport}" isn't one of the dashboard's usual labels (${SPORT_OPTIONS.join(', ')}) — will be saved as-is`);
+    issues.push(`Unsupported sport "${sport}" — choose one of: ${SPORT_OPTIONS.join(', ')}`);
   }
 
   const status: ImportRowStatus = issues.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'valid';
@@ -205,15 +205,16 @@ const sameFixtureData = (a: Omit<SportsEvent, 'id'>, b: SportsEvent): boolean =>
  * Compute what an import will actually do, without writing anything.
  * - Merge: match by source_id first, else by normalized date+time+sport+participants.
  *   Matched + identical -> skip. Matched + different -> update. No match -> add.
- * - Replace: same add/update/skip matching, PLUS any existing fixture whose date
- *   falls inside [rangeStart, rangeEnd] and isn't matched by an uploaded row is
- *   queued for deletion. Fixtures outside the range are never touched.
+ * - Replace: same add/update/skip matching, PLUS any existing fixture on one of
+ *   the exact dates represented by the uploaded rows that isn't matched by an
+ *   uploaded row is queued for deletion. Dates absent from the CSV are never
+ *   touched, even when they fall between two represented dates.
  */
 export function planImport(
   validRows: ImportRow[],
   existing: SportsEvent[],
   mode: 'merge' | 'replace',
-  range?: { start: string; end: string }
+  replaceDates: string[] = []
 ): ImportPlan {
   const bySourceId = new Map<string, SportsEvent>();
   const byKey = new Map<string, SportsEvent>();
@@ -278,9 +279,10 @@ export function planImport(
     }
   }
 
-  if (mode === 'replace' && range && range.start && range.end && range.start <= range.end) {
+  if (mode === 'replace' && replaceDates.length > 0) {
+    const representedDates = new Set(replaceDates);
     plan.toDelete = existing.filter(e =>
-      !!e.id && !matchedIds.has(e.id) && e.date >= range.start && e.date <= range.end
+      !!e.id && !matchedIds.has(e.id) && representedDates.has(e.date)
     );
   }
 

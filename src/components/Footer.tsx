@@ -5,7 +5,7 @@ import { MapPin, Phone, Clock, Instagram, Facebook, MessageCircle } from 'lucide
 import { toast } from 'sonner';
 import { db } from '../firebase';
 import type { CompanyProfile } from '../types';
-import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, formatOpeningHoursSummary } from '../utils/companyDefaults';
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, formatOpeningHoursSummary, formatAddressDisplay } from '../utils/companyDefaults';
 
 interface FooterProps {
   companyProfile: CompanyProfile | null;
@@ -145,7 +145,7 @@ export const Footer = ({ companyProfile, hideContactForm }: FooterProps) => {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <MapPin size={15} style={{ color: 'var(--gold-500)', flexShrink: 0, marginTop: 2 }} />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                {companyProfile?.address || DEFAULT_COMPANY_PROFILE.address}
+                {formatAddressDisplay(companyProfile?.address)}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

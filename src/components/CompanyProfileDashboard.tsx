@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { CompanyProfile } from '../types';
-import { DEFAULT_COMPANY_PROFILE } from '../utils/companyDefaults';
+import { DEFAULT_COMPANY_PROFILE, formatAddressDisplay } from '../utils/companyDefaults';
 import { toast } from 'sonner';
 import {
   Building2,
@@ -41,7 +41,8 @@ export default function CompanyProfileDashboard() {
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
-          setProfile(docSnap.data() as CompanyProfile);
+          const stored = docSnap.data() as CompanyProfile;
+          setProfile({ ...stored, address: formatAddressDisplay(stored.address) });
         } else {
           // Initialize with default data if not exists
           await setDoc(docRef, INITIAL_PROFILE);
@@ -64,6 +65,7 @@ export default function CompanyProfileDashboard() {
       const docRef = doc(db, 'companyProfile', 'config');
       const updatedProfile = {
         ...profile,
+        address: formatAddressDisplay(profile.address),
         updatedAt: new Date().toISOString(),
       };
       await updateDoc(docRef, updatedProfile as any);

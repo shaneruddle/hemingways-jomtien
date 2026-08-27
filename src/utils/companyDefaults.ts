@@ -71,6 +71,14 @@ export function phoneDigits(raw: string | undefined | null): string {
   return raw.replace(/[^\d]/g, '');
 }
 
+/** Corrects the legacy comma-separated street number wherever an older
+ * Company Profile record is still being displayed. Other addresses pass
+ * through unchanged. */
+export function formatAddressDisplay(raw: string | undefined | null): string {
+  const address = raw?.trim() || DEFAULT_COMPANY_PROFILE.address;
+  return address.replace(/\b414\s*,\s*21\b/, '414/21');
+}
+
 /**
  * Collapses the per-day opening hours from Company Profile into the compact
  * "Open Daily · X" line used across the site, or "Open Today · X" if the

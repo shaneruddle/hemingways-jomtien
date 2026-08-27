@@ -215,11 +215,11 @@ export default function SportsDashboard() {
     try {
       if (typeof modal === 'object' && modal !== null && modal.id) {
         await updateDoc(doc(db, 'sports_schedule', modal.id), data as any);
-        await logActivity('Sports Fixture Updated', `Updated: ${data.participants}`, 'menu');
+        await logActivity('Sports Fixture Updated', `Updated: ${data.participants}`, 'sports');
         toast.success('Fixture updated');
       } else {
         await addDoc(collection(db, 'sports_schedule'), data);
-        await logActivity('Sports Fixture Added', `Added: ${data.participants}`, 'menu');
+        await logActivity('Sports Fixture Added', `Added: ${data.participants}`, 'sports');
         toast.success('Fixture added');
       }
       setModal(null);
@@ -236,7 +236,7 @@ export default function SportsDashboard() {
     setDeleting(event.id);
     try {
       await deleteDoc(doc(db, 'sports_schedule', event.id));
-      await logActivity('Sports Fixture Deleted', `Deleted: ${event.participants}`, 'menu');
+      await logActivity('Sports Fixture Deleted', `Deleted: ${event.participants}`, 'sports');
       toast.success('Fixture deleted');
     } catch (err) {
       console.error('Delete error:', err);

@@ -4,7 +4,7 @@ import { Phone, MessageCircle, MapPin, Users, Calendar, Clock } from 'lucide-rea
 import { db } from '../firebase';
 import { toast } from 'sonner';
 import type { CompanyProfile } from '../types';
-import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits } from '../utils/companyDefaults';
+import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatAddressDisplay } from '../utils/companyDefaults';
 import { Footer } from './Footer';
 
 const labelStyle: React.CSSProperties = {
@@ -45,7 +45,7 @@ export const ReservationPage = ({ companyProfile }: { companyProfile: CompanyPro
   const [submitted, setSubmitted] = useState(false);
 
   const phone = formatPhoneDisplay(companyProfile?.phone);
-  const address = companyProfile?.address || DEFAULT_COMPANY_PROFILE.address;
+  const address = formatAddressDisplay(companyProfile?.address);
   const whatsappDigits = phoneDigits(companyProfile?.whatsapp);
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 

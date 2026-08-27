@@ -7,6 +7,13 @@ import {
 } from '../utils/sportsGrouping';
 
 type SportsFilter = 'All' | SportsGroupName;
+type DateFilter = 'Today' | 'Tomorrow' | 'All';
+
+const addIsoDays = (iso: string, days: number) => {
+  const date = new Date(`${iso}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
 
 const formatFixtureDate = (iso: string) => {
   const dt = new Date(`${iso}T00:00:00`);
@@ -47,13 +54,22 @@ export const SportsGroupedSchedule = ({
   events: SportsEvent[];
   today: string;
 }) => {
+  const tomorrow = useMemo(() => addIsoDays(today, 1), [today]);
+  const [activeDate, setActiveDate] = useState<DateFilter>(() =>
+    events.some(event => event.date === today) ? 'Today' : 'All'
+  );
   const [activeFilter, setActiveFilter] = useState<SportsFilter>('All');
-  const groups = useMemo(() => groupSportsEvents(events), [events]);
+  const dateEvents = useMemo(() => {
+    if (activeDate === 'Today') return events.filter(event => event.date === today);
+    if (activeDate === 'Tomorrow') return events.filter(event => event.date === tomorrow);
+    return events;
+  }, [activeDate, events, today, tomorrow]);
+  const groups = useMemo(() => groupSportsEvents(dateEvents), [dateEvents]);
   const visibleGroups = activeFilter === 'All'
     ? groups
     : groups.filter(group => group.name === activeFilter);
 
-  if (groups.length === 0) {
+  if (events.length === 0) {
     return (
       <p className="sports-empty-state">
         No fixtures posted yet — check back soon, or ask us about your match below.
@@ -69,11 +85,26 @@ export const SportsGroupedSchedule = ({
           <h2 className="sports-filter-title">Fixtures by sport</h2>
         </div>
         <div className="sports-filter-count">
-          {events.length} fixture{events.length === 1 ? '' : 's'} · {groups.length} sport group{groups.length === 1 ? '' : 's'}
+          {dateEvents.length} fixture{dateEvents.length === 1 ? '' : 's'} · {groups.length} sport group{groups.length === 1 ? '' : 's'}
         </div>
       </div>
 
-      <div className="sports-filter-list" role="group" aria-label="Filter fixtures by sport">
+      <div className="sports-date-filter-list" role="group" aria-label="Filter fixtures by date">
+        {(['Today', 'Tomorrow', 'All'] as DateFilter[]).map(filter => (
+          <button
+            key={filter}
+            type="button"
+            className={`sports-date-filter-button${activeDate === filter ? ' is-active' : ''}`}
+            aria-pressed={activeDate === filter}
+            onClick={() => { setActiveDate(filter); setActiveFilter('All'); }}
+          >
+            {filter}
+          </button>
+        ))}
+      </div>
+
+      {groups.length > 0 && <div className="sports-filter-scroll">
+        <div className="sports-filter-list" role="group" aria-label="Filter fixtures by sport">
         {(['All', ...groups.map(group => group.name)] as SportsFilter[]).map(filter => (
           <button
             key={filter}
@@ -90,9 +121,15 @@ export const SportsGroupedSchedule = ({
             )}
           </button>
         ))}
-      </div>
+        </div>
+        <div className="sports-filter-scroll-cue" aria-hidden="true">Swipe to see more →</div>
+      </div>}
 
-      <div className="sports-groups">
+      {groups.length === 0 ? (
+        <p className="sports-empty-state">
+          No fixtures listed for {activeDate.toLowerCase()}. Try another date or ask us about your match below.
+        </p>
+      ) : <div className="sports-groups">
         {visibleGroups.map(group => (
           <details className="sports-group" key={group.name} open>
             <summary className="sports-group-summary">
@@ -122,7 +159,7 @@ export const SportsGroupedSchedule = ({
             </div>
           </details>
         ))}
-      </div>
+      </div>}
     </div>
   );
 };

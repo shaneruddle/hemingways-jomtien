@@ -12,6 +12,7 @@ dotenv.config();
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
+  app.disable('x-powered-by');
 
   // Canonical host: 301 the bare domain to www (SEO - avoids duplicate content).
   // new.hemingwaysjomtien.com is left alone so it stays usable as a staging alias.
@@ -704,6 +705,18 @@ app.post("/api/contact", async (req, res) => {
       title: 'Food & Drinks Menu | Hemingways Jomtien',
       description: 'Browse the full Hemingways Jomtien menu - famous pub food, Western and Thai dishes, Sunday roasts, burgers and a full bar.',
     },
+    '/sports': {
+      title: 'Live Sports Schedule | Hemingways Jomtien',
+      description: 'See upcoming live football, rugby, cricket, golf, tennis, racing and more at Hemingways Jomtien, with every start time shown in Thailand time.',
+    },
+    '/reserve': {
+      title: 'Reserve a Table | Hemingways Jomtien',
+      description: 'Request a table at Hemingways Jomtien for food, drinks and live sport. Call or WhatsApp us if you need an immediate answer.',
+    },
+    '/careers': {
+      title: 'Careers | Hemingways Jomtien',
+      description: 'View current job opportunities and apply to join the Hemingways Jomtien restaurant and bar team.',
+    },
   };
 
   // Resolves any hero/social image value stored on an article/page into an
@@ -786,6 +799,7 @@ app.post("/api/contact", async (req, res) => {
         'Disallow: /staff',
         'Disallow: /admin',
         'Disallow: /import',
+        'Disallow: /expense',
         '',
         `Sitemap: ${SITE_ORIGIN}/sitemap.xml`,
         '',
@@ -802,6 +816,9 @@ app.post("/api/contact", async (req, res) => {
       { loc: `${SITE_ORIGIN}/menu`, lastmod: today, priority: '0.9', changefreq: 'weekly' },
       { loc: `${SITE_ORIGIN}/contact-us`, lastmod: today, priority: '0.8', changefreq: 'monthly' },
       { loc: `${SITE_ORIGIN}/blog`, lastmod: today, priority: '0.8', changefreq: 'weekly' },
+      { loc: `${SITE_ORIGIN}/sports`, lastmod: today, priority: '0.9', changefreq: 'weekly' },
+      { loc: `${SITE_ORIGIN}/reserve`, lastmod: today, priority: '0.8', changefreq: 'monthly' },
+      { loc: `${SITE_ORIGIN}/careers`, lastmod: today, priority: '0.6', changefreq: 'weekly' },
     ];
 
     for (const post of posts) {
@@ -873,7 +890,9 @@ app.post("/api/contact", async (req, res) => {
           };
         }
 
-        const tags = buildSeoTags({ title: meta.title, description: meta.description, url, image, type });
+        const isPrivateRoute = /^(\/dashboard(?:\/|$)|\/staff(?:\/|$)|\/expense(?:\/|$)|\/import(?:\/|$)|\/admin(?:\/|$))/.test(routePath);
+        const robotsTag = isPrivateRoute ? '\n    <meta name="robots" content="noindex, nofollow" />' : '';
+        const tags = buildSeoTags({ title: meta.title, description: meta.description, url, image, type }) + robotsTag;
         return res.send(html.replace('<!--SEO-->', tags));
       } catch (err) {
         console.error('Meta injection failed, serving raw index.html:', err);
