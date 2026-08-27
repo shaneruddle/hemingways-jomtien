@@ -46,6 +46,7 @@ import { bangkokDayName, isSpecialVisibleToday } from "./utils/specials";
 import { handleFirestoreError } from "./utils/firestore";
 import { normalizeImageUrl } from "./utils/images";
 import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, phoneDigits, formatOpeningHoursSummary, formatAddressDisplay } from "./utils/companyDefaults";
+import { scrollToSectionWithCorrection } from "./utils/scroll";
 // Optimized Sub-components
 import MenuItemCard from "./components/menu/MenuItemCard";
 import { FirebaseImage } from "./components/ui/FirebaseImage";
@@ -145,7 +146,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
       e.preventDefault();
       const element = document.getElementById(sectionId);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+        scrollToSectionWithCorrection(sectionId);
       }
     }
   };
@@ -154,8 +155,7 @@ const Navbar = ({ canAccessDashboard, setUser, companyProfile }: { canAccessDash
     if (location.pathname === '/' && location.hash) {
       const id = location.hash.replace('#', '');
       setTimeout(() => {
-        const element = document.getElementById(id);
-        if (element) element.scrollIntoView({ behavior: 'smooth' });
+        scrollToSectionWithCorrection(id);
       }, 500);
     }
   }, [location.pathname, location.hash]);

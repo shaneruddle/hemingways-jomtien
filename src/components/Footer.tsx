@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { db } from '../firebase';
 import type { CompanyProfile } from '../types';
 import { DEFAULT_COMPANY_PROFILE, formatPhoneDisplay, formatOpeningHoursSummary, formatAddressDisplay } from '../utils/companyDefaults';
+import { scrollToSectionWithCorrection } from '../utils/scroll';
 
 interface FooterProps {
   companyProfile: CompanyProfile | null;
@@ -35,7 +36,7 @@ export const Footer = ({ companyProfile, hideContactForm }: FooterProps) => {
     if (location.pathname !== '/') {
       navigate('/#' + id);
     } else {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+      scrollToSectionWithCorrection(id);
     }
   };
 
