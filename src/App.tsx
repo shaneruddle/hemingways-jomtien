@@ -82,6 +82,7 @@ import { SportsGroupedSchedule } from "./components/SportsGroupedSchedule";
 import { ReservationPage } from "./components/Reservation";
 import { DataDeletionPage, PrivacyPolicyPage } from "./components/PrivacyPages";
 import DrinksDashboard from "./components/DrinksDashboard";
+import { AskHemiChat } from "./components/AskHemiChat";
 import { fetchPlaceDetails, BusinessInfo } from "./services/googlePlaces";
 import { Toaster, toast } from "sonner";
 import { CompanyProfile } from "./types";
@@ -1989,6 +1990,8 @@ function AppContent({ user, setUser, businessInfo, setBusinessInfo, companyProfi
           <Auth onUserChange={setUser} />
         </div>
       )}
+
+      <AskHemiChat />
     </div>
   );
 }
