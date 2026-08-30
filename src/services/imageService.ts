@@ -55,7 +55,9 @@ export class ImageService {
         const bucket = parts[2];
         // Extract the path after gs://bucket/
         let pathName = parts.slice(3).join('/');
-        pathName = pathName.replace(/-20/g, ' ').replace(/%20/g, ' ');
+        // Decode genuine encoded spaces without altering valid date/year
+        // segments such as "thanksgiving-2026.webp".
+        pathName = pathName.replace(/%20/gi, ' ');
         const url = `/api/image-proxy?path=${encodeURIComponent(pathName)}&bucket=${encodeURIComponent(bucket)}`;
         this.cache.set(src, url);
         return url;
@@ -63,7 +65,7 @@ export class ImageService {
     }
 
     // 4. Handle direct storage paths or local assets
-    const cleanPath = trimmedSrc.replace(/^\/+/, '').replace(/-20/g, ' ').replace(/%20/g, ' ');
+    const cleanPath = trimmedSrc.replace(/^\/+/, '').replace(/%20/gi, ' ');
     
     // Check if it's a known local asset or api route first
     if (trimmedSrc.startsWith('/logo.png') || trimmedSrc.startsWith('/favicon') || trimmedSrc.startsWith('/api/') || trimmedSrc.startsWith('/assets/')) {
