@@ -17,7 +17,7 @@ interface FirebaseImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
  */
 export const FirebaseImage: React.FC<FirebaseImageProps> = ({ 
   src, 
-  fallbackSrc = '/logo.png', 
+  fallbackSrc,
   alt, 
   className,
   useSkeleton = true,
@@ -26,10 +26,18 @@ export const FirebaseImage: React.FC<FirebaseImageProps> = ({
   ...props 
 }) => {
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [imageUnavailable, setImageUnavailable] = useState(false);
 
   const resolveImage = useCallback(async () => {
+    setImageUnavailable(false);
+
     if (!src) {
-      setResolvedUrl(fallbackSrc);
+      if (fallbackSrc) {
+        setResolvedUrl(fallbackSrc);
+      } else {
+        setResolvedUrl(null);
+        setImageUnavailable(true);
+      }
       return;
     }
 
@@ -37,7 +45,12 @@ export const FirebaseImage: React.FC<FirebaseImageProps> = ({
       const url = await imageService.resolve(src);
       setResolvedUrl(url);
     } catch (err) {
-      setResolvedUrl(fallbackSrc);
+      if (fallbackSrc) {
+        setResolvedUrl(fallbackSrc);
+      } else {
+        setResolvedUrl(null);
+        setImageUnavailable(true);
+      }
     }
   }, [src, fallbackSrc]);
 
@@ -46,8 +59,11 @@ export const FirebaseImage: React.FC<FirebaseImageProps> = ({
   }, [resolveImage]);
 
   const handleError = () => {
-    if (resolvedUrl !== fallbackSrc) {
+    if (fallbackSrc && resolvedUrl !== fallbackSrc) {
       setResolvedUrl(fallbackSrc);
+    } else {
+      setResolvedUrl(null);
+      setImageUnavailable(true);
     }
   };
 
@@ -59,6 +75,15 @@ export const FirebaseImage: React.FC<FirebaseImageProps> = ({
         aspectRatio: aspectRatio || 'auto'
       }}
     >
+      {imageUnavailable && (
+        <div
+          className="flex h-full min-h-32 w-full items-center justify-center bg-neutral-900 px-4 text-center text-xs font-semibold uppercase tracking-widest text-neutral-400"
+          role="img"
+          aria-label={alt ? `${alt} — image unavailable` : 'Image unavailable'}
+        >
+          Image unavailable
+        </div>
+      )}
       {resolvedUrl && (
         <img
           src={resolvedUrl}

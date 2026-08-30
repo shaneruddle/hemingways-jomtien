@@ -258,13 +258,8 @@ async function startServer() {
           return res.sendFile(localFilePath);
         }
 
-        // Default fallback: logo.png
-        const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-        if (fs.existsSync(logoPath) && cleanPath !== 'logo.png') {
-          res.setHeader("Content-Type", "image/png");
-          return res.sendFile(logoPath);
-        }
-
+        // Return a genuine failure so image components can show an honest,
+        // accessible "Image unavailable" state instead of a misleading logo.
         return res.status(404).send('Image not found');
       }
     } catch (error) {
